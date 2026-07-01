@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://za7.example.com/schemas/flowable-config.json",
+  "title": "Flowable API Configuration",
+  "description": "Configuration schema for the Flowable BPMN REST engine pass-through",
+  "type": "object",
+  "required": [
+    "flowable",
+    "type",
+    "endpoint_type",
+    "base_url",
+    "auth_type"
+  ],
+  "properties": {
+    "flowable": {
+      "type": "boolean",
+      "const": true,
+      "default": true,
+      "readOnly": true,
+      "description": "Identifier for the Flowable API extension"
+    },
+    "type": {
+      "type": "string",
+      "const": "flowable",
+      "default": "flowable",
+      "readOnly": true,
+      "description": "API type identifier"
+    },
+    "endpoint_type": {
+      "type": "string",
+      "const": "rest",
+      "default": "rest",
+      "readOnly": true,
+      "description": "Endpoint type for this API"
+    },
+    "base_url": {
+      "type": "string",
+      "description": "Flowable REST base URL, e.g. http://flowable-rest:8080/flowable-rest",
+      "format": "uri",
+      "pattern": "^https?://",
+      "minLength": 1
+    },
+    "auth_type": {
+      "type": "string",
+      "enum": ["basic", "bearer"],
+      "description": "Authentication scheme used against the Flowable REST API"
+    },
+    "username": {
+      "type": ["null", "string"],
+      "description": "Technical user (required when auth_type is basic)"
+    },
+    "password": {
+      "type": ["null", "string"],
+      "description": "Technical user password (required when auth_type is basic)"
+    },
+    "token": {
+      "type": ["null", "string"],
+      "description": "Bearer token (required when auth_type is bearer)"
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether to verify the engine's TLS certificate"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "auth_type": { "const": "basic" } } },
+      "then": { "required": ["username", "password"] }
+    },
+    {
+      "if": { "properties": { "auth_type": { "const": "bearer" } } },
+      "then": { "required": ["token"] }
+    }
+  ],
+  "additionalProperties": false
+}

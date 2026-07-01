@@ -1,0 +1,50 @@
+{
+    "name": "dmstr/flowable-bundle",
+    "description": "Flowable BPMN engine pass-through resources, HTTP client and CLI for API Platform / Symfony.",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "keywords": [
+        "symfony",
+        "api-platform",
+        "flowable",
+        "bpmn",
+        "workflow",
+        "process-engine"
+    ],
+    "authors": [
+        {
+            "name": "diemeisterei GmbH",
+            "homepage": "https://diemeisterei.de"
+        }
+    ],
+    "require": {
+        "php": ">=8.4",
+        "api-platform/core": "^4.0",
+        "doctrine/orm": "^2.0|^3.0",
+        "dmstr/api-configuration-bundle": "^0.2.0",
+        "dmstr/api-platform-utils-bundle": "^0.2.0",
+        "dmstr/openapi-json-schema-bundle": "^0.3.0",
+        "opis/json-schema": "^2.0",
+        "psr/log": "^3.0",
+        "symfony/config": "^7.0",
+        "symfony/console": "^7.0",
+        "symfony/dependency-injection": "^7.0",
+        "symfony/framework-bundle": "^7.0",
+        "symfony/http-client": "^7.0",
+        "symfony/http-foundation": "^7.0",
+        "symfony/http-kernel": "^7.0",
+        "symfony/security-bundle": "^7.0",
+        "symfony/serializer": "^7.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Dmstr\\Flowable\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

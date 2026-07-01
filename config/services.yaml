@@ -1,0 +1,72 @@
+# file generated with AI assistance: Claude Code - 2026-06-16 00:00:00 UTC
+#
+# Self-contained service wiring for dmstr/flowable-bundle, imported by
+# FlowableBundle::loadExtension(). No entry is needed in the consuming
+# application's services.yaml.
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        bind:
+            # Dedicated audit channel (registered via FlowableBundle::prependExtension).
+            Psr\Log\LoggerInterface $flowableLogger: '@monolog.logger.flowable'
+
+    # Discover the bundle's services (clients, locator, schema provider,
+    # state providers/processors, commands). ApiResource classes are plain
+    # DTOs (no Doctrine, not services) and are excluded from the container.
+    Dmstr\Flowable\:
+        resource: '../src/'
+        exclude:
+            - '../src/FlowableBundle.php'
+            - '../src/ApiResource/'
+            - '../src/Exception/'
+            # FlowableClient carries runtime scalar args (base_url, auth, ...)
+            # and is built by FlowableClientLocator, never autowired.
+            - '../src/Client/FlowableClient.php'
+
+    # Make the schema provider known to the openapi-json-schema SchemaRegistry
+    # so an ApiConfiguration of type "flowable" validates against schema.json.
+    # Tagged explicitly because the application's _instanceof autoconfiguration
+    # does not reach this bundle's own service definitions.
+    Dmstr\Flowable\Schema\FlowableSchemaProvider:
+        tags: ['dmstr_openapi_json_schema.provider']
+
+    # Flowable operation input schemas live next to the ApiResource classes
+    # (e.g. ApiResource/FlowTask/complete.input.json). Register a file resolver
+    # rooted there and tag it into the input-schema chain so these operations
+    # get a real OpenAPI requestBody — the App-root resolver in za7-core cannot
+    # see this directory. Higher priority than the App resolver (they never
+    # collide; flow_* operations resolve only here).
+    flowable.input_schema_resolver:
+        class: Dmstr\OpenApiJsonSchema\Service\OperationInputSchemaResolver
+        arguments:
+            $schemaBasePaths: []
+            $entityResolutionRoots:
+                - ['%dmstr_flowable.dir%/src/ApiResource', 'Dmstr\Flowable\ApiResource']
+        tags:
+            - { name: dmstr_openapi_json_schema.input_resolver, priority: 10 }
+
+    # Task form-schema sources (priority order): an authored .schema.json
+    # deployment resource (own processes) wins over on-the-fly conversion of
+    # inline Flowable form-data (demo/legacy processes).
+    Dmstr\Flowable\Schema\DeploymentResourceFormSchemaSource:
+        tags:
+            - { name: flowable.task_form_source, priority: 20 }
+    Dmstr\Flowable\Schema\FlowableFormDataConverter:
+        tags:
+            - { name: flowable.task_form_source, priority: 10 }
+
+    # Dynamic per-task input schema for flow_task_complete. Higher priority than
+    # the static file resolver above; claims the operation only when a task id
+    # is in the resolution context (runtime form endpoint), never at OpenAPI
+    # build time — so the static complete.input.json stays the documented body.
+    Dmstr\Flowable\Schema\TaskFormInputSchemaResolver:
+        arguments:
+            $sources: !tagged_iterator { tag: flowable.task_form_source }
+        tags:
+            - { name: dmstr_openapi_json_schema.input_resolver, priority: 20 }
+
+    # Runtime per-task form-schema endpoint controller.
+    Dmstr\Flowable\Controller\TaskInputSchemaController:
+        tags: ['controller.service_arguments']
