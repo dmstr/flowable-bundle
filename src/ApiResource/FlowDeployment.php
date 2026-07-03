@@ -104,6 +104,10 @@ use Symfony\Component\Serializer\Annotation\Groups;
             name: 'flow_deployment_delete',
             description: 'Delete a deployment (pass ?cascade=true to also drop its instances)',
             processor: DeploymentDeleteProcessor::class,
+            // No Doctrine entity to load — skip the read step (which would 404 via
+            // the default provider) and let the processor delete on the engine.
+            // Same pattern as FlowProcessInstance::Delete.
+            read: false,
             security: "is_granted('ROLE_FLOWABLE_ADMIN')",
         ),
     ],
