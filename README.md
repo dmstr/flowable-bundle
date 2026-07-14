@@ -64,16 +64,20 @@ All resources are served under `/api/flowable/*`:
 | Resource | Notable operations |
 |---|---|
 | `FlowDeployment` | `GET /deployments`, `GET /deployments/{id}`, `POST /deployments/upload`, `DELETE` |
-| `FlowProcessDefinition` | `GET /process_definitions`, `POST /process_definitions/{id}/start` |
+| `FlowProcessDefinition` | `GET /process_definitions`, `POST /process_definitions/{id}/start`, `GET /process_definitions/{id}/input_schema` |
 | `FlowProcessInstance` | `GET /process_instances`, `POST /process_instances`, `DELETE` |
 | `FlowTask` | `GET /tasks`, `POST /tasks/{id}/complete`, `GET /tasks/{id}/input_schema` |
 | `FlowExecution` | `GET /executions`, `POST /executions/{id}/trigger` |
 | `FlowHistoric*` | read-only history: activities, process instances, tasks, variables |
 
-The `input_schema` endpoint returns the per-task input JSON-Schema, resolved at
-runtime from either an authored `<formKey>.schema.json` deployment resource or
-by converting inline Flowable form-data — via the pluggable
-`flowable.task_form_source` chain.
+The `input_schema` endpoints return the per-task / per-definition input
+JSON-Schema, resolved at runtime from either an authored
+`<formKey>.schema.json` deployment resource or by converting inline Flowable
+form-data — via the pluggable `flowable.task_form_source` chain. Start forms
+work exactly like task forms: put `flowable:formKey="<key>"` on the BPMN
+`startEvent` and ship `<key>.schema.json` in the same deployment (`.bar`/
+`.zip`); the resolved fields are wrapped in the `businessKey` / `variables` /
+`apiConfiguration` envelope of the `start` operation.
 
 ## CLI
 
