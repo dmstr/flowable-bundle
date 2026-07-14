@@ -12,6 +12,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Controller\ProcessDefinitionStartInputSchemaController;
 use Dmstr\Flowable\State\FlowProcessDefinitionProvider;
 use Dmstr\Flowable\State\ProcessDefinitionStartProcessor;
 use Symfony\Component\Serializer\Annotation\Groups;
@@ -52,6 +53,26 @@ use Symfony\Component\Serializer\Annotation\Groups;
             output: FlowProcessInstance::class,
             status: 201,
             security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            // Points the client at the per-definition start-form schema
+            // (resolved at runtime); the static requestBody stays the generic
+            // businessKey/variables/apiConfiguration body.
+            openapi: new Operation(
+                tags: ['Flowable'],
+                extensionProperties: ['x-input-schema-url' => '/api/flowable/process_definitions/{id}/input_schema'],
+            ),
+        ),
+        new Get(
+            uriTemplate: '/process_definitions/{id}/input_schema',
+            name: 'flow_process_definition_input_schema',
+            description: 'Per-definition JSON-Schema for starting a process instance (Jedison form).',
+            controller: ProcessDefinitionStartInputSchemaController::class,
+            read: false,
+            output: false,
+            security: "is_granted('ROLE_USER')",
+            openapi: new Operation(
+                tags: ['Flowable'],
+                summary: 'Per-definition input JSON-Schema for the start operation.',
+            ),
         ),
     ],
     security: "is_granted('ROLE_USER')",

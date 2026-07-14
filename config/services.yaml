@@ -67,6 +67,17 @@ services:
         tags:
             - { name: dmstr_openapi_json_schema.input_resolver, priority: 20 }
 
-    # Runtime per-task form-schema endpoint controller.
+    # Dynamic per-definition input schema for flow_process_definition_start —
+    # start-form counterpart of the task resolver above; same claim rules
+    # (runtime only, static start.input.json stays the documented body).
+    Dmstr\Flowable\Schema\StartFormInputSchemaResolver:
+        arguments:
+            $sources: !tagged_iterator { tag: flowable.task_form_source }
+        tags:
+            - { name: dmstr_openapi_json_schema.input_resolver, priority: 20 }
+
+    # Runtime per-task / per-definition form-schema endpoint controllers.
     Dmstr\Flowable\Controller\TaskInputSchemaController:
+        tags: ['controller.service_arguments']
+    Dmstr\Flowable\Controller\ProcessDefinitionStartInputSchemaController:
         tags: ['controller.service_arguments']
