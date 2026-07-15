@@ -22,6 +22,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowHistoricActivity',
     routePrefix: '/flowable',
+    extraProperties: ['label' => 'Historic Activity'],
     operations: [
         new GetCollection(
             uriTemplate: '/historic_activities',

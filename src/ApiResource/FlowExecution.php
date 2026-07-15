@@ -29,6 +29,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowExecution',
     routePrefix: '/flowable',
+    extraProperties: ['label' => 'Execution'],
     operations: [
         new GetCollection(
             uriTemplate: '/executions',

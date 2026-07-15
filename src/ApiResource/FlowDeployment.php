@@ -32,6 +32,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowDeployment',
     routePrefix: '/flowable',
+    extraProperties: ['label' => 'Deployment'],
     operations: [
         new GetCollection(
             uriTemplate: '/deployments',
