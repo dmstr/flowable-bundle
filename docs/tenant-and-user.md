@@ -71,4 +71,7 @@ Consequences:
   `FlowProcessInstance`.
 
 `businessKey` is a **caller-side** convention (what the client sends on start),
-not bundle logic — there is nothing to change in the bundle for it.
+not bundle logic — the bundle never composes or enforces it. A start-form
+schema can however declare how a UI should compose and display it, via the
+top-level `x-businessKey` extension: see
+[start-form-business-key.md](start-form-business-key.md).

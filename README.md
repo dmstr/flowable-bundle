@@ -79,6 +79,28 @@ work exactly like task forms: put `flowable:formKey="<key>"` on the BPMN
 `.zip`); the resolved fields are wrapped in the `businessKey` / `variables` /
 `apiConfiguration` envelope of the `start` operation.
 
+A start-form schema may carry a top-level `x-businessKey` object to customise
+the envelope's `businessKey` property — e.g. a Jedison `x-watch`/`x-template`
+pair that composes the key live from the form variables:
+
+```json
+{
+  "type": "object",
+  "x-businessKey": {
+    "title": "Business Key",
+    "x-watch": { "jahr": "#/variables/jahr", "revierId": "#/variables/revierId" },
+    "x-template": "fogu-{{ jahr.value }}-{{ revierId.value }}"
+  },
+  "properties": { "…": {} }
+}
+```
+
+The object is merged over the default `businessKey` definition and stripped
+from the `variables` schema — the composition rule ships with the process
+deployment instead of being hard-coded in a UI. Details (semantics, watch
+paths, Jedison rendering, IRI caveat):
+[docs/start-form-business-key.md](docs/start-form-business-key.md).
+
 ## CLI
 
 Every REST operation has a matching command; command IDs mirror the resource

@@ -83,6 +83,19 @@ final class StartFormInputSchemaResolver implements InputSchemaResolverInterface
     }
 
     /**
+     * The authored form schema may carry a top-level `x-businessKey` object
+     * customising the envelope's `businessKey` property — e.g. a Jedison
+     * `x-watch`/`x-template` pair composing the key live from form variables:
+     *
+     *   "x-businessKey": {
+     *     "x-watch": { "jahr": "#/variables/jahr" },
+     *     "x-template": "fogu-{{ jahr.value }}"
+     *   }
+     *
+     * The extension is merged over the default `businessKey` definition and
+     * stripped from the `variables` schema, so the composition rule ships with
+     * the process deployment instead of being hard-coded in a UI.
+     *
      * @param array<string,mixed>      $fields     a `type: object` field schema
      * @param array<string,mixed>|null $definition the raw Flowable process definition (for the title)
      * @return array<string,mixed>
@@ -92,6 +105,15 @@ final class StartFormInputSchemaResolver implements InputSchemaResolverInterface
         $definitionName = \is_array($definition) ? ($definition['name'] ?? $definition['key'] ?? null) : null;
         $hasRequired = isset($fields['required']) && \is_array($fields['required']) && [] !== $fields['required'];
 
+        $businessKey = [
+            'type' => 'string',
+            'description' => 'Optional business key for the new process instance.',
+        ];
+        if (isset($fields['x-businessKey']) && \is_array($fields['x-businessKey'])) {
+            $businessKey = array_replace($businessKey, $fields['x-businessKey']);
+            unset($fields['x-businessKey']);
+        }
+
         $schema = [
             '$schema' => 'http://json-schema.org/draft-07/schema#',
             'title' => self::OPERATION.' input',
@@ -100,10 +122,7 @@ final class StartFormInputSchemaResolver implements InputSchemaResolverInterface
                 : 'Start a new process instance — provide the start form variables.',
             'type' => 'object',
             'properties' => [
-                'businessKey' => [
-                    'type' => 'string',
-                    'description' => 'Optional business key for the new process instance.',
-                ],
+                'businessKey' => $businessKey,
                 'variables' => $fields,
                 'apiConfiguration' => [
                     'description' => 'Optional Flowable ApiConfiguration selector (full or partial UUID).',
