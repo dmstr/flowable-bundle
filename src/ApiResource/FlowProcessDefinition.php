@@ -27,6 +27,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowProcessDefinition',
     routePrefix: '/flowable',
+    extraProperties: ['label' => 'Process Definition'],
     operations: [
         new GetCollection(
             uriTemplate: '/process_definitions',

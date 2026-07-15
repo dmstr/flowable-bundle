@@ -22,6 +22,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowHistoricProcessInstance',
     routePrefix: '/flowable',
+    extraProperties: ['label' => 'Historic Process Instance'],
     operations: [
         new GetCollection(
             uriTemplate: '/historic_process_instances',

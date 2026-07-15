@@ -30,6 +30,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowProcessInstance',
     routePrefix: '/flowable',
+    extraProperties: ['label' => 'Process Instance'],
     operations: [
         new GetCollection(
             uriTemplate: '/process_instances',

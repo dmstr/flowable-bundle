@@ -22,6 +22,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowHistoricVariable',
     routePrefix: '/flowable',
+    extraProperties: ['label' => 'Historic Variable'],
     operations: [
         new GetCollection(
             uriTemplate: '/historic_variables',

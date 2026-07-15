@@ -21,6 +21,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowHistoricTask',
     routePrefix: '/flowable',
+    extraProperties: ['label' => 'Historic Task'],
     operations: [
         new GetCollection(
             uriTemplate: '/historic_tasks',
