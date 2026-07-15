@@ -89,7 +89,7 @@ final class StartFormInputSchemaResolver implements InputSchemaResolverInterface
      *
      *   "x-businessKey": {
      *     "x-watch": { "jahr": "#/variables/jahr" },
-     *     "x-template": "fogu-{{ jahr.value }}"
+     *     "x-template": "foo-{{ jahr.value }}"
      *   }
      *
      * The extension is merged over the default `businessKey` definition and

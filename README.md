@@ -89,7 +89,7 @@ pair that composes the key live from the form variables:
   "x-businessKey": {
     "title": "Business Key",
     "x-watch": { "jahr": "#/variables/jahr", "revierId": "#/variables/revierId" },
-    "x-template": "fogu-{{ jahr.value }}-{{ revierId.value }}"
+    "x-template": "foo-{{ jahr.value }}-{{ revierId.value }}"
   },
   "properties": { "…": {} }
 }
