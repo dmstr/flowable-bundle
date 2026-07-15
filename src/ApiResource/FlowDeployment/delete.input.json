@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://za7.example.com/schemas/flow-deployment-delete-input.json",
+  "title": "flow_deployment_delete input",
+  "description": "Options for deleting a deployment. Bound as query parameters (DELETE has no request body).",
+  "type": "object",
+  "properties": {
+    "cascade": {
+      "type": "boolean",
+      "default": false,
+      "title": "Cascade",
+      "description": "Also delete the deployment's running and historic process instances. Without cascade the engine refuses (409) while instances exist."
+    }
+  },
+  "additionalProperties": false
+}
