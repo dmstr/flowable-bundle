@@ -22,7 +22,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowHistoricProcessInstance',
     routePrefix: '/flowable',
-    extraProperties: ['label' => 'Historic Process Instance'],
+    extraProperties: ['label' => 'Instances'],
     operations: [
         new GetCollection(
             uriTemplate: '/historic_process_instances',
@@ -48,7 +48,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_historic_process_instance:read']],
-    openapi: new Operation(tags: ['Flowable']),
+    openapi: new Operation(tags: ['Flowable/History']),
 )]
 final class FlowHistoricProcessInstance
 {

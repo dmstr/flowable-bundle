@@ -22,7 +22,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowHistoricActivity',
     routePrefix: '/flowable',
-    extraProperties: ['label' => 'Historic Activity'],
+    extraProperties: ['label' => 'Activity'],
     operations: [
         new GetCollection(
             uriTemplate: '/historic_activities',
@@ -41,7 +41,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_historic_activity:read']],
-    openapi: new Operation(tags: ['Flowable']),
+    openapi: new Operation(tags: ['Flowable/History']),
 )]
 final class FlowHistoricActivity
 {

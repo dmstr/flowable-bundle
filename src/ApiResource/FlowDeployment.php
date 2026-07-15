@@ -32,7 +32,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowDeployment',
     routePrefix: '/flowable',
-    extraProperties: ['label' => 'Deployment'],
+    extraProperties: ['label' => 'Deployments'],
     operations: [
         new GetCollection(
             uriTemplate: '/deployments',
@@ -116,7 +116,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_deployment:read']],
-    openapi: new Operation(tags: ['Flowable']),
+    openapi: new Operation(tags: ['Flowable/System']),
 )]
 final class FlowDeployment
 {

@@ -22,7 +22,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowHistoricVariable',
     routePrefix: '/flowable',
-    extraProperties: ['label' => 'Historic Variable'],
+    extraProperties: ['label' => 'Variables'],
     operations: [
         new GetCollection(
             uriTemplate: '/historic_variables',
@@ -41,7 +41,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_historic_variable:read']],
-    openapi: new Operation(tags: ['Flowable']),
+    openapi: new Operation(tags: ['Flowable/History']),
 )]
 final class FlowHistoricVariable
 {
