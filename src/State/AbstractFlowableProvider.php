@@ -38,9 +38,14 @@ abstract class AbstractFlowableProvider
 
     /**
      * @param list<string> $whitelist filter keys passed through to Flowable
+     * @param ?string $defaultSort Flowable sort field applied when the client
+     *   requests no explicit `sort` — e.g. the resource's timestamp column so
+     *   collections default to newest first. Flowable has no `updated_at`; each
+     *   resource maps this to its own time field (createTime, deployTime, …).
+     * @param 'asc'|'desc' $defaultOrder direction paired with $defaultSort
      * @return array<string,scalar>
      */
-    protected function listQuery(array $whitelist): array
+    protected function listQuery(array $whitelist, ?string $defaultSort = null, string $defaultOrder = 'desc'): array
     {
         $request = $this->requestStack->getCurrentRequest();
         $page = max(1, (int) ($request?->query->get('page') ?? 1));
@@ -48,6 +53,16 @@ abstract class AbstractFlowableProvider
         $size = max(1, min(200, $size));
 
         $query = ['start' => ($page - 1) * $size, 'size' => $size];
+
+        // Sorting: an explicit client `sort` wins; otherwise fall back to the
+        // resource default. Flowable expects the pair sort=<field>&order=<dir>.
+        $sort = $this->queryParam('sort') ?? $defaultSort;
+        if ($sort !== null) {
+            $order = strtolower((string) ($this->queryParam('order') ?? $defaultOrder));
+            $query['sort'] = $sort;
+            $query['order'] = $order === 'asc' ? 'asc' : 'desc';
+        }
+
         foreach ($whitelist as $key) {
             $value = $this->queryParam($key);
             if ($value !== null) {

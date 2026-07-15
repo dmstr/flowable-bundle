@@ -22,7 +22,7 @@ final class FlowDeploymentProvider extends AbstractFlowableProvider implements P
         $client = $this->client();
 
         if ($operation instanceof CollectionOperationInterface) {
-            $envelope = $client->listDeployments($this->listQuery(self::FILTERS));
+            $envelope = $client->listDeployments($this->listQuery(self::FILTERS, 'deployTime'));
 
             return $this->paginate($envelope, FlowDeployment::fromApi(...));
         }
