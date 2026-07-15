@@ -29,7 +29,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowExecution',
     routePrefix: '/flowable',
-    extraProperties: ['label' => 'Execution'],
+    extraProperties: ['label' => 'Executions'],
     operations: [
         new GetCollection(
             uriTemplate: '/executions',
@@ -62,7 +62,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_execution:read']],
-    openapi: new Operation(tags: ['Flowable']),
+    openapi: new Operation(tags: ['Flowable/System']),
 )]
 final class FlowExecution
 {

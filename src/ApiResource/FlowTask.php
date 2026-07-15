@@ -25,7 +25,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     shortName: 'FlowTask',
     routePrefix: '/flowable',
-    extraProperties: ['label' => 'Task'],
+    extraProperties: ['label' => 'Tasks'],
     operations: [
         new GetCollection(
             uriTemplate: '/tasks',
