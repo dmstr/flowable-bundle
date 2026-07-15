@@ -23,7 +23,7 @@
         "doctrine/orm": "^2.0|^3.0",
         "dmstr/api-configuration-bundle": "^0.2.0 || ^0.3.0 || ^0.4.0",
         "dmstr/api-platform-utils-bundle": "^0.2.0 || ^0.3.0",
-        "dmstr/openapi-json-schema-bundle": "^0.3.0",
+        "dmstr/openapi-json-schema-bundle": "^0.3.0 || ^0.4.0",
         "opis/json-schema": "^2.0",
         "psr/log": "^3.0",
         "symfony/config": "^7.0",
