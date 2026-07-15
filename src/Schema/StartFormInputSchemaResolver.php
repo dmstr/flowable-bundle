@@ -96,6 +96,10 @@ final class StartFormInputSchemaResolver implements InputSchemaResolverInterface
      * stripped from the `variables` schema, so the composition rule ships with
      * the process deployment instead of being hard-coded in a UI.
      *
+     * A reserved `x-required: true` inside `x-businessKey` additionally promotes
+     * `businessKey` to a required envelope property (it is stripped before the
+     * merge, so it never leaks into the field definition).
+     *
      * @param array<string,mixed>      $fields     a `type: object` field schema
      * @param array<string,mixed>|null $definition the raw Flowable process definition (for the title)
      * @return array<string,mixed>
@@ -109,8 +113,18 @@ final class StartFormInputSchemaResolver implements InputSchemaResolverInterface
             'type' => 'string',
             'description' => 'Optional business key for the new process instance.',
         ];
+        $businessKeyRequired = false;
         if (isset($fields['x-businessKey']) && \is_array($fields['x-businessKey'])) {
-            $businessKey = array_replace($businessKey, $fields['x-businessKey']);
+            $extension = $fields['x-businessKey'];
+            // `x-required: true` promotes businessKey to a required envelope
+            // property (e.g. a composed key that must always be present). It is
+            // envelope config, not part of the businessKey field definition, so
+            // strip it before merging the rest over the default definition.
+            if (\array_key_exists('x-required', $extension)) {
+                $businessKeyRequired = (bool) $extension['x-required'];
+                unset($extension['x-required']);
+            }
+            $businessKey = array_replace($businessKey, $extension);
             unset($fields['x-businessKey']);
         }
 
@@ -134,8 +148,15 @@ final class StartFormInputSchemaResolver implements InputSchemaResolverInterface
             ],
             'additionalProperties' => false,
         ];
+        $required = [];
         if ($hasRequired) {
-            $schema['required'] = ['variables'];
+            $required[] = 'variables';
+        }
+        if ($businessKeyRequired) {
+            $required[] = 'businessKey';
+        }
+        if ([] !== $required) {
+            $schema['required'] = $required;
         }
 
         return $schema;
