@@ -27,7 +27,7 @@ final class FlowTaskProvider extends AbstractFlowableProvider implements Provide
                     'processInstance' => 'processInstanceId',
                     'processDefinition' => 'processDefinitionId',
                 ]),
-                $this->listQuery(self::FILTERS),
+                $this->listQuery(self::FILTERS, 'createTime'),
             );
             $envelope = $client->listTasks($query);
 

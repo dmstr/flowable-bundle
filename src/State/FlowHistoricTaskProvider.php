@@ -27,7 +27,7 @@ final class FlowHistoricTaskProvider extends AbstractFlowableProvider implements
                     'historicProcessInstance' => 'processInstanceId',
                     'processDefinition' => 'processDefinitionId',
                 ]),
-                $this->listQuery(self::FILTERS),
+                $this->listQuery(self::FILTERS, 'endTime'),
             );
             $envelope = $client->listHistoricTasks($query);
 
