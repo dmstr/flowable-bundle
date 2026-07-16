@@ -109,6 +109,14 @@ interface FlowableClientInterface
     public function getTaskFormData(string $taskId): ?array;
 
     /**
+     * Fetch the runtime variables visible to a task (task-local + process),
+     * flattened to a name => value map. Empty when the task is unknown.
+     *
+     * @return array<string,mixed>
+     */
+    public function getTaskVariables(string $taskId): array;
+
+    /**
      * Fetch the start-event form-data for a process definition, or null.
      *
      * @return array<string,mixed>|null

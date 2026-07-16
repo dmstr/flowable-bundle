@@ -168,6 +168,30 @@ final class FlowableClient implements FlowableClientInterface
         return $this->findOneQuery('/service/form/form-data', ['taskId' => $taskId]);
     }
 
+    public function getTaskVariables(string $taskId): array
+    {
+        try {
+            $raw = $this->decode($this->request('GET', '/service/runtime/tasks/'.rawurlencode($taskId).'/variables'));
+        } catch (FlowableApiException $e) {
+            if (404 === $e->getStatusCode()) {
+                return [];
+            }
+            throw $e;
+        }
+
+        // Flowable returns a list of {name, value, type, scope}; flatten to a
+        // name => value map. Later scopes (local) win over earlier (global),
+        // matching the engine's own variable resolution order.
+        $variables = [];
+        foreach ($raw as $entry) {
+            if (\is_array($entry) && isset($entry['name'])) {
+                $variables[(string) $entry['name']] = $entry['value'] ?? null;
+            }
+        }
+
+        return $variables;
+    }
+
     public function getStartFormData(string $processDefinitionId): ?array
     {
         return $this->findOneQuery('/service/form/form-data', ['processDefinitionId' => $processDefinitionId]);
