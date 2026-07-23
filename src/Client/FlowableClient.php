@@ -249,6 +249,63 @@ final class FlowableClient implements FlowableClientInterface
         return $this->decode($this->request('GET', '/service/history/historic-activity-instances', $query));
     }
 
+    public function listDmnDeployments(array $query = []): array
+    {
+        return $this->decode($this->request('GET', '/dmn-api/dmn-repository/deployments', $query));
+    }
+
+    public function findDmnDeployment(string $id): ?array
+    {
+        return $this->findOne('/dmn-api/dmn-repository/deployments/'.rawurlencode($id));
+    }
+
+    public function createDmnDeployment(string $filename, string $content, array $fields = []): array
+    {
+        [$body, $contentType] = $this->multipartBody($fields, 'file', $filename, $content);
+
+        return $this->decode($this->requestRaw(
+            'POST',
+            '/dmn-api/dmn-repository/deployments',
+            $body,
+            ['Content-Type' => $contentType],
+        ));
+    }
+
+    public function deleteDmnDeployment(string $id): void
+    {
+        $this->request('DELETE', '/dmn-api/dmn-repository/deployments/'.rawurlencode($id));
+    }
+
+    public function listDecisions(array $query = []): array
+    {
+        return $this->decode($this->request('GET', '/dmn-api/dmn-repository/decisions', $query));
+    }
+
+    public function findDecision(string $id): ?array
+    {
+        return $this->findOne('/dmn-api/dmn-repository/decisions/'.rawurlencode($id));
+    }
+
+    public function executeDecision(array $payload): array
+    {
+        return $this->decode($this->request('POST', '/dmn-api/dmn-rule/execute', [], $payload));
+    }
+
+    public function executeDecisionSingleResult(array $payload): array
+    {
+        return $this->decode($this->request('POST', '/dmn-api/dmn-rule/execute/single-result', [], $payload));
+    }
+
+    public function listHistoricDecisionExecutions(array $query = []): array
+    {
+        return $this->decode($this->request('GET', '/dmn-api/dmn-history/historic-decision-executions', $query));
+    }
+
+    public function findHistoricDecisionExecution(string $id): ?array
+    {
+        return $this->findOne('/dmn-api/dmn-history/historic-decision-executions/'.rawurlencode($id));
+    }
+
     /**
      * @param array<string,scalar> $query
      * @param array<string,mixed>|null $json

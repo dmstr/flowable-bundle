@@ -69,6 +69,24 @@ All resources are served under `/api/flowable/*`:
 | `FlowTask` | `GET /tasks`, `POST /tasks/{id}/complete`, `GET /tasks/{id}/input_schema` |
 | `FlowExecution` | `GET /executions`, `POST /executions/{id}/trigger` |
 | `FlowHistoric*` | read-only history: activities, process instances, tasks, variables |
+| `FlowDmnDeployment` | `GET /dmn_deployments`, `GET /dmn_deployments/{id}`, `POST /dmn_deployments/upload`, `DELETE` |
+| `FlowDecision` | `GET /decisions`, `GET /decisions/{id}`, `POST /decisions/execute` |
+| `FlowHistoricDecisionExecution` | read-only DMN evaluation history (audit, `failed` flag) |
+
+### DMN (decision) engine
+
+`flowable-rest` ships the DMN engine in the same container under the `/dmn-api`
+prefix (the process engine lives under `/service`); both are reached through the
+same `flowable` `ApiConfiguration`. The DMN engine keeps a **separate
+repository**, so a `.dmn` packaged inside a process (`.bar`) deployment is *not*
+registered as a decision — deploy decision tables via `POST /dmn_deployments/upload`.
+`POST /decisions/execute` evaluates a decision by key (`{ "decisionKey": "…",
+"inputVariables": {…}, "singleResult": false }`) and returns the matching rule
+outputs on the response's `result`.
+
+> **Engine version:** the DMN resources require a Flowable engine **>= 8.0.0**
+> (the DMN repository resource is named `decisions`; earlier engines exposed
+> `decision-tables`).
 
 The `input_schema` endpoints return the per-task / per-definition input
 JSON-Schema, resolved at runtime from either an authored
@@ -113,6 +131,8 @@ flowable:process-definitions
 flowable:process-instances           flowable:process-instances:create
 flowable:tasks                       flowable:tasks:complete
 flowable:executions                  flowable:executions:trigger
+flowable:dmn:deployments             flowable:dmn:deployments:upload
+flowable:dmn:decisions               flowable:dmn:rule:execute
 ```
 
 ## Security

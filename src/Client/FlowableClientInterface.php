@@ -152,4 +152,61 @@ interface FlowableClientInterface
 
     /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
     public function listHistoricActivities(array $query = []): array;
+
+    // --- DMN (decision) engine — /dmn-api/* --------------------------------
+    // The decision engine ships in the same flowable-rest container and is
+    // reached under the /dmn-api prefix (vs. /service for the process engine),
+    // resolved from the SAME "flowable" ApiConfiguration. Requires a Flowable
+    // engine >= 8.0.0 (the DMN repository resource is named "decisions"; older
+    // engines exposed "decision-tables").
+
+    /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
+    public function listDmnDeployments(array $query = []): array;
+
+    /** @return array<string,mixed>|null */
+    public function findDmnDeployment(string $id): ?array;
+
+    /**
+     * Create a DMN deployment by uploading a .dmn resource (or a .bar/.zip
+     * bundle of them). The file extension drives interpretation, so it must be
+     * preserved in $filename.
+     *
+     * @param array<string,string> $fields extra multipart form fields
+     *                                      (deployment-name, tenantId, ...)
+     * @return array<string,mixed> the created deployment representation
+     */
+    public function createDmnDeployment(string $filename, string $content, array $fields = []): array;
+
+    /** Delete a DMN deployment (drops its decision definitions). */
+    public function deleteDmnDeployment(string $id): void;
+
+    /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
+    public function listDecisions(array $query = []): array;
+
+    /** @return array<string,mixed>|null */
+    public function findDecision(string $id): ?array;
+
+    /**
+     * Evaluate a decision, returning every matching rule's output row.
+     * Payload carries decisionKey and inputVariables (name/type/value list).
+     *
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed> raw engine result ({ resultVariables: [...] })
+     */
+    public function executeDecision(array $payload): array;
+
+    /**
+     * Evaluate a decision, returning a single output row (the engine enforces
+     * a single-result hit policy).
+     *
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed> raw engine result ({ resultVariables: [...] })
+     */
+    public function executeDecisionSingleResult(array $payload): array;
+
+    /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
+    public function listHistoricDecisionExecutions(array $query = []): array;
+
+    /** @return array<string,mixed>|null */
+    public function findHistoricDecisionExecution(string $id): ?array;
 }

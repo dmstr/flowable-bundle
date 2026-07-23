@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://za7.example.com/schemas/flow-decision-execute-input.json",
+  "title": "flow_decision_execute input",
+  "description": "Input for evaluating a DMN decision by key.",
+  "type": "object",
+  "required": ["decisionKey"],
+  "properties": {
+    "decisionKey": {
+      "type": "string",
+      "title": "Decision key",
+      "description": "Key of the decision to evaluate (latest deployed version is used)."
+    },
+    "singleResult": {
+      "type": "boolean",
+      "default": false,
+      "title": "Single result",
+      "description": "Use the engine's single-result evaluation (one output row) instead of the full list of matching rows."
+    },
+    "inputVariables": {
+      "description": "Decision input variables: shorthand map {name: value} or explicit list [{name,type,value}].",
+      "oneOf": [
+        { "type": "object" },
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "value": {},
+              "type": { "type": "string", "enum": ["string", "integer", "short", "long", "double", "boolean", "date", "json"] }
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "apiConfiguration": {
+      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+      "oneOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$" },
+        { "type": "object", "required": ["uuid"], "properties": { "uuid": { "type": "string" } }, "additionalProperties": false }
+      ]
+    }
+  },
+  "additionalProperties": false
+}
