@@ -75,12 +75,17 @@ final class TaskFormInputSchemaResolver implements InputSchemaResolverInterface
         }
 
         // Resolve `{{ processVariable }}` placeholders (e.g. dynamic
-        // `x-collection` filters) against the task's runtime variables, so the
-        // client receives a self-contained schema. Client-side `{{ x.value }}`
-        // (Jedison x-watch/x-template) tokens are left untouched. Only pay for
-        // the extra variables call when the schema actually carries a token.
-        if (str_contains((string) json_encode($fields), '{{')) {
-            $fields = ProcessVariablePlaceholderResolver::resolve($fields, $client->getTaskVariables($taskId));
+        // `x-collection` filters) and `x-process-data-var` field sources against
+        // the task's runtime variables, so the client receives a self-contained
+        // schema. Client-side `{{ x.value }}` (Jedison x-watch/x-template)
+        // tokens are left untouched. Only pay for the extra variables call when
+        // the schema actually carries one of the two — and then fetch once and
+        // feed both resolvers, they read the same variable map.
+        $encoded = (string) json_encode($fields);
+        if (str_contains($encoded, '{{') || str_contains($encoded, 'x-process-data-var')) {
+            $variables = $client->getTaskVariables($taskId);
+            $fields = ProcessVariablePlaceholderResolver::resolve($fields, $variables);
+            $fields = FormPrefillResolver::resolve($fields, $variables);
         }
 
         return $this->envelope($fields, $client->findTask($taskId));

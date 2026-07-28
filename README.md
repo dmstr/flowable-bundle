@@ -119,6 +119,27 @@ deployment instead of being hard-coded in a UI. Details (semantics, watch
 paths, Jedison rendering, IRI caveat):
 [docs/start-form-business-key.md](docs/start-form-business-key.md).
 
+A **task**-form field may name the process variable holding its data with
+`x-process-data-var`, so a step that produced data can hand it to the next
+step's form:
+
+```json
+{
+  "landkreise": {
+    "type": "array",
+    "x-process-data-var": "landkreise"
+  }
+}
+```
+
+The variable's value — arrays and objects included, not just scalars like
+`{{ token }}` — is moved into the field's `default`, which form renderers use as
+the initial value; the keyword itself is stripped. Because completion writes the
+field back to that same variable, reopening an unfinished task shows the last
+saved state. A missing variable leaves the field without a `default` and keeps
+the keyword visible for debugging. Details:
+[docs/task-form-prefill.md](docs/task-form-prefill.md).
+
 ## CLI
 
 Every REST operation has a matching command; command IDs mirror the resource
@@ -148,6 +169,10 @@ from the authenticated identity (JWT `sub`) and propagated to Flowable — see
   — end-to-end walkthrough of a human-task process.
 - [`docs/tenant-and-user.md`](docs/tenant-and-user.md) — tenant and acting-user
   model.
+- [`docs/start-form-business-key.md`](docs/start-form-business-key.md) — the
+  `x-businessKey` start-form extension.
+- [`docs/task-form-prefill.md`](docs/task-form-prefill.md) — the
+  `x-process-data-var` task-form extension.
 
 ## License
 
