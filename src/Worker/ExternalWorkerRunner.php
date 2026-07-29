@@ -36,7 +36,7 @@ use Psr\Log\LoggerInterface;
  * Everything is logged through the dedicated `flowable` Monolog channel, so a
  * worker's decisions land next to the pass-through audit entries.
  */
-final class ExternalWorkerRunner
+class ExternalWorkerRunner
 {
     public const DEFAULT_LOCK_DURATION = 'PT10M';
 
@@ -111,7 +111,7 @@ final class ExternalWorkerRunner
             return 0;
         }
 
-        $client = $this->locator->resolve($apiConfiguration);
+        $client = $this->resolveClient($apiConfiguration);
         $deadline = $timeLimit !== null ? microtime(true) + $timeLimit : null;
         $processed = 0;
 
@@ -159,6 +159,18 @@ final class ExternalWorkerRunner
         }
 
         return $processed;
+    }
+
+    /**
+     * Seam for tests: FlowableClientLocator is final and resolves an
+     * ApiConfiguration from the database, which a runner test has no business
+     * setting up. Overriding this is the supported way to drive the loop against
+     * a client double — the same seam the consuming applications' job processors
+     * use.
+     */
+    protected function resolveClient(?string $apiConfiguration): FlowableClientInterface
+    {
+        return $this->locator->resolve($apiConfiguration);
     }
 
     /**
