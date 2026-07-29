@@ -209,4 +209,89 @@ interface FlowableClientInterface
 
     /** @return array<string,mixed>|null */
     public function findHistoricDecisionExecution(string $id): ?array;
+
+    // --- Event registry engine — /event-registry-api/* ---------------------
+    // A THIRD engine repository in the same flowable-rest container, next to
+    // the process engine (/service) and the DMN engine (/dmn-api), resolved
+    // from the SAME "flowable" ApiConfiguration. It stores event definitions
+    // (.event resources) and channel definitions (.channel resources).
+    //
+    // Why this matters for a pass-through: createEventInstance() hands an event
+    // straight to an inbound channel INSIDE the engine, with no message broker
+    // in between. Inbound event correlation (BPMN event sub-processes, receive
+    // events, boundary events) is therefore usable and verifiable without
+    // Kafka/RabbitMQ. The outbound direction (engine → broker) is a separate,
+    // broker-dependent concern and is deliberately NOT covered here.
+    //
+    // Verified against flowable-rest 8.0.0 (2026-07-29).
+
+    /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
+    public function listEventDeployments(array $query = []): array;
+
+    /** @return array<string,mixed>|null */
+    public function findEventDeployment(string $id): ?array;
+
+    /**
+     * Create an event-registry deployment by uploading one .event or .channel
+     * resource.
+     *
+     * Two deviations from createDeployment()/createDmnDeployment(), both read
+     * out of the engine's own upload handler:
+     *  - Only ".event" and ".channel" are accepted. This endpoint has NO
+     *    .bar/.zip bundle support (its API description text claims otherwise,
+     *    but the code only ever tests those two suffixes), so a multi-resource
+     *    deployment has to be uploaded one file at a time.
+     *  - The deployment metadata is read from the QUERY STRING, not from
+     *    multipart form fields — the handler parses getQueryString() itself —
+     *    and the name key is "deploymentName" (camelCase), not the
+     *    "deployment-name" used by the other two engines.
+     *
+     * @param array<string,string> $query deployment metadata, engine spelling
+     *                                    (deploymentName, category, tenantId)
+     * @return array<string,mixed> the created deployment representation
+     */
+    public function createEventDeployment(string $filename, string $content, array $query = []): array;
+
+    /**
+     * Delete an event-registry deployment, dropping its event and channel
+     * definitions. Unlike the process engine there is no cascade option.
+     */
+    public function deleteEventDeployment(string $id): void;
+
+    /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
+    public function listEventDefinitions(array $query = []): array;
+
+    /** @return array<string,mixed>|null */
+    public function findEventDefinition(string $id): ?array;
+
+    /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
+    public function listChannelDefinitions(array $query = []): array;
+
+    /** @return array<string,mixed>|null */
+    public function findChannelDefinition(string $id): ?array;
+
+    /**
+     * Event registry engine info ({ name, version, exception, resourceUrl }) —
+     * the event-registry counterpart of the /service/management/engine payload
+     * behind getHealthInfo(), useful to confirm the registry is enabled at all.
+     *
+     * @return array<string,mixed>
+     */
+    public function getEventRegistryEngineInfo(): array;
+
+    /**
+     * Send an event instance into the engine's inbound channel — the
+     * broker-less injection path described above.
+     *
+     * The engine requires BOTH an event definition reference (eventDefinitionId
+     * OR eventDefinitionKey) AND a channel definition reference
+     * (channelDefinitionId OR channelDefinitionKey); the channel is what turns
+     * the raw payload into a correlated event, so it is NOT optional. Optional:
+     * tenantId and eventPayload (a JSON object — an array is rejected).
+     *
+     * Returns nothing: the engine answers 204 No Content on success.
+     *
+     * @param array<string,mixed> $payload
+     */
+    public function createEventInstance(array $payload): void;
 }

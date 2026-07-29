@@ -306,6 +306,67 @@ final class FlowableClient implements FlowableClientInterface
         return $this->findOne('/dmn-api/dmn-history/historic-decision-executions/'.rawurlencode($id));
     }
 
+    public function listEventDeployments(array $query = []): array
+    {
+        return $this->decode($this->request('GET', '/event-registry-api/event-registry-repository/deployments', $query));
+    }
+
+    public function findEventDeployment(string $id): ?array
+    {
+        return $this->findOne('/event-registry-api/event-registry-repository/deployments/'.rawurlencode($id));
+    }
+
+    public function createEventDeployment(string $filename, string $content, array $query = []): array
+    {
+        [$body, $contentType] = $this->multipartBody([], 'file', $filename, $content);
+
+        // Metadata rides on the query string, not in multipart parts: this
+        // endpoint parses getQueryString() itself, so a form field named
+        // deploymentName/category would be silently dropped (see the interface).
+        $path = '/event-registry-api/event-registry-repository/deployments';
+        if ($query !== []) {
+            $path .= '?'.http_build_query($query);
+        }
+
+        return $this->decode($this->requestRaw('POST', $path, $body, ['Content-Type' => $contentType]));
+    }
+
+    public function deleteEventDeployment(string $id): void
+    {
+        $this->request('DELETE', '/event-registry-api/event-registry-repository/deployments/'.rawurlencode($id));
+    }
+
+    public function listEventDefinitions(array $query = []): array
+    {
+        return $this->decode($this->request('GET', '/event-registry-api/event-registry-repository/event-definitions', $query));
+    }
+
+    public function findEventDefinition(string $id): ?array
+    {
+        return $this->findOne('/event-registry-api/event-registry-repository/event-definitions/'.rawurlencode($id));
+    }
+
+    public function listChannelDefinitions(array $query = []): array
+    {
+        return $this->decode($this->request('GET', '/event-registry-api/event-registry-repository/channel-definitions', $query));
+    }
+
+    public function findChannelDefinition(string $id): ?array
+    {
+        return $this->findOne('/event-registry-api/event-registry-repository/channel-definitions/'.rawurlencode($id));
+    }
+
+    public function getEventRegistryEngineInfo(): array
+    {
+        return $this->decode($this->request('GET', '/event-registry-api/event-registry-management/engine'));
+    }
+
+    public function createEventInstance(array $payload): void
+    {
+        // The engine answers 204 No Content — there is no body to decode.
+        $this->request('POST', '/event-registry-api/event-registry-runtime/event-instances', [], $payload);
+    }
+
     /**
      * @param array<string,scalar> $query
      * @param array<string,mixed>|null $json
