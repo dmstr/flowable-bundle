@@ -114,7 +114,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         ),
         new Post(
             uriTemplate: '/external_worker_jobs/{id}/bpmnError',
-            name: 'flow_external_worker_job_bpmn_error',
+            name: 'flow_external_worker_job_bpmnError',
             description: 'Raise a BPMN error from this acquired job so an error boundary event can catch it',
             processor: ExternalWorkerJobBpmnErrorProcessor::class,
             deserialize: false,

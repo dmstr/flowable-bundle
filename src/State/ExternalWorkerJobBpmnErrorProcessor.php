@@ -23,7 +23,7 @@ final class ExternalWorkerJobBpmnErrorProcessor extends AbstractFlowableProcesso
 {
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): null
     {
-        $body = $this->validator->validateRaw($this->rawBody(), $this->schemaPath('FlowExternalWorkerJob', 'bpmn_error'));
+        $body = $this->validator->validateRaw($this->rawBody(), $this->schemaPath('FlowExternalWorkerJob', 'bpmnError'));
         $client = $this->client($body);
 
         $jobId = (string) ($uriVariables['id'] ?? '');
