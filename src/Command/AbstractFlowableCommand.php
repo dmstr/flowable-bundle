@@ -41,6 +41,16 @@ abstract class AbstractFlowableCommand extends Command
     {
         $this->addApiConfigurationOption();
         $this->addOption('acting-user', 'u', InputOption::VALUE_REQUIRED, 'Acting za7 user UUID (propagated as startUserId)');
+        $this->addInputOptions();
+    }
+
+    /**
+     * JSON payload options without --acting-user, for write commands whose actor
+     * is not a za7 user — e.g. the external worker commands, where the identity
+     * that matters to the engine is the worker id.
+     */
+    protected function addInputOptions(): void
+    {
         $this->addOption('input', 'i', InputOption::VALUE_REQUIRED, 'Inline JSON input');
         $this->addOption('input-file', 'f', InputOption::VALUE_REQUIRED, 'Path to a JSON input file');
     }
@@ -71,6 +81,12 @@ abstract class AbstractFlowableCommand extends Command
      */
     protected function readInput(InputInterface $input, string $schemaPath): array
     {
+        return $this->validator->validateRaw($this->rawInput($input), $schemaPath);
+    }
+
+    /** The raw JSON from --input or --input-file; empty string when neither is given. */
+    protected function rawInput(InputInterface $input): string
+    {
         $raw = $input->getOption('input');
         if ($raw === null && ($file = $input->getOption('input-file')) !== null) {
             if (!is_file((string) $file)) {
@@ -79,7 +95,32 @@ abstract class AbstractFlowableCommand extends Command
             $raw = (string) file_get_contents((string) $file);
         }
 
-        return $this->validator->validateRaw((string) ($raw ?? ''), $schemaPath);
+        return (string) ($raw ?? '');
+    }
+
+    /**
+     * Decode the JSON input WITHOUT validating it — for commands that merge CLI
+     * options into the payload and validate the merged result (see
+     * AbstractExternalWorkerJobCommand).
+     *
+     * @return array<string,mixed>
+     */
+    protected function decodeInput(InputInterface $input): array
+    {
+        $raw = trim($this->rawInput($input));
+        if ($raw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \RuntimeException('Invalid JSON input: '.json_last_error_msg());
+        }
+        if (!\is_array($decoded)) {
+            throw new \RuntimeException('JSON input must be an object.');
+        }
+
+        return $decoded;
     }
 
     protected function schemaPath(string $entity, string $verb): string

@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable;
 
+use Dmstr\Flowable\Worker\ExternalWorkerHandlerInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
@@ -36,6 +37,13 @@ final class FlowableBundle extends AbstractBundle
         // (vendor/ vs. a composer path-repo) — never assume %kernel.project_dir%.
         $builder->setParameter('dmstr_flowable.dir', \dirname(__DIR__));
         $container->import(\dirname(__DIR__).'/config/services.yaml');
+
+        // External worker handlers are discovered by interface, so a consuming
+        // application writes a class implementing ExternalWorkerHandlerInterface
+        // and is done — no #[AutoconfigureTag], no services.yaml entry. The
+        // registry consumes the tag (see config/services.yaml).
+        $builder->registerForAutoconfiguration(ExternalWorkerHandlerInterface::class)
+            ->addTag('flowable.external_worker_handler');
     }
 
     public function prependExtension(

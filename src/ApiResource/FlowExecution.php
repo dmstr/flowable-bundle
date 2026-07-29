@@ -98,6 +98,15 @@ final class FlowExecution
     #[Groups(['flow_execution:raw'])]
     public ?array $raw = null;
 
+    /** Shallow instance carrying only the identifier, for IRI generation. */
+    public static function reference(string $id): self
+    {
+        $self = new self();
+        $self->id = $id;
+
+        return $self;
+    }
+
     /**
      * @param array<string,mixed> $data
      */

@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://za7.example.com/schemas/flow-external-worker-job-complete-input.json",
+  "title": "flow_external_worker_job_complete input",
+  "description": "Input for reporting an acquired external worker job as done. The variables become process variables, so the following BPMN steps can read the worker's result.",
+  "type": "object",
+  "required": ["workerId"],
+  "properties": {
+    "workerId": {
+      "type": "string",
+      "minLength": 1,
+      "title": "Worker id",
+      "description": "Identity of the worker holding the lock — the engine rejects a report from anyone else."
+    },
+    "variables": {
+      "description": "Result variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+      "oneOf": [
+        { "type": "object" },
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "value": {},
+              "type": { "type": "string", "enum": ["string", "integer", "short", "long", "double", "boolean", "date", "json"] }
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "apiConfiguration": {
+      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+      "oneOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$" },
+        { "type": "object", "required": ["uuid"], "properties": { "uuid": { "type": "string" } }, "additionalProperties": false }
+      ]
+    }
+  },
+  "additionalProperties": false
+}
