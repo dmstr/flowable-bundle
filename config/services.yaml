@@ -24,6 +24,10 @@ services:
             # FlowableClient carries runtime scalar args (base_url, auth, ...)
             # and is built by FlowableClientLocator, never autowired.
             - '../src/Client/FlowableClient.php'
+            # Worker value objects: built from engine payloads / handler
+            # results, never resolved from the container.
+            - '../src/Worker/ExternalWorkerJob.php'
+            - '../src/Worker/ExternalWorkerOutcome.php'
 
     # Make the schema provider known to the openapi-json-schema SchemaRegistry
     # so an ApiConfiguration of type "flowable" validates against schema.json.
@@ -81,3 +85,15 @@ services:
         tags: ['controller.service_arguments']
     Dmstr\Flowable\Controller\ProcessDefinitionStartInputSchemaController:
         tags: ['controller.service_arguments']
+
+    # Plain-text job stacktrace endpoint (GET /flowable/jobs/{id}/stacktrace).
+    Dmstr\Flowable\Controller\JobStacktraceController:
+        tags: ['controller.service_arguments']
+
+    # External worker handlers of the consuming application. The interface is
+    # autoconfigured in FlowableBundle::loadExtension(), so an application only
+    # implements ExternalWorkerHandlerInterface — no attribute, no wiring — and
+    # the registry sees it here.
+    Dmstr\Flowable\Worker\ExternalWorkerHandlerRegistry:
+        arguments:
+            $handlers: !tagged_iterator { tag: flowable.external_worker_handler }

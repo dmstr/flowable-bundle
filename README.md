@@ -18,6 +18,10 @@ credentials) are resolved per request from an `ApiConfiguration` of type
 - Symfony 7
 - API Platform 4
 - A reachable Flowable REST engine (`flowable-rest`)
+- `ext-pcntl` — only for `flowable:external-worker:run` as a long-lived process,
+  where it enables the graceful shutdown described under
+  [External worker tasks](#external-worker-tasks). Not a hard dependency: without
+  it the command runs, it just cannot react to SIGTERM.
 
 ## Installation
 
@@ -76,6 +80,49 @@ All resources are served under `/api/flowable/*`:
 | `FlowEventDefinition` | read-only `GET /event_definitions`, `GET /event_definitions/{id}` |
 | `FlowChannelDefinition` | read-only `GET /channel_definitions`, `GET /channel_definitions/{id}` |
 | `FlowEventInstance` | `POST /event_instances` — send an event into the engine |
+| `FlowExternalWorkerJob` | `GET /external_worker_jobs`, `POST /external_worker_jobs/acquire`, `POST /external_worker_jobs/{id}/{complete,fail,bpmnError,unacquire}` |
+| `FlowJob` | read-only engine jobs: `GET /jobs?kind=async\|timer\|suspended\|deadletter\|history`, `GET /jobs/{id}/stacktrace` |
+
+### External worker tasks
+
+An `<serviceTask flowable:type="external-worker" flowable:topic="…">` inverts the
+direction of an integration: the engine calls nothing, it puts a job on a topic
+and waits. That removes both problems a `flowable:type="http"` task has — no
+inbound route from the engine to the application, and **no credential in the
+deployment artifact** (the `.bar` usually lives in git; here the *worker*
+authenticates).
+
+Write a handler and you are done — the interface is autoconfigured, so no
+attribute and no service entry is needed:
+
+```php
+final class InvoiceHandler implements ExternalWorkerHandlerInterface
+{
+    public function topics(): array { return ['invoice-export']; }
+
+    public function handle(ExternalWorkerJob $job): ExternalWorkerOutcome
+    {
+        $id = $job->variables['invoiceId'] ?? null;
+
+        return ExternalWorkerOutcome::complete(['exportedAt' => date(DATE_ATOM)]);
+        // or: ExternalWorkerOutcome::bpmnError('INVOICE_REJECTED')  → modelled error path
+        // or: ExternalWorkerOutcome::fail(retries: 2)               → engine retry/backoff
+        // throwing is reported as fail() with the exception message
+    }
+}
+```
+
+Run the poll loop with `flowable:external-worker:run` (see CLI below). Two rules
+the runner enforces, both deliberate: a **handler that throws becomes a `fail`**
+(the engine owns backoff and dead-lettering — the worker adds no second retry
+policy), and a **topic without a handler is `unacquire`d, never failed**, because
+failing would spend a retry over an incomplete deployment.
+
+`lockDuration` and `retryTimeout` are **ISO-8601 durations** (`PT10M`), not
+numbers. Note that a job which exhausted its retries disappears from
+`GET /external_worker_jobs` and is then only visible as
+`GET /jobs?kind=deadletter` — which is why the read-only `FlowJob` resource ships
+with this feature rather than after it.
 
 ### DMN (decision) engine
 
@@ -198,7 +245,25 @@ flowable:dmn:decisions               flowable:dmn:rule:execute
 flowable:events:deployments          flowable:events:deployments:upload
 flowable:events:definitions          flowable:events:channels
 flowable:events:instances:create
+flowable:external-worker-jobs        flowable:external-worker:run
+flowable:external-worker:complete    flowable:external-worker:fail
+flowable:external-worker:bpmn-error  flowable:external-worker:unacquire
+flowable:jobs
 ```
+
+`flowable:external-worker:run` is the poll loop: `--topic` (repeatable, empty =
+every registered handler's topics), `--worker-id`, `--lock-duration=PT10M`,
+`--batch`, `--max-jobs`, `--time-limit`, `--once`.
+
+> **Graceful shutdown requires `ext-pcntl`.** With pcntl loaded, SIGTERM / SIGINT
+> finish the current job, unacquire whatever is still locked and exit, so a
+> container restart leaves no jobs locked. **Without pcntl the command still runs**
+> (`getSubscribedSignals()` returns an empty list, so Symfony does not refuse to
+> start it) — but nothing handles the signal: on SIGTERM the acquired jobs stay
+> locked until their `lockDuration` expires, and the engine hands them out again
+> only after that. Install pcntl before running this as a long-lived worker
+> process, and keep `--lock-duration` short enough that a lost lock is not
+> painful. Verified 2026-07-29 on a php:8.4 image without pcntl.
 
 ## Security
 

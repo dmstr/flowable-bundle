@@ -368,6 +368,126 @@ final class FlowableClient implements FlowableClientInterface
     }
 
     /**
+     * The engine's five job collections. They share one response shape but are
+     * strictly separate stores: an id is only resolvable under its own kind.
+     * Declared next to its methods to keep this feature's diff self-contained.
+     */
+    private const JOB_COLLECTIONS = [
+        'async' => '/service/management/jobs',
+        'timer' => '/service/management/timer-jobs',
+        'suspended' => '/service/management/suspended-jobs',
+        'deadletter' => '/service/management/deadletter-jobs',
+        'history' => '/service/management/history-jobs',
+    ];
+
+    public function acquireExternalWorkerJobs(array $payload): array
+    {
+        // This endpoint answers with a bare JSON array, so decode() yields a
+        // list rather than the usual envelope; drop anything non-array so
+        // callers can rely on list<array>.
+        $jobs = $this->decode($this->request('POST', '/external-job-api/acquire/jobs', [], $payload));
+
+        return array_values(array_filter($jobs, 'is_array'));
+    }
+
+    public function completeExternalWorkerJob(string $id, array $payload): void
+    {
+        $this->request('POST', '/external-job-api/acquire/jobs/'.rawurlencode($id).'/complete', [], $payload);
+    }
+
+    public function failExternalWorkerJob(string $id, array $payload): void
+    {
+        $this->request('POST', '/external-job-api/acquire/jobs/'.rawurlencode($id).'/fail', [], $payload);
+    }
+
+    public function bpmnErrorExternalWorkerJob(string $id, array $payload): void
+    {
+        $this->request('POST', '/external-job-api/acquire/jobs/'.rawurlencode($id).'/bpmnError', [], $payload);
+    }
+
+    public function unacquireExternalWorkerJob(string $id, array $payload): void
+    {
+        $this->request('POST', '/external-job-api/unacquire/jobs/'.rawurlencode($id), [], $payload);
+    }
+
+    public function unacquireAllExternalWorkerJobs(array $payload): void
+    {
+        $this->request('POST', '/external-job-api/unacquire/jobs', [], $payload);
+    }
+
+    public function listExternalWorkerJobs(array $query = []): array
+    {
+        return $this->decode($this->request('GET', '/external-job-api/jobs', $query));
+    }
+
+    public function findExternalWorkerJob(string $id): ?array
+    {
+        return $this->findOne('/external-job-api/jobs/'.rawurlencode($id));
+    }
+
+    public function listJobs(array $query = []): array
+    {
+        return $this->decode($this->request('GET', self::JOB_COLLECTIONS['async'], $query));
+    }
+
+    public function listTimerJobs(array $query = []): array
+    {
+        return $this->decode($this->request('GET', self::JOB_COLLECTIONS['timer'], $query));
+    }
+
+    public function listSuspendedJobs(array $query = []): array
+    {
+        return $this->decode($this->request('GET', self::JOB_COLLECTIONS['suspended'], $query));
+    }
+
+    public function listDeadLetterJobs(array $query = []): array
+    {
+        return $this->decode($this->request('GET', self::JOB_COLLECTIONS['deadletter'], $query));
+    }
+
+    public function listHistoryJobs(array $query = []): array
+    {
+        return $this->decode($this->request('GET', self::JOB_COLLECTIONS['history'], $query));
+    }
+
+    public function findJob(string $id, string $kind = 'async'): ?array
+    {
+        return $this->findOne($this->jobCollection($kind).'/'.rawurlencode($id));
+    }
+
+    public function getJobExceptionStacktrace(string $id, string $kind = 'async'): ?string
+    {
+        // History jobs have no stacktrace endpoint (the engine answers 500 "no
+        // endpoint"), so short-circuit instead of provoking that error.
+        if ($kind === 'history') {
+            return null;
+        }
+
+        $path = $this->jobCollection($kind).'/'.rawurlencode($id).'/exception-stacktrace';
+        try {
+            // text/plain, not JSON — read the body verbatim.
+            return $this->request('GET', $path)->getContent(false);
+        } catch (FlowableApiException $e) {
+            if (404 === $e->getStatusCode()) {
+                return null;
+            }
+            throw $e;
+        } catch (HttpClientExceptionInterface $e) {
+            throw FlowableApiException::unreachable($e->getMessage());
+        }
+    }
+
+    private function jobCollection(string $kind): string
+    {
+        return self::JOB_COLLECTIONS[$kind]
+            ?? throw new \InvalidArgumentException(sprintf(
+                'Unknown Flowable job kind "%s". Allowed: %s.',
+                $kind,
+                implode(', ', array_keys(self::JOB_COLLECTIONS)),
+            ));
+    }
+
+    /**
      * @param array<string,scalar> $query
      * @param array<string,mixed>|null $json
      */
