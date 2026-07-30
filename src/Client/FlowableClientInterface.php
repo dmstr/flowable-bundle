@@ -209,4 +209,120 @@ interface FlowableClientInterface
 
     /** @return array<string,mixed>|null */
     public function findHistoricDecisionExecution(string $id): ?array;
+
+    // --- External worker jobs — /external-job-api/* -------------------------
+    // The external worker (job) API lets an outside worker pull work from
+    // bpmn:serviceTask flowable:type="external-worker" activities, do it, and
+    // report back. Unlike the process engine it is NOT served under /service
+    // but under the sibling prefix /external-job-api, resolved from the SAME
+    // "flowable" ApiConfiguration (verified against flowable-rest 8.0.0).
+    //
+    // Lifecycle: acquire (locks N jobs of one topic for the worker) → work →
+    // complete | fail | bpmnError. A worker that cannot do the work reports
+    // nothing and unacquires instead, which releases the lock WITHOUT spending
+    // one of the job's retries. Backoff and dead-lettering are the engine's
+    // business, never the worker's.
+
+    /**
+     * Acquire (lock) external worker jobs of a single topic.
+     *
+     * Payload: topic, workerId, lockDuration (ISO-8601 duration, e.g. PT10M),
+     * numberOfTasks (default 1), numberOfRetries (default 5), optional
+     * scopeType ("bpmn"/"cmmn"). Unlike every other list endpoint this one
+     * answers with a bare JSON array (no {data,total,…} envelope); an empty
+     * array means "no work on that topic".
+     *
+     * @param array<string,mixed> $payload
+     * @return list<array<string,mixed>> the acquired jobs, each carrying its variables
+     */
+    public function acquireExternalWorkerJobs(array $payload): array;
+
+    /**
+     * Report an acquired job as done. Payload: workerId (must be the lock
+     * owner) and variables as a {name,type,value} list — exactly what
+     * FlowableVariableMapper::toFlowable() produces.
+     *
+     * @param array<string,mixed> $payload
+     */
+    public function completeExternalWorkerJob(string $id, array $payload): void;
+
+    /**
+     * Report an acquired job as failed. Payload: workerId, retries,
+     * retryTimeout (ISO-8601 duration), errorMessage, errorDetails. The engine
+     * decrements the retries and re-schedules or dead-letters the job.
+     *
+     * @param array<string,mixed> $payload
+     */
+    public function failExternalWorkerJob(string $id, array $payload): void;
+
+    /**
+     * Raise a BPMN error from an acquired job, so the process can react with an
+     * error boundary event. Payload: workerId, errorCode, variables.
+     *
+     * @param array<string,mixed> $payload
+     */
+    public function bpmnErrorExternalWorkerJob(string $id, array $payload): void;
+
+    /**
+     * Release the lock on a single acquired job without consuming a retry.
+     * Payload: workerId.
+     *
+     * @param array<string,mixed> $payload
+     */
+    public function unacquireExternalWorkerJob(string $id, array $payload): void;
+
+    /**
+     * Release the locks on ALL jobs currently held by a worker — the shutdown
+     * path of a worker runner. Payload: workerId and optional tenantId.
+     *
+     * @param array<string,mixed> $payload
+     */
+    public function unacquireAllExternalWorkerJobs(array $payload): void;
+
+    /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
+    public function listExternalWorkerJobs(array $query = []): array;
+
+    /** @return array<string,mixed>|null */
+    public function findExternalWorkerJob(string $id): ?array;
+
+    // --- Management jobs (read-only) — /service/management/* ----------------
+    // The engine's own job store, split into five collections that all share
+    // one response shape: async (jobs), timer-jobs, suspended-jobs,
+    // deadletter-jobs and history-jobs. Read-only on purpose: moving or
+    // deleting engine jobs is an operator action, not an API pass-through.
+
+    /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
+    public function listJobs(array $query = []): array;
+
+    /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
+    public function listTimerJobs(array $query = []): array;
+
+    /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
+    public function listSuspendedJobs(array $query = []): array;
+
+    /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
+    public function listDeadLetterJobs(array $query = []): array;
+
+    /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
+    public function listHistoryJobs(array $query = []): array;
+
+    /**
+     * Fetch one job. The $kind selects the collection to look in — each
+     * collection has its OWN item endpoint and a job is only found under its
+     * own kind (verified: a deadletter job 404s under /management/jobs/{id}).
+     *
+     * @param 'async'|'timer'|'suspended'|'deadletter'|'history' $kind
+     * @return array<string,mixed>|null
+     */
+    public function findJob(string $id, string $kind = 'async'): ?array;
+
+    /**
+     * Fetch a job's exception stacktrace as plain text (not JSON), or null when
+     * the job is unknown in that collection or carries no exception. Same
+     * per-kind rule as findJob(); "history" has NO stacktrace endpoint and
+     * always yields null.
+     *
+     * @param 'async'|'timer'|'suspended'|'deadletter'|'history' $kind
+     */
+    public function getJobExceptionStacktrace(string $id, string $kind = 'async'): ?string;
 }
