@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://za7.example.com/schemas/flow-event-instance-create-input.json",
+  "title": "flow_event_instance_create input",
+  "description": "Input for sending an event instance to an inbound channel of the event registry. Both an event definition reference and a channel definition reference are required — the engine rejects a body missing either.",
+  "type": "object",
+  "allOf": [
+    {
+      "anyOf": [
+        { "required": ["eventDefinitionKey"] },
+        { "required": ["eventDefinitionId"] }
+      ]
+    },
+    {
+      "anyOf": [
+        { "required": ["channelDefinitionKey"] },
+        { "required": ["channelDefinitionId"] }
+      ]
+    }
+  ],
+  "properties": {
+    "eventDefinitionKey": {
+      "type": "string",
+      "title": "Event definition key",
+      "description": "Key of the event definition to send (latest deployed version is used)."
+    },
+    "eventDefinitionId": {
+      "type": "string",
+      "title": "Event definition id",
+      "description": "Specific event definition id, taking precedence over the key."
+    },
+    "channelDefinitionKey": {
+      "type": "string",
+      "title": "Channel definition key",
+      "description": "Key of the inbound channel definition that receives the event."
+    },
+    "channelDefinitionId": {
+      "type": "string",
+      "title": "Channel definition id",
+      "description": "Specific inbound channel definition id, taking precedence over the key."
+    },
+    "tenantId": {
+      "type": "string",
+      "title": "Tenant id",
+      "description": "Optional tenant the event definition and channel are resolved in."
+    },
+    "eventPayload": {
+      "type": "object",
+      "title": "Event payload",
+      "description": "The event body as a JSON object, matching the event definition's payload contract. Must be an object — the engine rejects an array."
+    },
+    "apiConfiguration": {
+      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+      "oneOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$" },
+        { "type": "object", "required": ["uuid"], "properties": { "uuid": { "type": "string" } }, "additionalProperties": false }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

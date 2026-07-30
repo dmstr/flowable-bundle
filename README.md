@@ -76,6 +76,10 @@ All resources are served under `/api/flowable/*`:
 | `FlowDmnDeployment` | `GET /dmn_deployments`, `GET /dmn_deployments/{id}`, `POST /dmn_deployments/upload`, `DELETE` |
 | `FlowDecision` | `GET /decisions`, `GET /decisions/{id}`, `POST /decisions/execute` |
 | `FlowHistoricDecisionExecution` | read-only DMN evaluation history (audit, `failed` flag) |
+| `FlowEventDeployment` | `GET /event_deployments`, `GET /event_deployments/{id}`, `POST /event_deployments/upload`, `DELETE` |
+| `FlowEventDefinition` | read-only `GET /event_definitions`, `GET /event_definitions/{id}` |
+| `FlowChannelDefinition` | read-only `GET /channel_definitions`, `GET /channel_definitions/{id}` |
+| `FlowEventInstance` | `POST /event_instances` — send an event into the engine |
 | `FlowExternalWorkerJob` | `GET /external_worker_jobs`, `POST /external_worker_jobs/acquire`, `POST /external_worker_jobs/{id}/{complete,fail,bpmnError,unacquire}` |
 | `FlowJob` | read-only engine jobs: `GET /jobs?kind=async\|timer\|suspended\|deadletter\|history`, `GET /jobs/{id}/stacktrace` |
 
@@ -134,6 +138,43 @@ outputs on the response's `result`.
 > **Engine version:** the DMN resources require a Flowable engine **>= 8.0.0**
 > (the DMN repository resource is named `decisions`; earlier engines exposed
 > `decision-tables`).
+
+### Event registry
+
+`flowable-rest` ships a third engine repository under the `/event-registry-api`
+prefix, again behind the same `flowable` `ApiConfiguration`. It stores **event
+definitions** (`.event` — the payload contract and correlation keys of a
+business event) and **channel definitions** (`.channel` — how events travel:
+`type` is `inbound`/`outbound`, `implementation` the transport).
+
+The operation worth having is `POST /event_instances`: it hands an event
+**straight to an inbound channel inside the engine, with no message broker in
+between**.
+
+```json
+{
+  "eventDefinitionKey": "myEvent",
+  "channelDefinitionKey": "myInboundChannel",
+  "eventPayload": { "customerId": "42", "amount": 19.99 }
+}
+```
+
+Inbound event correlation (BPMN event sub-processes, receive events, boundary
+events) is therefore usable and verifiable without running Kafka or RabbitMQ.
+The outbound direction (engine → broker) leaves the engine and is a separate,
+broker-dependent concern that this bundle does not cover.
+
+Both an event definition reference (`eventDefinitionKey` **or**
+`eventDefinitionId`) and a channel definition reference (`channelDefinitionKey`
+**or** `channelDefinitionId`) are required — the channel is what turns the
+payload into a correlated event. The engine answers **204 No Content**, so the
+operation returns no body. `eventPayload` must be a JSON object.
+
+> **No `.bar`/`.zip` bundles here.** Unlike the process and DMN repositories,
+> `POST /event_deployments/upload` accepts only a single `.event` or `.channel`
+> file (the engine's own API description claims otherwise, but it only ever
+> tests those two suffixes). A deployment needing several resources is uploaded
+> one file at a time.
 
 The `input_schema` endpoints return the per-task / per-definition input
 JSON-Schema, resolved at runtime from either an authored
@@ -201,6 +242,9 @@ flowable:tasks                       flowable:tasks:complete
 flowable:executions                  flowable:executions:trigger
 flowable:dmn:deployments             flowable:dmn:deployments:upload
 flowable:dmn:decisions               flowable:dmn:rule:execute
+flowable:events:deployments          flowable:events:deployments:upload
+flowable:events:definitions          flowable:events:channels
+flowable:events:instances:create
 flowable:external-worker-jobs        flowable:external-worker:run
 flowable:external-worker:complete    flowable:external-worker:fail
 flowable:external-worker:bpmn-error  flowable:external-worker:unacquire
