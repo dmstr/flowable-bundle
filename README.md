@@ -18,6 +18,10 @@ credentials) are resolved per request from an `ApiConfiguration` of type
 - Symfony 7
 - API Platform 4
 - A reachable Flowable REST engine (`flowable-rest`)
+- `ext-pcntl` — only for `flowable:external-worker:run` as a long-lived process,
+  where it enables the graceful shutdown described under
+  [External worker tasks](#external-worker-tasks). Not a hard dependency: without
+  it the command runs, it just cannot react to SIGTERM.
 
 ## Installation
 
@@ -205,9 +209,17 @@ flowable:jobs
 
 `flowable:external-worker:run` is the poll loop: `--topic` (repeatable, empty =
 every registered handler's topics), `--worker-id`, `--lock-duration=PT10M`,
-`--batch`, `--max-jobs`, `--time-limit`, `--once`. It is signal-aware — SIGTERM /
-SIGINT finish the current job, unacquire whatever is still locked and exit, so a
-container restart leaves no jobs locked until their lock expires.
+`--batch`, `--max-jobs`, `--time-limit`, `--once`.
+
+> **Graceful shutdown requires `ext-pcntl`.** With pcntl loaded, SIGTERM / SIGINT
+> finish the current job, unacquire whatever is still locked and exit, so a
+> container restart leaves no jobs locked. **Without pcntl the command still runs**
+> (`getSubscribedSignals()` returns an empty list, so Symfony does not refuse to
+> start it) — but nothing handles the signal: on SIGTERM the acquired jobs stay
+> locked until their `lockDuration` expires, and the engine hands them out again
+> only after that. Install pcntl before running this as a long-lived worker
+> process, and keep `--lock-duration` short enough that a lost lock is not
+> painful. Verified 2026-07-29 on a php:8.4 image without pcntl.
 
 ## Security
 
