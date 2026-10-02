@@ -141,6 +141,15 @@ interface FlowableClientInterface
     /** @return array<string,mixed>|null */
     public function findHistoricProcessInstance(string $id): ?array;
 
+    /**
+     * Delete a historic process instance including its historic tasks,
+     * activities and variables. While the instance is still running the engine
+     * refuses with a 500 ("Process instance is still running"), so delete the
+     * runtime instance first; that alone keeps the historic record (with
+     * deleteReason). Verified against flowable-rest 8.0.0 (2026-10-02).
+     */
+    public function deleteHistoricProcessInstance(string $id): void;
+
     /** @param array<string,scalar> $query @return array<string,mixed> Flowable list envelope */
     public function listHistoricTasks(array $query = []): array;
 
