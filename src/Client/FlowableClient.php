@@ -229,6 +229,11 @@ final class FlowableClient implements FlowableClientInterface
         return $this->findOne('/service/history/historic-process-instances/'.rawurlencode($id));
     }
 
+    public function deleteHistoricProcessInstance(string $id): void
+    {
+        $this->request('DELETE', '/service/history/historic-process-instances/'.rawurlencode($id));
+    }
+
     public function listHistoricTasks(array $query = []): array
     {
         return $this->decode($this->request('GET', '/service/history/historic-task-instances', $query));
