@@ -37,8 +37,8 @@ final class EventInstanceCreateProcessor extends AbstractFlowableProcessor imple
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): null
     {
-        $body = $this->validator->validateRaw($this->rawBody(), $this->schemaPath('FlowEventInstance', 'create'));
-        $client = $this->client($body);
+        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowEventInstance', 'create'));
+        $client = $this->client($body, $context);
 
         $payload = [];
         foreach (self::PAYLOAD_KEYS as $key) {

@@ -57,8 +57,8 @@ final class FlowJobProvider extends AbstractFlowableProvider implements Provider
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
-        $kind = self::normalizeKind($this->queryParam('kind'));
+        $client = $this->client($context);
+        $kind = self::normalizeKind($this->queryParam('kind', $context));
 
         if ($operation instanceof CollectionOperationInterface) {
             $query = array_merge(
@@ -66,10 +66,10 @@ final class FlowJobProvider extends AbstractFlowableProvider implements Provider
                     'processInstance' => 'processInstanceId',
                     'processDefinition' => 'processDefinitionId',
                     'execution' => 'executionId',
-                ]),
+                ], $context),
                 // createTime is accepted by every job collection (verified
                 // against flowable-rest 8.0.0); `retries`, for instance, is not.
-                $this->listQuery(self::FILTERS, 'createTime'),
+                $this->listQuery(self::FILTERS, 'createTime', context: $context),
             );
             $envelope = $this->listByKind($client, $kind, $query);
 

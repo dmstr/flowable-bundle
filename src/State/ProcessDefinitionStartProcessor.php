@@ -19,8 +19,8 @@ final class ProcessDefinitionStartProcessor extends AbstractFlowableProcessor im
 {
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): FlowProcessInstance
     {
-        $body = $this->validator->validateRaw($this->rawBody(), $this->schemaPath('FlowProcessDefinition', 'start'));
-        $client = $this->client($body);
+        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowProcessDefinition', 'start'));
+        $client = $this->client($body, $context);
 
         $payload = ['processDefinitionId' => (string) ($uriVariables['id'] ?? '')];
         if (isset($body['businessKey'])) {

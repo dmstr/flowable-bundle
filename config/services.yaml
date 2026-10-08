@@ -97,3 +97,15 @@ services:
     Dmstr\Flowable\Worker\ExternalWorkerHandlerRegistry:
         arguments:
             $handlers: !tagged_iterator { tag: flowable.external_worker_handler }
+
+    # MCP tool switches (dmstr_flowable.mcp.read / mcp.write, both off by
+    # default): removes this bundle's McpTool operations from the resource
+    # metadata unless their switch is on. Decorates inside API Platform's
+    # metadata cache (priority -10), so the cached metadata is the filtered one.
+    Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory:
+        decorates: api_platform.metadata.resource.metadata_collection_factory
+        decoration_priority: 0
+        arguments:
+            $decorated: '@.inner'
+            $readEnabled: '%dmstr_flowable.mcp.read%'
+            $writeEnabled: '%dmstr_flowable.mcp.write%'

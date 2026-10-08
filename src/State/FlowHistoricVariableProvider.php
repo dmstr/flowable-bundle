@@ -27,10 +27,10 @@ final class FlowHistoricVariableProvider extends AbstractFlowableProvider implem
             $this->relationFilters([
                 'historicProcessInstance' => 'processInstanceId',
                 'historicTask' => 'taskId',
-            ]),
-            $this->listQuery(self::FILTERS),
+            ], $context),
+            $this->listQuery(self::FILTERS, context: $context),
         );
-        $envelope = $this->client()->listHistoricVariables($query);
+        $envelope = $this->client($context)->listHistoricVariables($query);
 
         return $this->paginate($envelope, FlowHistoricVariable::fromApi(...));
     }

@@ -22,8 +22,8 @@ final class ExecutionTriggerProcessor extends AbstractFlowableProcessor implemen
 {
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): null
     {
-        $body = $this->validator->validateRaw($this->rawBody(), $this->schemaPath('FlowExecution', 'trigger'));
-        $client = $this->client($body);
+        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowExecution', 'trigger'));
+        $client = $this->client($body, $context);
 
         $payload = ['action' => 'trigger'];
         $variables = $this->variablesWithActor($body);

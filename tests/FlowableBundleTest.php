@@ -1,0 +1,64 @@
+<?php
+// file generated with AI assistance: Claude Code - 2026-10-08 23:12:47 UTC
+
+declare(strict_types=1);
+
+namespace Dmstr\Flowable\Tests;
+
+use Dmstr\Flowable\FlowableBundle;
+use Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
+
+final class FlowableBundleTest extends TestCase
+{
+    public function testConfigRootIsDmstrFlowable(): void
+    {
+        self::assertSame('dmstr_flowable', (new FlowableBundle())->getContainerExtension()?->getAlias());
+    }
+
+    public function testMcpSwitchesDefaultToOff(): void
+    {
+        $container = $this->load([]);
+
+        self::assertFalse($container->getParameter('dmstr_flowable.mcp.read'));
+        self::assertFalse($container->getParameter('dmstr_flowable.mcp.write'));
+    }
+
+    public function testMcpSwitchesArePassedAsParameters(): void
+    {
+        $container = $this->load([['mcp' => ['read' => true]], ['mcp' => ['write' => true]]]);
+
+        self::assertTrue($container->getParameter('dmstr_flowable.mcp.read'));
+        self::assertTrue($container->getParameter('dmstr_flowable.mcp.write'));
+    }
+
+    public function testDecoratorIsRegisteredWithTheSwitches(): void
+    {
+        $definition = $this->load([])->getDefinition(McpToolSwitchResourceMetadataCollectionFactory::class);
+
+        self::assertSame(
+            ['api_platform.metadata.resource.metadata_collection_factory', null, 0],
+            $definition->getDecoratedService(),
+        );
+        self::assertSame('%dmstr_flowable.mcp.read%', $definition->getArgument('$readEnabled'));
+        self::assertSame('%dmstr_flowable.mcp.write%', $definition->getArgument('$writeEnabled'));
+    }
+
+    /**
+     * @param list<array<string,mixed>> $configs
+     */
+    private function load(array $configs): ContainerBuilder
+    {
+        $container = new ContainerBuilder(new ParameterBag([
+            'kernel.environment' => 'test',
+            'kernel.build_dir' => sys_get_temp_dir(),
+        ]));
+        $extension = (new FlowableBundle())->getContainerExtension();
+        self::assertNotNull($extension);
+        $extension->load($configs, $container);
+
+        return $container;
+    }
+}

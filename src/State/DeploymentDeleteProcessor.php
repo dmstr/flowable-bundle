@@ -20,11 +20,11 @@ final class DeploymentDeleteProcessor extends AbstractFlowableProcessor implemen
     {
         $id = (string) ($uriVariables['id'] ?? '');
         $cascade = filter_var(
-            $this->requestStack->getCurrentRequest()?->query->get('cascade'),
+            $this->inputParam('cascade', $context),
             \FILTER_VALIDATE_BOOL,
         );
 
-        $this->client()->deleteDeployment($id, $cascade);
+        $this->client(context: $context)->deleteDeployment($id, $cascade);
         $this->audit('deployment.delete', ['deployment' => $id, 'cascade' => $cascade]);
 
         return null;
