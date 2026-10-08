@@ -51,11 +51,13 @@
     },
     "password": {
       "type": ["null", "string"],
-      "description": "Technical user password (required when auth_type is basic)"
+      "writeOnly": true,
+      "description": "Technical user password (required when auth_type is basic). Stored encrypted, masked on read."
     },
     "token": {
       "type": ["null", "string"],
-      "description": "Bearer token (required when auth_type is bearer)"
+      "writeOnly": true,
+      "description": "Bearer token (required when auth_type is bearer). Stored encrypted, masked on read."
     },
     "verify_ssl": {
       "type": "boolean",
