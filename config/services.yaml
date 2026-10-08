@@ -109,3 +109,14 @@ services:
             $decorated: '@.inner'
             $readEnabled: '%dmstr_flowable.mcp.read%'
             $writeEnabled: '%dmstr_flowable.mcp.write%'
+
+    # Input schemas of the bundle's MCP tools: served from the operation
+    # *.input.json files named in each McpTool's extra properties, instead of
+    # the resource fields API Platform would derive. Only present when API
+    # Platform's MCP support is enabled; removed otherwise.
+    Dmstr\Flowable\Service\McpToolInputSchemaFactory:
+        decorates: api_platform.mcp.json_schema.schema_factory
+        decoration_on_invalid: ignore
+        arguments:
+            $decorated: '@.inner'
+# - revised 2026-10-08 (MCP tool input schema factory)

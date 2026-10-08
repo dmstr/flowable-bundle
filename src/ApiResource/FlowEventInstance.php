@@ -7,8 +7,10 @@ namespace Dmstr\Flowable\ApiResource;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\EventInstanceCreateProcessor;
 
 /**
@@ -49,6 +51,19 @@ use Dmstr\Flowable\State\EventInstanceCreateProcessor;
             openapi: new Operation(tags: ['Flowable/Events']),
         ),
     ],
+    mcp: [
+        'flowable_events_send' => new McpTool(
+            name: 'flowable_events_send',
+            description: 'Send an event to an inbound channel of the event registry; needs eventDefinitionKey or eventDefinitionId, channelDefinitionKey or channelDefinitionId, and eventPayload as an object. Returns null on success; failures are tool errors.',
+            annotations: ['readOnlyHint' => false, 'destructiveHint' => false, 'idempotentHint' => false],
+            meta: ['de.dmstr/tag' => 'Flowable/Events'],
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            processor: EventInstanceCreateProcessor::class,
+            read: false,
+            structuredContent: false,
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowEventInstance/create.input.json']],
+        ),
+    ],
     security: "is_granted('ROLE_USER')",
     openapi: new Operation(tags: ['Flowable/Events']),
 )]
@@ -62,3 +77,4 @@ final class FlowEventInstance
     #[ApiProperty(identifier: true)]
     public ?string $id = null;
 }
+// - revised 2026-10-08 (MCP tool flowable_events_send)

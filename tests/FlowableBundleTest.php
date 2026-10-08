@@ -7,8 +7,10 @@ namespace Dmstr\Flowable\Tests;
 
 use Dmstr\Flowable\FlowableBundle;
 use Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory;
+use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
 
 final class FlowableBundleTest extends TestCase
@@ -46,6 +48,16 @@ final class FlowableBundleTest extends TestCase
         self::assertSame('%dmstr_flowable.mcp.write%', $definition->getArgument('$writeEnabled'));
     }
 
+    public function testMcpInputSchemaFactoryDecoratesTheMcpSchemaFactoryWhenPresent(): void
+    {
+        $definition = $this->load([])->getDefinition(McpToolInputSchemaFactory::class);
+
+        self::assertSame(
+            ['api_platform.mcp.json_schema.schema_factory', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE],
+            $definition->getDecoratedService(),
+        );
+    }
+
     /**
      * @param list<array<string,mixed>> $configs
      */
@@ -62,3 +74,4 @@ final class FlowableBundleTest extends TestCase
         return $container;
     }
 }
+// - revised 2026-10-08 (MCP input schema factory registration)

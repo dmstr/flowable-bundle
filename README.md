@@ -61,6 +61,20 @@ against [`schema.json`](schema.json):
 `auth_type` is either `basic` (requires `username` + `password`) or `bearer`
 (requires `token`).
 
+### Bundle configuration
+
+The config root is `dmstr_flowable`. Its only options switch the bundle's MCP tools (see [MCP tools](#mcp-tools)); both default to `false`, so an application that does not opt in serves no Flowable tool:
+
+```yaml
+# config/packages/dmstr_flowable.yaml
+dmstr_flowable:
+    mcp:
+        read: true    # tools with readOnlyHint: true
+        write: false  # every other tool
+```
+
+A tool whose annotations declare `readOnlyHint: true` is kept only when `mcp.read` is on; every other tool counts as writing and is kept only when `mcp.write` is on. A switched-off tool is removed from API Platform's resource metadata, so it is neither listed nor callable. API Platform caches that metadata, so run `bin/console cache:clear` after changing a switch.
+
 ## API resources
 
 All resources are served under `/api/flowable/*`:
@@ -228,6 +242,70 @@ saved state. A missing variable leaves the field without a `default` and keeps
 the keyword visible for debugging. Details:
 [docs/task-form-prefill.md](docs/task-form-prefill.md).
 
+## MCP tools
+
+The bundle declares 14 [MCP](https://modelcontextprotocol.io/) tools as API Platform `McpTool` entries on its resources. API Platform serves them when its MCP support is installed and enabled; the packages are suggested, not required:
+
+- `symfony/mcp-bundle` serves the tools;
+- `mcp/sdk` is the MCP server runtime it runs on.
+
+Nothing is exposed until the [switches](#bundle-configuration) `dmstr_flowable.mcp.read` / `mcp.write` are turned on.
+
+| Tool | Read/write | Security | Tag (`_meta` `de.dmstr/tag`) | Backing operation |
+|---|---|---|---|---|
+| `flowable_list_process_definitions` | read | `ROLE_USER` | `Flowable` | `GET /process_definitions` (`FlowProcessDefinitionProvider`) |
+| `flowable_list_tasks` | read | `ROLE_USER` | `Flowable` | `GET /tasks` (`FlowTaskProvider`) |
+| `flowable_get_task_form` | read | `ROLE_USER` | `Flowable` | like `GET /tasks/{id}/input_schema` (`FlowTaskFormProvider`) |
+| `flowable_get_process_status` | read | `ROLE_USER` | `Flowable` | composite: process instance, open tasks, executions (`FlowProcessStatusProvider`) |
+| `flowable_history_get` | read | `ROLE_USER` | `Flowable/History` | composite: historic activities, historic variables, failed decision executions (`FlowProcessHistoryProvider`) |
+| `flowable_system_list_deadletter_jobs` | read | `ROLE_USER` | `Flowable/System` | `GET /jobs?kind=deadletter`, kind fixed (`FlowJobProvider`) |
+| `flowable_start_process` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable` | `POST /process_instances`, by key or id (`ProcessInstanceCreateProcessor`) |
+| `flowable_complete_task` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable` | `POST /tasks/{id}/complete` (`TaskCompleteProcessor`) |
+| `flowable_dmn_evaluate` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable/DMN` | `POST /decisions/execute` (`DecisionExecuteProcessor`) |
+| `flowable_events_send` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable/Events` | `POST /event_instances` (`EventInstanceCreateProcessor`) |
+| `flowable_system_trigger_execution` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable/System` | `POST /executions/{id}/trigger` (`ExecutionTriggerProcessor`) |
+| `flowable_dmn_deploy` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable/DMN` | `POST /dmn_deployments/upload` with an inline file (`DmnDeploymentUploadProcessor`) |
+| `flowable_deploy_bundle` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable` | several inline files as one `.bar` deployment (`DeploymentBundleProcessor`) |
+| `flowable_system_execute_timer_job` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable/System` | no HTTP operation; `FlowableClientInterface::executeTimerJob()` (`TimerJobExecuteProcessor`) |
+
+Every tool carries `annotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`), its `security` expression and the `de.dmstr/tag` entry in `_meta`. Each description is one line that names the fields of the result, because some agent frameworks ignore `structuredContent`; the result is the serialised resource (or result object) in API Platform's MCP output format.
+
+Notes on individual tools:
+
+- `flowable_start_process` starts by `processDefinitionKey` (latest version) or `processDefinitionId`, so an agent needs no prior lookup of the definition id; it is backed by `POST /process_instances`, not by `POST /process_definitions/{id}/start`.
+- `flowable_dmn_evaluate` changes no engine state except a history row, but it is gated behind `ROLE_FLOWABLE_ADMIN` like its HTTP operation, so it is declared a write tool (`readOnlyHint: false`, `idempotentHint: true`) and appears only with `mcp.write`.
+- `flowable_get_process_status` answers only for running instances; `flowable_history_get` covers ended ones. Both are composites: when one of their engine calls fails, the tool fails as a whole and never returns a partial result. Each list holds at most 200 rows; the `*Total` fields tell whether it was cut.
+- `flowable_system_execute_timer_job` moves the timer job to the executable jobs (`POST management/timer-jobs/{id}` with `{"action": "move"}`), where the async executor runs it at once. The remaining wait cannot be restored, hence `destructiveHint: true`.
+- `flowable_deploy_bundle` refuses `.dmn` files: a process deployment does not register decision tables in the DMN engine, so they go to `flowable_dmn_deploy`. Building the archive needs the PHP `zip` extension.
+
+### Tool arguments
+
+All arguments are top-level. Operations with a JSON body take the body properties plus the URI variable (`id`), which is not part of the body; `apiConfiguration` selects the engine connection (full or partial UUID). List tools take `page`, `itemsPerPage`, `sort`, `order` and the filters of their HTTP collection; relation filters accept an id or an IRI. Variables are passed preferably as a map `{"name": value}`; the explicit list `[{"name", "value", "type"}]` is accepted too.
+
+The advertised input schema of a tool is the operation input file next to its resource class (e.g. `src/ApiResource/FlowTask/complete.input.json`; tool-only files are named `mcp<Verb>.input.json`), with the URI variables added as required properties. Top-level `allOf`/`anyOf` alternatives ("one of these keys is required") are left out of the advertised schema because several MCP clients cannot represent them; the tool description names the rule, and the processor validates the full file.
+
+Files are passed inline instead of as a multipart upload:
+
+```json
+{
+    "name": "rates.dmn",
+    "content": "<?xml version=\"1.0\"?><definitions …>…</definitions>",
+    "deploymentName": "rates"
+}
+```
+
+`name` is the file name including its extension, `content` the file content as text; binary content (`.bar`, `.zip`) is sent base64-encoded with `"contentEncoding": "base64"`. `flowable_deploy_bundle` takes a list of such files plus `deploymentName`:
+
+```json
+{
+    "deploymentName": "order-process",
+    "files": [
+        {"name": "order.bpmn20.xml", "content": "<?xml …"},
+        {"name": "approve.schema.json", "content": "{\"type\": \"object\", …}"}
+    ]
+}
+```
+
 ## CLI
 
 Every REST operation has a matching command; command IDs mirror the resource
@@ -283,6 +361,17 @@ from the authenticated identity (JWT `sub`) and propagated to Flowable — see
 - [`docs/task-form-prefill.md`](docs/task-form-prefill.md) — the
   `x-process-data-var` task-form extension.
 
+## Tests
+
+The PHPUnit suite (`tests/`, configuration `phpunit.dist.xml`) runs without an engine, a database or a kernel: the Flowable client is a test double, and the MCP tool metadata is read from the resource attributes with API Platform's attribute metadata factory.
+
+```bash
+composer install
+vendor/bin/phpunit
+```
+
 ## License
 
 [MIT](LICENSE) © diemeisterei GmbH
+
+<!-- - revised 2026-10-08 (bundle configuration, MCP tools, tests) -->

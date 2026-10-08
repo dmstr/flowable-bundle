@@ -9,9 +9,14 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
+use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\ApiResource\Output\FlowProcessHistory;
+use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\FlowHistoricProcessInstanceProvider;
+use Dmstr\Flowable\State\FlowProcessHistoryProvider;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
@@ -42,6 +47,20 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Get(
             uriTemplate: '/historic_process_instances/{id}',
             provider: FlowHistoricProcessInstanceProvider::class,
+        ),
+    ],
+    mcp: [
+        'flowable_history_get' => new McpTool(
+            name: 'flowable_history_get',
+            description: 'Get the history of a process instance, running or ended, in one call. Returns processInstanceId, activities (each with activityId, activityName, activityType, assignee, taskId, startTime, endTime, durationInMillis), activitiesTotal, variables (each with name, type, value, scope, taskId), variablesTotal, failedDecisionExecutions (each with id, decisionKey, decisionName, activityId, startTime, endTime) and failedDecisionExecutionsTotal; each list holds at most 200 rows.',
+            annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
+            meta: ['de.dmstr/tag' => 'Flowable/History'],
+            security: "is_granted('ROLE_USER')",
+            provider: FlowProcessHistoryProvider::class,
+            output: FlowProcessHistory::class,
+            normalizationContext: ['groups' => ['flow_mcp:read']],
+            uriVariables: ['id' => new Link(fromClass: FlowHistoricProcessInstance::class, identifiers: ['id'])],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowHistoricProcessInstance/mcpHistory.input.json', 'uriVariables' => ['id' => 'Id of the process instance.']]],
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -149,3 +168,4 @@ final class FlowHistoricProcessInstance
         return $self;
     }
 }
+// - revised 2026-10-08 (MCP tool flowable_history_get)

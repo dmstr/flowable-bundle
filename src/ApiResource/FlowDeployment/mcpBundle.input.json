@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://za7.example.com/schemas/flowable-deploy-bundle-input.json",
+  "title": "flowable_deploy_bundle input",
+  "description": "Arguments of the MCP tool flowable_deploy_bundle: several files deployed as one process deployment (packed into a .bar archive).",
+  "type": "object",
+  "required": [
+    "files",
+    "deploymentName"
+  ],
+  "properties": {
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The files of the deployment, e.g. one .bpmn20.xml plus the <formKey>.schema.json form schemas its user tasks reference.",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "content"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Plain file name with extension .bpmn, .bpmn20.xml, .form or .json (no path)."
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "description": "File content as text, or base64 with contentEncoding \"base64\"."
+          },
+          "contentEncoding": {
+            "type": "string",
+            "enum": [
+              "base64"
+            ],
+            "description": "Set to \"base64\" when content is base64-encoded."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "deploymentName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Deployment name, shown in the deployment list."
+    },
+    "deploymentSource": {
+      "type": "string",
+      "description": "Optional free-text source marker stored on the deployment."
+    },
+    "category": {
+      "type": "string",
+      "description": "Optional deployment category."
+    },
+    "tenantId": {
+      "type": "string",
+      "description": "Optional tenant id."
+    },
+    "apiConfiguration": {
+      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection.",
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+        },
+        {
+          "type": "object",
+          "required": [
+            "uuid"
+          ],
+          "properties": {
+            "uuid": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

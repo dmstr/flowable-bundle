@@ -9,10 +9,15 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
+use ApiPlatform\Metadata\McpTool;
+use ApiPlatform\Metadata\McpToolCollection;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
 use Dmstr\Flowable\Controller\JobStacktraceController;
+use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\FlowJobProvider;
+use Dmstr\Flowable\State\TimerJobExecuteProcessor;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
@@ -114,6 +119,32 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 tags: ['Flowable/System'],
                 summary: 'Exception stacktrace of a job, as plain text.',
             ),
+        ),
+    ],
+    mcp: [
+        'flowable_system_list_deadletter_jobs' => new McpToolCollection(
+            name: 'flowable_system_list_deadletter_jobs',
+            description: 'List dead-letter jobs, i.e. engine jobs whose retries are used up and that no longer run. Returns a page of jobs, each with id, kind (deadletter), handlerType, processInstanceId, executionId, processDefinitionId, elementId, elementName, retries, exceptionMessage, createTime, dueDate and tenantId.',
+            annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
+            meta: ['de.dmstr/tag' => 'Flowable/System'],
+            security: "is_granted('ROLE_USER')",
+            provider: FlowJobProvider::class,
+            extraProperties: [
+                McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowJob/mcpDeadletterList.input.json'],
+                FlowJobProvider::FIXED_KIND => 'deadletter',
+            ],
+        ),
+        'flowable_system_execute_timer_job' => new McpTool(
+            name: 'flowable_system_execute_timer_job',
+            description: 'Run a timer job now instead of at its due date, by timer job id; the remaining wait is skipped and cannot be restored. Returns null on success; failures are tool errors.',
+            annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
+            meta: ['de.dmstr/tag' => 'Flowable/System'],
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            processor: TimerJobExecuteProcessor::class,
+            read: false,
+            structuredContent: false,
+            uriVariables: ['id' => new Link(fromClass: FlowJob::class, identifiers: ['id'])],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowJob/mcpExecuteTimer.input.json', 'uriVariables' => ['id' => 'Id of the timer job.']]],
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -258,3 +289,4 @@ final class FlowJob
         return $self;
     }
 }
+// - revised 2026-10-08 (MCP tools flowable_system_list_deadletter_jobs, flowable_system_execute_timer_job)

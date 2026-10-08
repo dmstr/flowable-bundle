@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://za7.example.com/schemas/flowable-system-list-deadletter-jobs-input.json",
+  "title": "flowable_system_list_deadletter_jobs input",
+  "description": "Arguments of the MCP tool flowable_system_list_deadletter_jobs (filters of GET /flowable/jobs?kind=deadletter; the kind is fixed).",
+  "type": "object",
+  "properties": {
+    "page": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Page number, starting at 1."
+    },
+    "itemsPerPage": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200,
+      "default": 30,
+      "description": "Page size (1 to 200)."
+    },
+    "sort": {
+      "type": "string",
+      "description": "Flowable sort field (default: createTime, newest first)."
+    },
+    "order": {
+      "type": "string",
+      "enum": [
+        "asc",
+        "desc"
+      ],
+      "default": "desc",
+      "description": "Sort direction."
+    },
+    "processInstanceId": {
+      "type": "string",
+      "description": "Filter by process instance id."
+    },
+    "processDefinitionId": {
+      "type": "string",
+      "description": "Filter by process definition id."
+    },
+    "executionId": {
+      "type": "string",
+      "description": "Filter by execution id."
+    },
+    "elementId": {
+      "type": "string",
+      "description": "Filter by the BPMN element id the job belongs to."
+    },
+    "handlerType": {
+      "type": "string",
+      "description": "Filter by job handler type (e.g. async-continuation, timer-transition)."
+    },
+    "exceptionMessage": {
+      "type": "string",
+      "description": "Filter by exception message."
+    },
+    "tenantId": {
+      "type": "string",
+      "description": "Filter by tenant id."
+    },
+    "apiConfiguration": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+    }
+  },
+  "additionalProperties": false
+}
