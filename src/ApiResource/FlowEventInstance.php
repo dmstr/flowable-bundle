@@ -55,7 +55,7 @@ use Dmstr\Flowable\State\EventInstanceCreateProcessor;
         'flowable_events_send' => new McpTool(
             name: 'flowable_events_send',
             description: 'Send an event to an inbound channel of the event registry; needs eventDefinitionKey or eventDefinitionId, channelDefinitionKey or channelDefinitionId, and eventPayload as an object. Returns null on success; failures are tool errors.',
-            annotations: ['readOnlyHint' => false, 'destructiveHint' => false, 'idempotentHint' => false],
+            annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable/Events'],
             security: "is_granted('ROLE_FLOWABLE_ADMIN')",
             processor: EventInstanceCreateProcessor::class,
@@ -78,3 +78,4 @@ final class FlowEventInstance
     public ?string $id = null;
 }
 // - revised 2026-10-08 (MCP tool flowable_events_send)
+// - revised 2026-10-09 (MCP: destructiveHint)

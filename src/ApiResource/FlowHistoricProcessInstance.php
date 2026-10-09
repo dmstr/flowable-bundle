@@ -55,7 +55,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'Get the history of a process instance, running or ended, in one call. Returns processInstanceId, activities (each with activityId, activityName, activityType, assignee, taskId, startTime, endTime, durationInMillis), activitiesTotal, variables (each with name, type, value, scope, taskId), variablesTotal, failedDecisionExecutions (each with id, decisionKey, decisionName, activityId, startTime, endTime) and failedDecisionExecutionsTotal; each list holds at most 200 rows.',
             annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable/History'],
-            security: "is_granted('ROLE_USER')",
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
             provider: FlowProcessHistoryProvider::class,
             output: FlowProcessHistory::class,
             normalizationContext: ['groups' => ['flow_mcp:read']],
@@ -169,3 +169,4 @@ final class FlowHistoricProcessInstance
     }
 }
 // - revised 2026-10-08 (MCP tool flowable_history_get)
+// - revised 2026-10-09 (MCP: admin-only)

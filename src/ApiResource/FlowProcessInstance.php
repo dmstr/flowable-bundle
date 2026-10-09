@@ -79,7 +79,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'Get the current state of a running process instance in one call. Returns processInstance (id, processDefinitionId, processDefinitionKey, businessKey, startUserId, startTime, suspended, ended, tenantId), openTasks (each with id, name, assignee, taskDefinitionKey, createTime, dueDate), openTasksTotal, currentActivityIds (BPMN element ids it waits at) and activeExecutions (each with id and activityId); ended instances fail, use flowable_history_get for them.',
             annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable'],
-            security: "is_granted('ROLE_USER')",
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
             provider: FlowProcessStatusProvider::class,
             output: FlowProcessStatus::class,
             normalizationContext: ['groups' => ['flow_mcp:read']],
@@ -89,7 +89,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         'flowable_start_process' => new McpTool(
             name: 'flowable_start_process',
             description: 'Start a new process instance by processDefinitionKey (latest version, preferred) or processDefinitionId, with optional businessKey and variables, preferably as a map {name: value}. Returns the new process instance with id, processDefinitionId, processDefinitionKey, businessKey, startUserId, startTime, suspended, ended and tenantId.',
-            annotations: ['readOnlyHint' => false, 'destructiveHint' => false, 'idempotentHint' => false],
+            annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable'],
             security: "is_granted('ROLE_FLOWABLE_ADMIN')",
             processor: ProcessInstanceCreateProcessor::class,
@@ -175,3 +175,4 @@ final class FlowProcessInstance
     }
 }
 // - revised 2026-10-08 (MCP tools flowable_get_process_status, flowable_start_process)
+// - revised 2026-10-09 (MCP: admin-only, destructiveHint)

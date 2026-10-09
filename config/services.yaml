@@ -98,8 +98,8 @@ services:
         arguments:
             $handlers: !tagged_iterator { tag: flowable.external_worker_handler }
 
-    # MCP tool switches (dmstr_flowable.mcp.read / mcp.write, both off by
-    # default): removes this bundle's McpTool operations from the resource
+    # MCP tool switches (dmstr_flowable.mcp.read / mcp.write / mcp.deploy, all
+    # off by default): removes this bundle's McpTool operations from the resource
     # metadata unless their switch is on. Decorates inside API Platform's
     # metadata cache (priority -10), so the cached metadata is the filtered one.
     Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory:
@@ -109,6 +109,7 @@ services:
             $decorated: '@.inner'
             $readEnabled: '%dmstr_flowable.mcp.read%'
             $writeEnabled: '%dmstr_flowable.mcp.write%'
+            $deployEnabled: '%dmstr_flowable.mcp.deploy%'
 
     # Input schemas of the bundle's MCP tools: served from the operation
     # *.input.json files named in each McpTool's extra properties, instead of
@@ -120,3 +121,4 @@ services:
         arguments:
             $decorated: '@.inner'
 # - revised 2026-10-08 (MCP tool input schema factory)
+# - revised 2026-10-09 (mcp.deploy switch)

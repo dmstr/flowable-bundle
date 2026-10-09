@@ -26,14 +26,16 @@ final class FlowableBundleTest extends TestCase
 
         self::assertFalse($container->getParameter('dmstr_flowable.mcp.read'));
         self::assertFalse($container->getParameter('dmstr_flowable.mcp.write'));
+        self::assertFalse($container->getParameter('dmstr_flowable.mcp.deploy'));
     }
 
     public function testMcpSwitchesArePassedAsParameters(): void
     {
-        $container = $this->load([['mcp' => ['read' => true]], ['mcp' => ['write' => true]]]);
+        $container = $this->load([['mcp' => ['read' => true]], ['mcp' => ['write' => true, 'deploy' => true]]]);
 
         self::assertTrue($container->getParameter('dmstr_flowable.mcp.read'));
         self::assertTrue($container->getParameter('dmstr_flowable.mcp.write'));
+        self::assertTrue($container->getParameter('dmstr_flowable.mcp.deploy'));
     }
 
     public function testDecoratorIsRegisteredWithTheSwitches(): void
@@ -46,6 +48,7 @@ final class FlowableBundleTest extends TestCase
         );
         self::assertSame('%dmstr_flowable.mcp.read%', $definition->getArgument('$readEnabled'));
         self::assertSame('%dmstr_flowable.mcp.write%', $definition->getArgument('$writeEnabled'));
+        self::assertSame('%dmstr_flowable.mcp.deploy%', $definition->getArgument('$deployEnabled'));
     }
 
     public function testMcpInputSchemaFactoryDecoratesTheMcpSchemaFactoryWhenPresent(): void
@@ -75,3 +78,4 @@ final class FlowableBundleTest extends TestCase
     }
 }
 // - revised 2026-10-08 (MCP input schema factory registration)
+// - revised 2026-10-09 (mcp.deploy switch)

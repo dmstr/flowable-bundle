@@ -65,7 +65,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         'flowable_system_trigger_execution' => new McpTool(
             name: 'flowable_system_trigger_execution',
             description: 'Trigger a waiting execution (e.g. a receive task) by execution id, taken from activeExecutions of flowable_get_process_status (not the process instance id), optionally with variables as a map {name: value}. Returns null on success; failures are tool errors.',
-            annotations: ['readOnlyHint' => false, 'destructiveHint' => false, 'idempotentHint' => false],
+            annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable/System'],
             security: "is_granted('ROLE_FLOWABLE_ADMIN')",
             processor: ExecutionTriggerProcessor::class,
@@ -146,3 +146,4 @@ final class FlowExecution
     }
 }
 // - revised 2026-10-08 (MCP tool flowable_system_trigger_execution)
+// - revised 2026-10-09 (MCP: destructiveHint)

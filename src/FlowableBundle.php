@@ -32,8 +32,9 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
  *         mcp:
  *             read: false   # publish read-only McpTool operations
  *             write: false  # publish all other (writing) McpTool operations
+ *             deploy: false # also publish the deploy tools (needs write)
  *
- * Both switches default to off, so installing symfony/mcp-bundle in the
+ * All switches default to off, so installing symfony/mcp-bundle in the
  * application exposes no Flowable tool until it is enabled explicitly (see
  * Metadata\McpToolSwitchResourceMetadataCollectionFactory).
  */
@@ -58,13 +59,17 @@ final class FlowableBundle extends AbstractBundle
                             ->info('Publish all other tools; a tool without readOnlyHint: true counts as writing.')
                             ->defaultFalse()
                         ->end()
+                        ->booleanNode('deploy')
+                            ->info('Also publish the deploy tools (flowable_deploy_bundle, flowable_dmn_deploy); needs write. Deployed BPMN can run scripts on the engine.')
+                            ->defaultFalse()
+                        ->end()
                     ->end()
                 ->end()
             ->end();
     }
 
     /**
-     * @param array{mcp: array{read: bool, write: bool}} $config
+     * @param array{mcp: array{read: bool, write: bool, deploy: bool}} $config
      */
     public function loadExtension(
         array $config,
@@ -77,6 +82,7 @@ final class FlowableBundle extends AbstractBundle
         $builder->setParameter('dmstr_flowable.dir', \dirname(__DIR__));
         $builder->setParameter('dmstr_flowable.mcp.read', $config['mcp']['read']);
         $builder->setParameter('dmstr_flowable.mcp.write', $config['mcp']['write']);
+        $builder->setParameter('dmstr_flowable.mcp.deploy', $config['mcp']['deploy']);
         $container->import(\dirname(__DIR__).'/config/services.yaml');
 
         // External worker handlers are discovered by interface, so a consuming
@@ -98,3 +104,4 @@ final class FlowableBundle extends AbstractBundle
         }
     }
 }
+// - revised 2026-10-09 (mcp.deploy switch)

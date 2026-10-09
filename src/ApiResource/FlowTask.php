@@ -86,7 +86,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'List open user tasks, newest first, optionally filtered by process instance, process definition, assignee or task definition key. Returns a page of tasks, each with id, name, description, assignee, owner, processInstanceId, processDefinitionId, executionId, taskDefinitionKey, priority, createTime, dueDate and tenantId.',
             annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable'],
-            security: "is_granted('ROLE_USER')",
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
             provider: FlowTaskProvider::class,
             extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowTask/mcpList.input.json']],
         ),
@@ -95,7 +95,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'Get the form of an open user task as the JSON schema of the flowable_complete_task arguments. Returns taskId and schema; the form fields (name, type, title, enum, required) are the properties of schema.properties.variables, and a task without form yields a schema without fields.',
             annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable'],
-            security: "is_granted('ROLE_USER')",
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
             provider: FlowTaskFormProvider::class,
             output: FlowTaskForm::class,
             normalizationContext: ['groups' => ['flow_mcp:read'], 'preserve_empty_objects' => true],
@@ -105,7 +105,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         'flowable_complete_task' => new McpTool(
             name: 'flowable_complete_task',
             description: 'Complete an open user task with its form values as variables, preferably as a map {name: value} (flowable_get_task_form lists the fields). Returns null on success; failures are tool errors.',
-            annotations: ['readOnlyHint' => false, 'destructiveHint' => false, 'idempotentHint' => false],
+            annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable'],
             security: "is_granted('ROLE_FLOWABLE_ADMIN')",
             processor: TaskCompleteProcessor::class,
@@ -208,3 +208,4 @@ final class FlowTask
     }
 }
 // - revised 2026-10-08 (MCP tools flowable_list_tasks, flowable_get_task_form, flowable_complete_task)
+// - revised 2026-10-09 (MCP: admin-only, destructiveHint)

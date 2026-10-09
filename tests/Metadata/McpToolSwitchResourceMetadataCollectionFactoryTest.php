@@ -22,23 +22,27 @@ final class McpToolSwitchResourceMetadataCollectionFactoryTest extends TestCase
     private const OTHER_RESOURCE = 'App\\ApiResource\\Document';
 
     /**
-     * @return iterable<string, array{bool, bool, list<string>}>
+     * @return iterable<string, array{bool, bool, bool, list<string>}>
      */
     public static function switches(): iterable
     {
-        yield 'read and write' => [true, true, ['flow_task_list', 'flow_task_complete', 'flow_task_claim']];
-        yield 'read only' => [true, false, ['flow_task_list']];
-        yield 'write only' => [false, true, ['flow_task_complete', 'flow_task_claim']];
-        yield 'neither' => [false, false, []];
+        yield 'all' => [true, true, true, ['flow_task_list', 'flow_task_complete', 'flow_task_claim', 'flow_task_deploy']];
+        yield 'read and write' => [true, true, false, ['flow_task_list', 'flow_task_complete', 'flow_task_claim']];
+        yield 'read only' => [true, false, false, ['flow_task_list']];
+        yield 'write only' => [false, true, false, ['flow_task_complete', 'flow_task_claim']];
+        yield 'write and deploy' => [false, true, true, ['flow_task_complete', 'flow_task_claim', 'flow_task_deploy']];
+        // Deploy tools need write as well.
+        yield 'read and deploy' => [true, false, true, ['flow_task_list']];
+        yield 'neither' => [false, false, false, []];
     }
 
     /**
-     * @return iterable<string, array{bool, bool}>
+     * @return iterable<string, array{bool, bool, bool}>
      */
     public static function switchCombinations(): iterable
     {
-        foreach (self::switches() as $name => [$read, $write]) {
-            yield $name => [$read, $write];
+        foreach (self::switches() as $name => [$read, $write, $deploy]) {
+            yield $name => [$read, $write, $deploy];
         }
     }
 
@@ -46,9 +50,9 @@ final class McpToolSwitchResourceMetadataCollectionFactoryTest extends TestCase
      * @param list<string> $expectedTools
      */
     #[DataProvider('switches')]
-    public function testSwitchesFilterFlowableTools(bool $read, bool $write, array $expectedTools): void
+    public function testSwitchesFilterFlowableTools(bool $read, bool $write, bool $deploy, array $expectedTools): void
     {
-        $factory = new McpToolSwitchResourceMetadataCollectionFactory($this->inner(), $read, $write);
+        $factory = new McpToolSwitchResourceMetadataCollectionFactory($this->inner(), $read, $write, $deploy);
 
         $resource = $factory->create(self::FLOWABLE_RESOURCE)[0];
 
@@ -64,10 +68,10 @@ final class McpToolSwitchResourceMetadataCollectionFactoryTest extends TestCase
     }
 
     #[DataProvider('switchCombinations')]
-    public function testOtherResourcesStayUntouched(bool $read, bool $write): void
+    public function testOtherResourcesStayUntouched(bool $read, bool $write, bool $deploy): void
     {
         $inner = $this->inner();
-        $factory = new McpToolSwitchResourceMetadataCollectionFactory($inner, $read, $write);
+        $factory = new McpToolSwitchResourceMetadataCollectionFactory($inner, $read, $write, $deploy);
 
         $resource = $factory->create(self::OTHER_RESOURCE)[0];
 
@@ -116,6 +120,11 @@ final class McpToolSwitchResourceMetadataCollectionFactoryTest extends TestCase
                 'flow_task_complete' => new McpTool(name: 'flow_task_complete', annotations: ['readOnlyHint' => false, 'destructiveHint' => false]),
                 // No annotations at all: counts as a write tool (fail-closed).
                 'flow_task_claim' => new McpTool(name: 'flow_task_claim'),
+                'flow_task_deploy' => new McpTool(
+                    name: 'flow_task_deploy',
+                    annotations: ['readOnlyHint' => false, 'destructiveHint' => true],
+                    extraProperties: [McpToolSwitchResourceMetadataCollectionFactory::SWITCH_KEY => 'deploy'],
+                ),
                 'flow_task_resource' => new McpResource(uri: 'resource://flowable/tasks', name: 'flow_task_resource'),
             ],
         );
@@ -140,3 +149,4 @@ final class McpToolSwitchResourceMetadataCollectionFactoryTest extends TestCase
         };
     }
 }
+// - revised 2026-10-09 (mcp.deploy switch)

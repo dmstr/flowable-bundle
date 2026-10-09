@@ -19,7 +19,7 @@
     ],
     "require": {
         "php": ">=8.4",
-        "api-platform/core": "^4.3",
+        "api-platform/core": "^4.3.18",
         "dmstr/api-configuration-bundle": "^0.2.0 || ^0.3.0 || ^0.4.0",
         "dmstr/api-platform-utils-bundle": "^0.2.0 || ^0.3.0 || ^0.4.0",
         "dmstr/openapi-json-schema-bundle": "^0.3.0 || ^0.4.0",
@@ -42,7 +42,7 @@
     },
     "suggest": {
         "mcp/sdk": "Required by symfony/mcp-bundle; provides the MCP server runtime that API Platform's McpTool handler runs on.",
-        "symfony/mcp-bundle": "Serves the bundle's McpTool operations as MCP tools (enable them via dmstr_flowable.mcp.read / mcp.write)."
+        "symfony/mcp-bundle": "Serves the bundle's McpTool operations as MCP tools (enable them via dmstr_flowable.mcp.read / mcp.write / mcp.deploy)."
     },
     "autoload": {
         "psr-4": {

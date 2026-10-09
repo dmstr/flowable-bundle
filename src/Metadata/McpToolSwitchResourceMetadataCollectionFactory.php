@@ -12,8 +12,8 @@ use ApiPlatform\Metadata\Resource\Factory\ResourceMetadataCollectionFactoryInter
 use ApiPlatform\Metadata\Resource\ResourceMetadataCollection;
 
 /**
- * Applies the dmstr_flowable.mcp.read / mcp.write switches to the bundle's
- * own McpTool operations.
+ * Applies the dmstr_flowable.mcp.read / mcp.write / mcp.deploy switches to
+ * the bundle's own McpTool operations.
  *
  * API Platform registers every McpTool it finds in the resource metadata as
  * an MCP tool, and resolves a tool call by looking the name up in the same
@@ -24,7 +24,10 @@ use ApiPlatform\Metadata\Resource\ResourceMetadataCollection;
  *    mcp.read is on;
  *  - every other tool is treated as writing (fail-closed: a missing or
  *    non-true readOnlyHint never makes a tool read-only) and kept only when
- *    mcp.write is on.
+ *    mcp.write is on;
+ *  - a tool marked with SWITCH_KEY => 'deploy' (it deploys process or
+ *    decision definitions, i.e. code the engine runs) additionally needs
+ *    mcp.deploy.
  *
  * Only resources under Dmstr\Flowable\ApiResource\ are touched; other
  * bundles' and the application's resources pass through unchanged, as do
@@ -34,10 +37,14 @@ final class McpToolSwitchResourceMetadataCollectionFactory implements ResourceMe
 {
     private const RESOURCE_NAMESPACE = 'Dmstr\\Flowable\\ApiResource\\';
 
+    /** Extra property naming the additional switch a tool needs ('deploy'). */
+    public const SWITCH_KEY = 'dmstr_flowable_mcp_switch';
+
     public function __construct(
         private readonly ResourceMetadataCollectionFactoryInterface $decorated,
         private readonly bool $readEnabled = false,
         private readonly bool $writeEnabled = false,
+        private readonly bool $deployEnabled = false,
     ) {
     }
 
@@ -46,7 +53,7 @@ final class McpToolSwitchResourceMetadataCollectionFactory implements ResourceMe
         $collection = $this->decorated->create($resourceClass);
 
         if (!str_starts_with(ltrim($resourceClass, '\\'), self::RESOURCE_NAMESPACE)
-            || ($this->readEnabled && $this->writeEnabled)) {
+            || ($this->readEnabled && $this->writeEnabled && $this->deployEnabled)) {
             return $collection;
         }
 
@@ -113,6 +120,14 @@ final class McpToolSwitchResourceMetadataCollectionFactory implements ResourceMe
             return true;
         }
 
-        return self::isReadOnly($operation) ? $this->readEnabled : $this->writeEnabled;
+        if (self::isReadOnly($operation)) {
+            return $this->readEnabled;
+        }
+        if (($operation->getExtraProperties()[self::SWITCH_KEY] ?? null) === 'deploy') {
+            return $this->writeEnabled && $this->deployEnabled;
+        }
+
+        return $this->writeEnabled;
     }
 }
+// - revised 2026-10-09 (mcp.deploy switch)

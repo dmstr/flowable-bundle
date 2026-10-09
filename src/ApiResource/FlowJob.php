@@ -127,7 +127,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'List dead-letter jobs, i.e. engine jobs whose retries are used up and that no longer run. Returns a page of jobs, each with id, kind (deadletter), handlerType, processInstanceId, executionId, processDefinitionId, elementId, elementName, retries, exceptionMessage, createTime, dueDate and tenantId.',
             annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable/System'],
-            security: "is_granted('ROLE_USER')",
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
             provider: FlowJobProvider::class,
             extraProperties: [
                 McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowJob/mcpDeadletterList.input.json'],
@@ -290,3 +290,4 @@ final class FlowJob
     }
 }
 // - revised 2026-10-08 (MCP tools flowable_system_list_deadletter_jobs, flowable_system_execute_timer_job)
+// - revised 2026-10-09 (MCP: admin-only)

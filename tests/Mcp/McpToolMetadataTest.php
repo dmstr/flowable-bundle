@@ -21,9 +21,34 @@ use PHPUnit\Framework\TestCase;
  */
 final class McpToolMetadataTest extends TestCase
 {
-    private const READ = "is_granted('ROLE_USER')";
+    /** No MCP tool is open to ROLE_USER, read tools included. */
+    private const ADMIN = "is_granted('ROLE_FLOWABLE_ADMIN')";
 
-    private const WRITE = "is_granted('ROLE_FLOWABLE_ADMIN')";
+    /**
+     * name => destructiveHint; every state-changing tool that cannot be
+     * undone is destructive, so clients ask before calling it.
+     *
+     * @var array<string, bool>
+     */
+    private const DESTRUCTIVE = [
+        'flowable_list_process_definitions' => false,
+        'flowable_list_tasks' => false,
+        'flowable_get_task_form' => false,
+        'flowable_get_process_status' => false,
+        'flowable_history_get' => false,
+        'flowable_system_list_deadletter_jobs' => false,
+        'flowable_start_process' => true,
+        'flowable_complete_task' => true,
+        'flowable_dmn_evaluate' => false,
+        'flowable_events_send' => true,
+        'flowable_system_trigger_execution' => true,
+        'flowable_dmn_deploy' => true,
+        'flowable_deploy_bundle' => true,
+        'flowable_system_execute_timer_job' => true,
+    ];
+
+    /** Tools that need the mcp.deploy switch on top of mcp.write. */
+    private const DEPLOY_TOOLS = ['flowable_dmn_deploy', 'flowable_deploy_bundle'];
 
     /**
      * name => [resource short name, security, readOnlyHint, tag, input file, has id argument]
@@ -31,20 +56,20 @@ final class McpToolMetadataTest extends TestCase
      * @var array<string, array{string, string, bool, string, string, bool}>
      */
     private const TOOLS = [
-        'flowable_list_process_definitions' => ['FlowProcessDefinition', self::READ, true, 'Flowable', 'FlowProcessDefinition/mcpList.input.json', false],
-        'flowable_list_tasks' => ['FlowTask', self::READ, true, 'Flowable', 'FlowTask/mcpList.input.json', false],
-        'flowable_get_task_form' => ['FlowTask', self::READ, true, 'Flowable', 'FlowTask/mcpForm.input.json', true],
-        'flowable_get_process_status' => ['FlowProcessInstance', self::READ, true, 'Flowable', 'FlowProcessInstance/mcpStatus.input.json', true],
-        'flowable_history_get' => ['FlowHistoricProcessInstance', self::READ, true, 'Flowable/History', 'FlowHistoricProcessInstance/mcpHistory.input.json', true],
-        'flowable_system_list_deadletter_jobs' => ['FlowJob', self::READ, true, 'Flowable/System', 'FlowJob/mcpDeadletterList.input.json', false],
-        'flowable_start_process' => ['FlowProcessInstance', self::WRITE, false, 'Flowable', 'FlowProcessInstance/create.input.json', false],
-        'flowable_complete_task' => ['FlowTask', self::WRITE, false, 'Flowable', 'FlowTask/complete.input.json', true],
-        'flowable_dmn_evaluate' => ['FlowDecision', self::WRITE, false, 'Flowable/DMN', 'FlowDecision/execute.input.json', false],
-        'flowable_events_send' => ['FlowEventInstance', self::WRITE, false, 'Flowable/Events', 'FlowEventInstance/create.input.json', false],
-        'flowable_system_trigger_execution' => ['FlowExecution', self::WRITE, false, 'Flowable/System', 'FlowExecution/trigger.input.json', true],
-        'flowable_dmn_deploy' => ['FlowDmnDeployment', self::WRITE, false, 'Flowable/DMN', 'FlowDmnDeployment/mcpDeploy.input.json', false],
-        'flowable_deploy_bundle' => ['FlowDeployment', self::WRITE, false, 'Flowable', 'FlowDeployment/mcpBundle.input.json', false],
-        'flowable_system_execute_timer_job' => ['FlowJob', self::WRITE, false, 'Flowable/System', 'FlowJob/mcpExecuteTimer.input.json', true],
+        'flowable_list_process_definitions' => ['FlowProcessDefinition', self::ADMIN, true, 'Flowable', 'FlowProcessDefinition/mcpList.input.json', false],
+        'flowable_list_tasks' => ['FlowTask', self::ADMIN, true, 'Flowable', 'FlowTask/mcpList.input.json', false],
+        'flowable_get_task_form' => ['FlowTask', self::ADMIN, true, 'Flowable', 'FlowTask/mcpForm.input.json', true],
+        'flowable_get_process_status' => ['FlowProcessInstance', self::ADMIN, true, 'Flowable', 'FlowProcessInstance/mcpStatus.input.json', true],
+        'flowable_history_get' => ['FlowHistoricProcessInstance', self::ADMIN, true, 'Flowable/History', 'FlowHistoricProcessInstance/mcpHistory.input.json', true],
+        'flowable_system_list_deadletter_jobs' => ['FlowJob', self::ADMIN, true, 'Flowable/System', 'FlowJob/mcpDeadletterList.input.json', false],
+        'flowable_start_process' => ['FlowProcessInstance', self::ADMIN, false, 'Flowable', 'FlowProcessInstance/create.input.json', false],
+        'flowable_complete_task' => ['FlowTask', self::ADMIN, false, 'Flowable', 'FlowTask/complete.input.json', true],
+        'flowable_dmn_evaluate' => ['FlowDecision', self::ADMIN, false, 'Flowable/DMN', 'FlowDecision/execute.input.json', false],
+        'flowable_events_send' => ['FlowEventInstance', self::ADMIN, false, 'Flowable/Events', 'FlowEventInstance/create.input.json', false],
+        'flowable_system_trigger_execution' => ['FlowExecution', self::ADMIN, false, 'Flowable/System', 'FlowExecution/trigger.input.json', true],
+        'flowable_dmn_deploy' => ['FlowDmnDeployment', self::ADMIN, false, 'Flowable/DMN', 'FlowDmnDeployment/mcpDeploy.input.json', false],
+        'flowable_deploy_bundle' => ['FlowDeployment', self::ADMIN, false, 'Flowable', 'FlowDeployment/mcpBundle.input.json', false],
+        'flowable_system_execute_timer_job' => ['FlowJob', self::ADMIN, false, 'Flowable/System', 'FlowJob/mcpExecuteTimer.input.json', true],
     ];
 
     private const READ_TOOLS = [
@@ -75,6 +100,12 @@ final class McpToolMetadataTest extends TestCase
             foreach (['readOnlyHint', 'destructiveHint', 'idempotentHint'] as $hint) {
                 self::assertIsBool($annotations[$hint] ?? null, $name.' '.$hint);
             }
+            self::assertSame(self::DESTRUCTIVE[$name], $annotations['destructiveHint'], $name.' destructiveHint');
+            self::assertSame(
+                \in_array($name, self::DEPLOY_TOOLS, true) ? 'deploy' : null,
+                $tool->getExtraProperties()[McpToolSwitchResourceMetadataCollectionFactory::SWITCH_KEY] ?? null,
+                $name,
+            );
 
             $description = (string) $tool->getDescription();
             self::assertNotSame('', $description, $name);
@@ -102,25 +133,28 @@ final class McpToolMetadataTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{bool, bool, list<string>}>
+     * @return iterable<string, array{bool, bool, bool, list<string>}>
      */
     public static function switches(): iterable
     {
-        $write = array_values(array_diff(array_keys(self::TOOLS), self::READ_TOOLS));
+        $write = array_values(array_diff(array_keys(self::TOOLS), self::READ_TOOLS, self::DEPLOY_TOOLS));
 
-        yield 'read and write' => [true, true, array_keys(self::TOOLS)];
-        yield 'read only' => [true, false, self::READ_TOOLS];
-        yield 'write only' => [false, true, $write];
-        yield 'neither' => [false, false, []];
+        yield 'all' => [true, true, true, array_keys(self::TOOLS)];
+        yield 'read and write' => [true, true, false, [...self::READ_TOOLS, ...$write]];
+        yield 'read only' => [true, false, false, self::READ_TOOLS];
+        yield 'write only' => [false, true, false, $write];
+        yield 'write and deploy' => [false, true, true, [...$write, ...self::DEPLOY_TOOLS]];
+        yield 'deploy without write' => [false, false, true, []];
+        yield 'neither' => [false, false, false, []];
     }
 
     /**
      * @param list<string> $expected
      */
     #[DataProvider('switches')]
-    public function testSwitchesKeepTheExpectedTools(bool $read, bool $write, array $expected): void
+    public function testSwitchesKeepTheExpectedTools(bool $read, bool $write, bool $deploy, array $expected): void
     {
-        $factory = new McpToolSwitchResourceMetadataCollectionFactory(new AttributesResourceMetadataCollectionFactory(), $read, $write);
+        $factory = new McpToolSwitchResourceMetadataCollectionFactory(new AttributesResourceMetadataCollectionFactory(), $read, $write, $deploy);
 
         self::assertEqualsCanonicalizing($expected, array_keys(self::tools($factory)));
     }
@@ -200,3 +234,4 @@ final class McpToolMetadataTest extends TestCase
         return $tools;
     }
 }
+// - revised 2026-10-09 (admin-only tools, destructiveHint, mcp.deploy)
