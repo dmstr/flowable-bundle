@@ -4,6 +4,10 @@
 
 All notable changes to this bundle. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/) and come from the Git tags. Releases before 0.9.0 are described in the [GitHub releases](https://github.com/dmstr/flowable-bundle/releases).
 
+## [0.9.0-beta2] - 2026-10-09
+
+The content of 0.9.0-beta1, now merged to `master` (PR 17). No code changes; 0.9.0-beta1 was tagged on the feature branch before the merge.
+
 ## [0.9.0-beta1] - 2026-10-09
 
 Pre-release for integration testing against a Flowable engine in a consuming application.
@@ -31,4 +35,7 @@ Pre-release for integration testing against a Flowable engine in a consuming app
 
 - `symfony/yaml` is required; `symfony/mcp-bundle` and `mcp/sdk` are suggested.
 
+[0.9.0-beta2]: https://github.com/dmstr/flowable-bundle/compare/0.9.0-beta1...0.9.0-beta2
 [0.9.0-beta1]: https://github.com/dmstr/flowable-bundle/compare/0.8.0...0.9.0-beta1
+
+<!-- - revised 2026-10-09 (0.9.0-beta2) -->
