@@ -66,16 +66,38 @@ abstract class AbstractFlowableProcessor
      * Raw JSON body: the request content over HTTP; for an MCP tool call the
      * tool arguments minus the URI variables, re-encoded as a JSON object.
      *
+     * The MCP SDK decodes tool arguments into PHP arrays, which turns a
+     * nested {} into []. Empty arrays are therefore re-encoded as {} at every
+     * level, so an object-typed argument such as eventPayload: {} passes the
+     * schema as it does over HTTP. No input schema has an array that may be
+     * empty and is not also allowed as an object, and validateRaw() returns
+     * the associative decoding, so the processors see the same data.
+     *
      * @param array<string,mixed> $context operation context (MCP arguments)
      */
     protected function rawBody(array $context = []): string
     {
         $mcpBody = $this->mcpBody($context);
         if ($mcpBody !== null) {
-            return json_encode((object) $mcpBody, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE);
+            return json_encode(
+                (object) array_map(self::emptyArraysAsObjects(...), $mcpBody),
+                \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE,
+            );
         }
 
         return $this->requestStack->getCurrentRequest()?->getContent() ?? '';
+    }
+
+    private static function emptyArraysAsObjects(mixed $value): mixed
+    {
+        if (!\is_array($value)) {
+            return $value;
+        }
+        if ($value === []) {
+            return new \stdClass();
+        }
+
+        return array_map(self::emptyArraysAsObjects(...), $value);
     }
 
     /**
@@ -220,3 +242,4 @@ abstract class AbstractFlowableProcessor
         return $variables;
     }
 }
+// - revised 2026-10-09 (nested {} in MCP arguments)

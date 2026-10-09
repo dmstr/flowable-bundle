@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Post;
 use Dmstr\Flowable\Client\FlowableClientInterface;
 use Dmstr\Flowable\State\DeploymentDeleteProcessor;
+use Dmstr\Flowable\State\EventInstanceCreateProcessor;
 use Dmstr\Flowable\State\TaskCompleteProcessor;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
@@ -118,6 +119,19 @@ final class ProcessorInputTest extends StateTestCase
 
         $this->processor(TaskCompleteProcessor::class, $client)
             ->process(null, new Post(), ['id' => 'task-1'], self::mcpContext(['id' => 'task-1', 'unknown' => 1], ['id']));
+    }
+
+    public function testNestedEmptyObjectFromMcpDataPassesTheSchema(): void
+    {
+        // The MCP SDK hands {} over as []; eventPayload must be an object.
+        $client = $this->createMock(FlowableClientInterface::class);
+        $client->expects($this->once())->method('createEventInstance')->with(self::callback(
+            static fn (array $payload): bool => $payload['eventDefinitionKey'] === 'orderShipped'
+                && $payload['eventPayload'] instanceof \stdClass,
+        ));
+
+        $this->processor(EventInstanceCreateProcessor::class, $client)
+            ->process(null, new Post(), [], self::mcpContext(['eventDefinitionKey' => 'orderShipped', 'channelDefinitionKey' => 'orders', 'eventPayload' => []]));
     }
 
     public function testMcpCallWithoutArgumentsResolvesImplicitly(): void
