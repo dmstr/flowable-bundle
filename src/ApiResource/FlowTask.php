@@ -9,10 +9,16 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
+use ApiPlatform\Metadata\McpTool;
+use ApiPlatform\Metadata\McpToolCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\ApiResource\Output\FlowTaskForm;
 use Dmstr\Flowable\Controller\TaskInputSchemaController;
+use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
+use Dmstr\Flowable\State\FlowTaskFormProvider;
 use Dmstr\Flowable\State\FlowTaskProvider;
 use Dmstr\Flowable\State\TaskCompleteProcessor;
 use Symfony\Component\Serializer\Annotation\Groups;
@@ -72,6 +78,41 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 tags: ['Flowable'],
                 summary: 'Per-task input JSON-Schema for the complete operation.',
             ),
+        ),
+    ],
+    mcp: [
+        'flowable_list_tasks' => new McpToolCollection(
+            name: 'flowable_list_tasks',
+            description: 'List open user tasks, newest first, optionally filtered by process instance, process definition, assignee or task definition key. Returns a page of tasks, each with id, name, description, assignee, owner, processInstanceId, processDefinitionId, executionId, taskDefinitionKey, priority, createTime, dueDate and tenantId.',
+            annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
+            meta: ['de.dmstr/tag' => 'Flowable'],
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            provider: FlowTaskProvider::class,
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowTask/mcpList.input.json']],
+        ),
+        'flowable_get_task_form' => new McpTool(
+            name: 'flowable_get_task_form',
+            description: 'Get the form of an open user task as the JSON schema of the flowable_complete_task arguments. Returns taskId and schema; the form fields (name, type, title, enum, required) are the properties of schema.properties.variables, and a task without form yields a schema without fields.',
+            annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
+            meta: ['de.dmstr/tag' => 'Flowable'],
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            provider: FlowTaskFormProvider::class,
+            output: FlowTaskForm::class,
+            normalizationContext: ['groups' => ['flow_mcp:read'], 'preserve_empty_objects' => true],
+            uriVariables: ['id' => new Link(fromClass: FlowTask::class, identifiers: ['id'])],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowTask/mcpForm.input.json', 'uriVariables' => ['id' => 'Id of the open user task.']]],
+        ),
+        'flowable_complete_task' => new McpTool(
+            name: 'flowable_complete_task',
+            description: 'Complete an open user task with its form values as variables, preferably as a map {name: value} (flowable_get_task_form lists the fields). Returns null on success; failures are tool errors.',
+            annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
+            meta: ['de.dmstr/tag' => 'Flowable'],
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            processor: TaskCompleteProcessor::class,
+            read: false,
+            structuredContent: false,
+            uriVariables: ['id' => new Link(fromClass: FlowTask::class, identifiers: ['id'])],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowTask/complete.input.json', 'uriVariables' => ['id' => 'Id of the open user task to complete.']]],
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -166,3 +207,5 @@ final class FlowTask
         return $self;
     }
 }
+// - revised 2026-10-08 (MCP tools flowable_list_tasks, flowable_get_task_form, flowable_complete_task)
+// - revised 2026-10-09 (MCP: admin-only, destructiveHint)

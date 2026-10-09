@@ -26,6 +26,9 @@ final class FlowJobProvider extends AbstractFlowableProvider implements Provider
 
     public const DEFAULT_KIND = 'async';
 
+    /** Operation extra property that pins the job kind. */
+    public const FIXED_KIND = 'dmstr_flowable_job_kind';
+
     private const FILTERS = [
         'id',
         'executionId',
@@ -57,8 +60,11 @@ final class FlowJobProvider extends AbstractFlowableProvider implements Provider
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
-        $kind = self::normalizeKind($this->queryParam('kind'));
+        $client = $this->client($context);
+        // An operation may pin the kind (the MCP tool
+        // flowable_system_list_deadletter_jobs); a pinned kind wins over the
+        // `kind` argument.
+        $kind = self::normalizeKind($operation->getExtraProperties()[self::FIXED_KIND] ?? $this->queryParam('kind', $context));
 
         if ($operation instanceof CollectionOperationInterface) {
             $query = array_merge(
@@ -66,10 +72,10 @@ final class FlowJobProvider extends AbstractFlowableProvider implements Provider
                     'processInstance' => 'processInstanceId',
                     'processDefinition' => 'processDefinitionId',
                     'execution' => 'executionId',
-                ]),
+                ], $context),
                 // createTime is accepted by every job collection (verified
                 // against flowable-rest 8.0.0); `retries`, for instance, is not.
-                $this->listQuery(self::FILTERS, 'createTime'),
+                $this->listQuery(self::FILTERS, 'createTime', context: $context),
             );
             $envelope = $this->listByKind($client, $kind, $query);
 
@@ -119,3 +125,4 @@ final class FlowJobProvider extends AbstractFlowableProvider implements Provider
         };
     }
 }
+// - revised 2026-10-08 (kind pinned by an operation extra property, for the MCP deadletter tool)

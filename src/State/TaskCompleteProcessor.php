@@ -18,8 +18,8 @@ final class TaskCompleteProcessor extends AbstractFlowableProcessor implements P
 {
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): null
     {
-        $body = $this->validator->validateRaw($this->rawBody(), $this->schemaPath('FlowTask', 'complete'));
-        $client = $this->client($body);
+        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowTask', 'complete'));
+        $client = $this->client($body, $context);
 
         $payload = ['action' => 'complete'];
         $variables = $this->variablesWithActor($body);

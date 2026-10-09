@@ -10,10 +10,14 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\RequestBody;
+use Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory;
+use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
+use Dmstr\Flowable\State\DeploymentBundleProcessor;
 use Dmstr\Flowable\State\DeploymentDeleteProcessor;
 use Dmstr\Flowable\State\DeploymentUploadProcessor;
 use Dmstr\Flowable\State\FlowDeploymentProvider;
@@ -112,6 +116,18 @@ use Symfony\Component\Serializer\Annotation\Groups;
             security: "is_granted('ROLE_FLOWABLE_ADMIN')",
         ),
     ],
+    mcp: [
+        'flowable_deploy_bundle' => new McpTool(
+            name: 'flowable_deploy_bundle',
+            description: 'Deploy several files as one process deployment, typically a .bpmn20.xml plus the <formKey>.schema.json form schemas its user tasks reference (files: list of name, content and optional contentEncoding "base64"; decision tables go to flowable_dmn_deploy). Returns the deployment with id, name, deploymentTime, category, parentDeploymentId and tenantId.',
+            annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
+            meta: ['de.dmstr/tag' => 'Flowable'],
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            processor: DeploymentBundleProcessor::class,
+            read: false,
+            extraProperties: [McpToolSwitchResourceMetadataCollectionFactory::SWITCH_KEY => 'deploy', McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowDeployment/mcpBundle.input.json']],
+        ),
+    ],
     security: "is_granted('ROLE_USER')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
@@ -183,3 +199,5 @@ final class FlowDeployment
         return $self;
     }
 }
+// - revised 2026-10-08 (MCP tool flowable_deploy_bundle)
+// - revised 2026-10-09 (MCP: destructiveHint)

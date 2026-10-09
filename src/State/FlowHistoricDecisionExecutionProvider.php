@@ -19,10 +19,10 @@ final class FlowHistoricDecisionExecutionProvider extends AbstractFlowableProvid
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
+        $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
-            $envelope = $client->listHistoricDecisionExecutions($this->listQuery(self::FILTERS, 'startTime'));
+            $envelope = $client->listHistoricDecisionExecutions($this->listQuery(self::FILTERS, 'startTime', context: $context));
 
             return $this->paginate($envelope, FlowHistoricDecisionExecution::fromApi(...));
         }

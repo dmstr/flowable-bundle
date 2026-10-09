@@ -24,8 +24,8 @@ final class DecisionExecuteProcessor extends AbstractFlowableProcessor implement
 {
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): FlowDecision
     {
-        $body = $this->validator->validateRaw($this->rawBody(), $this->schemaPath('FlowDecision', 'execute'));
-        $client = $this->client($body);
+        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowDecision', 'execute'));
+        $client = $this->client($body, $context);
 
         $decisionKey = (string) ($body['decisionKey'] ?? '');
         $singleResult = (bool) ($body['singleResult'] ?? false);

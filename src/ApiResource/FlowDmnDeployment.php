@@ -10,10 +10,13 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\RequestBody;
+use Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory;
+use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\DmnDeploymentDeleteProcessor;
 use Dmstr\Flowable\State\DmnDeploymentUploadProcessor;
 use Dmstr\Flowable\State\FlowDmnDeploymentProvider;
@@ -107,6 +110,18 @@ use Symfony\Component\Serializer\Annotation\Groups;
             security: "is_granted('ROLE_FLOWABLE_ADMIN')",
         ),
     ],
+    mcp: [
+        'flowable_dmn_deploy' => new McpTool(
+            name: 'flowable_dmn_deploy',
+            description: 'Deploy a DMN decision table to the DMN engine from inline content: name ending in .dmn and content as XML text (or base64 with contentEncoding "base64", e.g. for a .bar/.zip). Returns the DMN deployment with id, name, deploymentTime, category, parentDeploymentId and tenantId.',
+            annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
+            meta: ['de.dmstr/tag' => 'Flowable/DMN'],
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            processor: DmnDeploymentUploadProcessor::class,
+            read: false,
+            extraProperties: [McpToolSwitchResourceMetadataCollectionFactory::SWITCH_KEY => 'deploy', McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowDmnDeployment/mcpDeploy.input.json']],
+        ),
+    ],
     security: "is_granted('ROLE_USER')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
@@ -168,3 +183,5 @@ final class FlowDmnDeployment
         return $self;
     }
 }
+// - revised 2026-10-08 (MCP tool flowable_dmn_deploy)
+// - revised 2026-10-09 (MCP: destructiveHint)

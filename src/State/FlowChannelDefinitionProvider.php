@@ -26,14 +26,14 @@ final class FlowChannelDefinitionProvider extends AbstractFlowableProvider imple
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
+        $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
             // Newest first — channel definitions, unlike event definitions, do
             // carry a createTime the engine accepts as a sort field.
             $query = array_merge(
-                $this->relationFilters(['eventDeployment' => 'deploymentId']),
-                $this->listQuery(self::FILTERS, 'createTime'),
+                $this->relationFilters(['eventDeployment' => 'deploymentId'], $context),
+                $this->listQuery(self::FILTERS, 'createTime', context: $context),
             );
 
             return $this->paginate($client->listChannelDefinitions($query), FlowChannelDefinition::fromApi(...));

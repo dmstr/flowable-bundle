@@ -9,9 +9,11 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\DecisionExecuteProcessor;
 use Dmstr\Flowable\State\FlowDecisionProvider;
 use Symfony\Component\Serializer\Annotation\Groups;
@@ -60,6 +62,18 @@ use Symfony\Component\Serializer\Annotation\Groups;
             status: 200,
             security: "is_granted('ROLE_FLOWABLE_ADMIN')",
             openapi: new Operation(tags: ['Flowable/DMN']),
+        ),
+    ],
+    mcp: [
+        'flowable_dmn_evaluate' => new McpTool(
+            name: 'flowable_dmn_evaluate',
+            description: 'Evaluate a deployed DMN decision by decisionKey with inputVariables, preferably as a map {name: value}; singleResult=true asks for one row. Returns the decision with id and key set to the decision key and result, a list of rows, each a map of output name to value (empty when no rule matched).',
+            annotations: ['readOnlyHint' => false, 'destructiveHint' => false, 'idempotentHint' => true],
+            meta: ['de.dmstr/tag' => 'Flowable/DMN'],
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            processor: DecisionExecuteProcessor::class,
+            read: false,
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowDecision/execute.input.json']],
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -153,3 +167,4 @@ final class FlowDecision
         return $self;
     }
 }
+// - revised 2026-10-08 (MCP tool flowable_dmn_evaluate)

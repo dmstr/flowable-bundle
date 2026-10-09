@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://za7.example.com/schemas/flowable-get-task-form-input.json",
+  "title": "flowable_get_task_form input",
+  "description": "Arguments of the MCP tool flowable_get_task_form besides the task id.",
+  "type": "object",
+  "properties": {
+    "apiConfiguration": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+    }
+  },
+  "additionalProperties": false
+}

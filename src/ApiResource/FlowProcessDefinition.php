@@ -9,10 +9,12 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\McpToolCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
 use Dmstr\Flowable\Controller\ProcessDefinitionStartInputSchemaController;
+use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\FlowProcessDefinitionProvider;
 use Dmstr\Flowable\State\ProcessDefinitionStartProcessor;
 use Symfony\Component\Serializer\Annotation\Groups;
@@ -74,6 +76,17 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 tags: ['Flowable'],
                 summary: 'Per-definition input JSON-Schema for the start operation.',
             ),
+        ),
+    ],
+    mcp: [
+        'flowable_list_process_definitions' => new McpToolCollection(
+            name: 'flowable_list_process_definitions',
+            description: 'List deployed BPMN process definitions; pass latest=true for one row per key. Returns a page of definitions, each with id, key, name, version, description, category, deploymentId, suspended, startFormDefined and tenantId; start one with flowable_start_process by its key.',
+            annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
+            meta: ['de.dmstr/tag' => 'Flowable'],
+            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            provider: FlowProcessDefinitionProvider::class,
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowProcessDefinition/mcpList.input.json']],
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -157,3 +170,5 @@ final class FlowProcessDefinition
         return $self;
     }
 }
+// - revised 2026-10-08 (MCP tool flowable_list_process_definitions)
+// - revised 2026-10-09 (MCP: admin-only)

@@ -482,6 +482,12 @@ final class FlowableClient implements FlowableClientInterface
         }
     }
 
+    public function executeTimerJob(string $id): void
+    {
+        // The engine answers 204 No Content — there is no body to decode.
+        $this->request('POST', $this->jobCollection('timer').'/'.rawurlencode($id), [], ['action' => 'move']);
+    }
+
     private function jobCollection(string $kind): string
     {
         return self::JOB_COLLECTIONS[$kind]
@@ -642,3 +648,4 @@ final class FlowableClient implements FlowableClientInterface
         return $content !== '' ? $content : 'no response body';
     }
 }
+// - revised 2026-10-08 (executeTimerJob for the MCP timer tool)

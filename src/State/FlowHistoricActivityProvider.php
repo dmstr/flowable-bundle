@@ -24,10 +24,10 @@ final class FlowHistoricActivityProvider extends AbstractFlowableProvider implem
         }
 
         $query = array_merge(
-            $this->relationFilters(['historicProcessInstance' => 'processInstanceId']),
-            $this->listQuery(self::FILTERS),
+            $this->relationFilters(['historicProcessInstance' => 'processInstanceId'], $context),
+            $this->listQuery(self::FILTERS, context: $context),
         );
-        $envelope = $this->client()->listHistoricActivities($query);
+        $envelope = $this->client($context)->listHistoricActivities($query);
 
         return $this->paginate($envelope, FlowHistoricActivity::fromApi(...));
     }
