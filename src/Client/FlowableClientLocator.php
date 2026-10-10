@@ -1,11 +1,13 @@
 <?php
-// file generated with AI assistance: Claude Code - 2026-06-16 00:00:00 UTC
+// file generated with AI assistance: Claude Code - 2026-06-16 00:00:00 UTC, revised 2026-10-08 22:19:20 UTC (decrypt secrets via ConfigSecrets)
 
 declare(strict_types=1);
 
 namespace Dmstr\Flowable\Client;
 
 use Dmstr\ApiConfiguration\Entity\ApiConfiguration;
+use Dmstr\ApiConfiguration\Security\ConfigSecrets;
+use Dmstr\ApiConfiguration\Security\SecretEncryptionException;
 use Dmstr\ApiPlatformUtils\Service\UuidResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -20,6 +22,10 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  *
  * Clients are cached per resolved configuration for the lifetime of the
  * request (the locator itself is a per-request service instance).
+ *
+ * The secrets `password` and `token` are marked `writeOnly` in schema.json, so
+ * dmstr/api-configuration-bundle stores them encrypted (`enc:v1:...`). They are
+ * decrypted here, right before the client is built, and never leave it.
  */
 final class FlowableClientLocator
 {
@@ -32,6 +38,7 @@ final class FlowableClientLocator
         private readonly HttpClientInterface $httpClient,
         private readonly EntityManagerInterface $entityManager,
         private readonly UuidResolver $uuidResolver,
+        private readonly ConfigSecrets $secrets,
     ) {
     }
 
@@ -85,9 +92,26 @@ final class FlowableClientLocator
         );
     }
 
+    /**
+     * @throws SecretEncryptionException if a stored secret cannot be decrypted
+     *         (missing or changed CREDENTIALS_ENCRYPTION_KEY, corrupted value);
+     *         there is no fallback to the stored ciphertext
+     */
     private function createClient(ApiConfiguration $configuration): FlowableClientInterface
     {
-        $config = $configuration->getConfigJson();
+        try {
+            $config = $this->secrets->decrypt($configuration->getConfigJson());
+        } catch (SecretEncryptionException $e) {
+            throw new SecretEncryptionException(
+                sprintf(
+                    'Cannot decrypt the credentials of Flowable API configuration "%s": %s',
+                    (string) $configuration->getId(),
+                    $e->getMessage(),
+                ),
+                0,
+                $e,
+            );
+        }
 
         if (!isset($config['base_url'], $config['auth_type'])) {
             throw new BadRequestHttpException('Flowable API configuration is missing base_url or auth_type.');

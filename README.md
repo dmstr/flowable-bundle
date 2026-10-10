@@ -1,4 +1,4 @@
-<!-- file generated with AI assistance: Claude Code - 2026-07-01 17:10:01 UTC -->
+<!-- file generated with AI assistance: Claude Code - 2026-07-01 17:10:01 UTC, revised 2026-10-08 22:19:20 UTC (encrypted credentials) -->
 
 # dmstr/flowable-bundle
 
@@ -60,6 +60,15 @@ against [`schema.json`](schema.json):
 
 `auth_type` is either `basic` (requires `username` + `password`) or `bearer`
 (requires `token`).
+
+`password` and `token` are marked `writeOnly` in the schema, so
+`dmstr/api-configuration-bundle` (^0.5) stores them encrypted at rest and
+returns them masked as `********` on read; sending the mask back on update
+keeps the stored value. This requires a configured encryption key
+(`CREDENTIALS_ENCRYPTION_KEY`, see the api-configuration-bundle documentation).
+`FlowableClientLocator` decrypts them only to build the client; if decryption
+fails, the request fails with a `SecretEncryptionException` instead of sending
+the ciphertext to the engine.
 
 ### Bundle configuration
 

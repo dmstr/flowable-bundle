@@ -1,4 +1,4 @@
-# file generated with AI assistance: Claude Code - 2026-06-16 00:00:00 UTC
+# file generated with AI assistance: Claude Code - 2026-06-16 00:00:00 UTC, revised 2026-10-08 22:19:20 UTC (ConfigSecrets for the client locator)
 #
 # Self-contained service wiring for dmstr/flowable-bundle, imported by
 # FlowableBundle::loadExtension(). No entry is needed in the consuming
@@ -28,6 +28,14 @@ services:
             # results, never resolved from the container.
             - '../src/Worker/ExternalWorkerJob.php'
             - '../src/Worker/ExternalWorkerOutcome.php'
+
+    # The locator decrypts the writeOnly secrets (password, token) of a
+    # "flowable" ApiConfiguration before it builds a client. ConfigSecrets is a
+    # service of dmstr/api-configuration-bundle (^0.5); wired explicitly so the
+    # dependency is visible here and fails at container build if it is missing.
+    Dmstr\Flowable\Client\FlowableClientLocator:
+        arguments:
+            $secrets: '@Dmstr\ApiConfiguration\Security\ConfigSecrets'
 
     # Make the schema provider known to the openapi-json-schema SchemaRegistry
     # so an ApiConfiguration of type "flowable" validates against schema.json.

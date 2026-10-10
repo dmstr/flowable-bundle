@@ -6,6 +6,9 @@ declare(strict_types=1);
 namespace Dmstr\Flowable\Tests\State;
 
 use Dmstr\ApiConfiguration\Entity\ApiConfiguration;
+use Dmstr\ApiConfiguration\Security\ConfigSecrets;
+use Dmstr\ApiConfiguration\Security\SecretSchemaResolver;
+use Dmstr\ApiConfiguration\Service\ApiExtensionRegistry;
 use Dmstr\ApiPlatformUtils\Service\UuidResolver;
 use Dmstr\Flowable\Client\FlowableClientInterface;
 use Dmstr\Flowable\Client\FlowableClientLocator;
@@ -13,9 +16,11 @@ use Dmstr\Flowable\Service\ActingUserResolver;
 use Dmstr\Flowable\Service\FlowableVariableMapper;
 use Dmstr\Flowable\Service\InputSchemaValidator;
 use Dmstr\Flowable\State\AbstractFlowableProcessor;
+use Dmstr\OpenApiJsonSchema\Service\SchemaRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Container;
@@ -58,7 +63,17 @@ abstract class StateTestCase extends TestCase
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
-        $locator = new FlowableClientLocator(new MockHttpClient(), $entityManager, $uuidResolver);
+        // The pre-seeded cache means no client is built, so nothing is
+        // decrypted; the cipher fails loudly if that ever changes.
+        $secrets = new ConfigSecrets(
+            new SecretSchemaResolver(
+                new SchemaRegistry($this->createStub(CacheItemPoolInterface::class), new NullLogger()),
+                new ApiExtensionRegistry(),
+            ),
+            static fn () => throw new \LogicException('StateTestCase does not decrypt secrets.'),
+        );
+
+        $locator = new FlowableClientLocator(new MockHttpClient(), $entityManager, $uuidResolver, $secrets);
         $cache = new \ReflectionProperty(FlowableClientLocator::class, 'cache');
         $cache->setValue($locator, [(string) $configuration->getId() => $client]);
 
