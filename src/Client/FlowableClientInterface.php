@@ -418,4 +418,18 @@ interface FlowableClientInterface
      * @param 'async'|'timer'|'suspended'|'deadletter'|'history' $kind
      */
     public function getJobExceptionStacktrace(string $id, string $kind = 'async'): ?string;
+
+    /**
+     * Execute a timer job now instead of at its due date: the engine moves it
+     * from the timer store to the executable (async) jobs, where the async
+     * executor runs it right away. The timer's remaining wait is gone; the
+     * moved job gets a new id in the async store.
+     *
+     * Flowable REST: POST management/timer-jobs/{id} with {"action": "move"}
+     * (the timer-job endpoint accepts only "move"; "execute" exists on the
+     * async jobs endpoint). Not yet verified against a live engine.
+     * An unknown id raises FlowableApiException (404).
+     */
+    public function executeTimerJob(string $id): void;
 }
+// - revised 2026-10-08 (executeTimerJob for the MCP timer tool)

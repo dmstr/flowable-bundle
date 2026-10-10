@@ -39,14 +39,18 @@ final class FlowExternalWorkerJobProvider extends AbstractFlowableProvider imple
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
+        $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
             $query = array_merge(
-                $this->relationFilters(['processInstance' => 'processInstanceId', 'execution' => 'executionId']),
+                $this->relationFilters([
+                    'processInstance' => 'processInstanceId',
+                    'processDefinition' => 'processDefinitionId',
+                    'execution' => 'executionId',
+                ], $context),
                 // Flowable has no updated_at; createTime is the closest thing to
                 // "newest first" for a worker queue.
-                $this->listQuery(self::FILTERS, 'createTime'),
+                $this->listQuery(self::FILTERS, 'createTime', context: $context),
             );
             $envelope = $client->listExternalWorkerJobs($query);
 
@@ -58,3 +62,4 @@ final class FlowExternalWorkerJobProvider extends AbstractFlowableProvider imple
         return $data !== null ? FlowExternalWorkerJob::fromApi($data) : null;
     }
 }
+// - revised 2026-10-08 (processDefinition relation filter)

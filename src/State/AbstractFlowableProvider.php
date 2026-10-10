@@ -15,25 +15,35 @@ use Symfony\Component\HttpFoundation\RequestStack;
  * resolution, translation of API Platform pagination/filter parameters to the
  * Flowable start/size query, and loss-free mapping of the Flowable list
  * envelope onto a TraversablePaginator (design D9).
+ *
+ * Every helper takes the operation $context: when the operation runs as an MCP
+ * tool, parameters come from $context['mcp_data'] instead of the query string
+ * (see OperationInputTrait). Without a context the request is read as before.
  */
 abstract class AbstractFlowableProvider
 {
+    use OperationInputTrait;
+
     public function __construct(
         protected readonly FlowableClientLocator $locator,
         protected readonly RequestStack $requestStack,
     ) {
     }
 
-    protected function client(): FlowableClientInterface
+    /**
+     * @param array<string,mixed> $context operation context (MCP arguments)
+     */
+    protected function client(array $context = []): FlowableClientInterface
     {
-        return $this->locator->resolve($this->queryParam('apiConfiguration'));
+        return $this->locator->resolve($this->queryParam('apiConfiguration', $context));
     }
 
-    protected function queryParam(string $key): ?string
+    /**
+     * @param array<string,mixed> $context operation context (MCP arguments)
+     */
+    protected function queryParam(string $key, array $context = []): ?string
     {
-        $value = $this->requestStack->getCurrentRequest()?->query->get($key);
-
-        return $value !== null && $value !== '' ? (string) $value : null;
+        return $this->inputString($key, $context);
     }
 
     /**
@@ -43,28 +53,32 @@ abstract class AbstractFlowableProvider
      *   collections default to newest first. Flowable has no `updated_at`; each
      *   resource maps this to its own time field (createTime, deployTime, …).
      * @param 'asc'|'desc' $defaultOrder direction paired with $defaultSort
+     * @param array<string,mixed> $context operation context (MCP arguments)
      * @return array<string,scalar>
      */
-    protected function listQuery(array $whitelist, ?string $defaultSort = null, string $defaultOrder = 'desc'): array
-    {
-        $request = $this->requestStack->getCurrentRequest();
-        $page = max(1, (int) ($request?->query->get('page') ?? 1));
-        $size = (int) ($request?->query->get('itemsPerPage') ?? 30);
+    protected function listQuery(
+        array $whitelist,
+        ?string $defaultSort = null,
+        string $defaultOrder = 'desc',
+        array $context = [],
+    ): array {
+        $page = max(1, (int) ($this->inputParam('page', $context) ?? 1));
+        $size = (int) ($this->inputParam('itemsPerPage', $context) ?? 30);
         $size = max(1, min(200, $size));
 
         $query = ['start' => ($page - 1) * $size, 'size' => $size];
 
         // Sorting: an explicit client `sort` wins; otherwise fall back to the
         // resource default. Flowable expects the pair sort=<field>&order=<dir>.
-        $sort = $this->queryParam('sort') ?? $defaultSort;
+        $sort = $this->queryParam('sort', $context) ?? $defaultSort;
         if ($sort !== null) {
-            $order = strtolower((string) ($this->queryParam('order') ?? $defaultOrder));
+            $order = strtolower((string) ($this->queryParam('order', $context) ?? $defaultOrder));
             $query['sort'] = $sort;
             $query['order'] = $order === 'asc' ? 'asc' : 'desc';
         }
 
         foreach ($whitelist as $key) {
-            $value = $this->queryParam($key);
+            $value = $this->queryParam($key, $context);
             if ($value !== null) {
                 $query[$key] = $value;
             }
@@ -86,13 +100,14 @@ abstract class AbstractFlowableProvider
      * the relation tab lists every task/instance instead of the owned ones.
      *
      * @param array<string,string> $map relationProperty => flowableIdField
+     * @param array<string,mixed> $context operation context (MCP arguments)
      * @return array<string,string>
      */
-    protected function relationFilters(array $map): array
+    protected function relationFilters(array $map, array $context = []): array
     {
         $out = [];
         foreach ($map as $relation => $idField) {
-            $value = $this->queryParam($relation);
+            $value = $this->queryParam($relation, $context);
             if ($value !== null) {
                 $out[$idField] = $this->idFromIri($value);
             }

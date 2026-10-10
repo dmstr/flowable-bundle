@@ -18,8 +18,8 @@ final class ProcessInstanceCreateProcessor extends AbstractFlowableProcessor imp
 {
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): FlowProcessInstance
     {
-        $body = $this->validator->validateRaw($this->rawBody(), $this->schemaPath('FlowProcessInstance', 'create'));
-        $client = $this->client($body);
+        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowProcessInstance', 'create'));
+        $client = $this->client($body, $context);
 
         $payload = [];
         foreach (['processDefinitionId', 'processDefinitionKey', 'businessKey'] as $key) {

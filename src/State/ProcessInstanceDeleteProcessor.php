@@ -18,7 +18,7 @@ final class ProcessInstanceDeleteProcessor extends AbstractFlowableProcessor imp
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): null
     {
         $id = (string) ($uriVariables['id'] ?? '');
-        $this->client()->deleteProcessInstance($id);
+        $this->client(context: $context)->deleteProcessInstance($id);
         $this->audit('process_instance.delete', ['instance' => $id]);
 
         return null;

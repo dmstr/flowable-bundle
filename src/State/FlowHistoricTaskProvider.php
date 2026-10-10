@@ -19,15 +19,15 @@ final class FlowHistoricTaskProvider extends AbstractFlowableProvider implements
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
+        $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
             $query = array_merge(
                 $this->relationFilters([
                     'historicProcessInstance' => 'processInstanceId',
                     'processDefinition' => 'processDefinitionId',
-                ]),
-                $this->listQuery(self::FILTERS, 'endTime'),
+                ], $context),
+                $this->listQuery(self::FILTERS, 'endTime', context: $context),
             );
             $envelope = $client->listHistoricTasks($query);
 

@@ -19,15 +19,15 @@ final class FlowTaskProvider extends AbstractFlowableProvider implements Provide
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
+        $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
             $query = array_merge(
                 $this->relationFilters([
                     'processInstance' => 'processInstanceId',
                     'processDefinition' => 'processDefinitionId',
-                ]),
-                $this->listQuery(self::FILTERS, 'createTime'),
+                ], $context),
+                $this->listQuery(self::FILTERS, 'createTime', context: $context),
             );
             $envelope = $client->listTasks($query);
 

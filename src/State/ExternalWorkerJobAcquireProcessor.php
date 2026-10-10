@@ -30,8 +30,8 @@ final class ExternalWorkerJobAcquireProcessor extends AbstractFlowableProcessor 
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): FlowExternalWorkerJob
     {
-        $body = $this->validator->validateRaw($this->rawBody(), $this->schemaPath('FlowExternalWorkerJob', 'acquire'));
-        $client = $this->client($body);
+        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowExternalWorkerJob', 'acquire'));
+        $client = $this->client($body, $context);
 
         $topic = (string) ($body['topic'] ?? '');
         $workerId = (string) ($body['workerId'] ?? '');

@@ -57,6 +57,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'processInstanceId' => new QueryParameter(description: 'Filter by process instance id'),
                 'processInstance' => new QueryParameter(description: 'Filter by process instance (IRI or id) — relation filter'),
                 'processDefinitionId' => new QueryParameter(description: 'Filter by process definition id'),
+                'processDefinition' => new QueryParameter(description: 'Filter by process definition (IRI or id) — relation filter'),
                 'elementId' => new QueryParameter(description: 'Filter by the BPMN element id of the external-worker task'),
                 'elementName' => new QueryParameter(description: 'Filter by the BPMN element name'),
                 'exceptionMessage' => new QueryParameter(description: 'Filter by exception message'),
@@ -279,3 +280,4 @@ final class FlowExternalWorkerJob
         return $self;
     }
 }
+// - revised 2026-10-08 (processDefinition relation filter)

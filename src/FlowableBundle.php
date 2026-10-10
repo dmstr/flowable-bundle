@@ -6,6 +6,7 @@ declare(strict_types=1);
 namespace Dmstr\Flowable;
 
 use Dmstr\Flowable\Worker\ExternalWorkerHandlerInterface;
+use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
@@ -24,9 +25,52 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
  * live under <bundle>/src/ApiResource and every registered bundle's
  * src/ApiResource directory is scanned (see ApiPlatformExtension), so the
  * application's api_platform.mapping.paths is left untouched.
+ *
+ * Configuration (config/packages/dmstr_flowable.yaml, all optional):
+ *
+ *     dmstr_flowable:
+ *         mcp:
+ *             read: false   # publish read-only McpTool operations
+ *             write: false  # publish all other (writing) McpTool operations
+ *             deploy: false # also publish the deploy tools (needs write)
+ *
+ * All switches default to off, so installing symfony/mcp-bundle in the
+ * application exposes no Flowable tool until it is enabled explicitly (see
+ * Metadata\McpToolSwitchResourceMetadataCollectionFactory).
  */
 final class FlowableBundle extends AbstractBundle
 {
+    /** Config root; the derived default would be "flowable". */
+    protected string $extensionAlias = 'dmstr_flowable';
+
+    public function configure(DefinitionConfigurator $definition): void
+    {
+        $definition->rootNode()
+            ->children()
+                ->arrayNode('mcp')
+                    ->info('Publication of the bundle\'s API Platform McpTool operations as MCP tools.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('read')
+                            ->info('Publish read-only tools (annotations readOnlyHint: true).')
+                            ->defaultFalse()
+                        ->end()
+                        ->booleanNode('write')
+                            ->info('Publish all other tools; a tool without readOnlyHint: true counts as writing.')
+                            ->defaultFalse()
+                        ->end()
+                        ->booleanNode('deploy')
+                            ->info('Also publish the deploy tools (flowable_deploy_bundle, flowable_dmn_deploy); needs write. Deployed BPMN can run scripts on the engine.')
+                            ->defaultFalse()
+                        ->end()
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    /**
+     * @param array{mcp: array{read: bool, write: bool, deploy: bool}} $config
+     */
     public function loadExtension(
         array $config,
         ContainerConfigurator $container,
@@ -36,6 +80,9 @@ final class FlowableBundle extends AbstractBundle
         // bundle's own ApiResource dir regardless of install location
         // (vendor/ vs. a composer path-repo) — never assume %kernel.project_dir%.
         $builder->setParameter('dmstr_flowable.dir', \dirname(__DIR__));
+        $builder->setParameter('dmstr_flowable.mcp.read', $config['mcp']['read']);
+        $builder->setParameter('dmstr_flowable.mcp.write', $config['mcp']['write']);
+        $builder->setParameter('dmstr_flowable.mcp.deploy', $config['mcp']['deploy']);
         $container->import(\dirname(__DIR__).'/config/services.yaml');
 
         // External worker handlers are discovered by interface, so a consuming
@@ -57,3 +104,4 @@ final class FlowableBundle extends AbstractBundle
         }
     }
 }
+// - revised 2026-10-09 (mcp.deploy switch)

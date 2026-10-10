@@ -19,12 +19,12 @@ final class FlowHistoricProcessInstanceProvider extends AbstractFlowableProvider
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
+        $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
             $query = array_merge(
-                $this->relationFilters(['processDefinition' => 'processDefinitionId']),
-                $this->listQuery(self::FILTERS, 'startTime'),
+                $this->relationFilters(['processDefinition' => 'processDefinitionId'], $context),
+                $this->listQuery(self::FILTERS, 'startTime', context: $context),
             );
             $envelope = $client->listHistoricProcessInstances($query);
 

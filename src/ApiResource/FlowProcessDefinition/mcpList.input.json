@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://za7.example.com/schemas/flowable-list-process-definitions-input.json",
+  "title": "flowable_list_process_definitions input",
+  "description": "Arguments of the MCP tool flowable_list_process_definitions (filters of GET /flowable/process_definitions).",
+  "type": "object",
+  "properties": {
+    "page": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Page number, starting at 1."
+    },
+    "itemsPerPage": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200,
+      "default": 30,
+      "description": "Page size (1 to 200)."
+    },
+    "sort": {
+      "type": "string",
+      "description": "Flowable sort field (default: engine order)."
+    },
+    "order": {
+      "type": "string",
+      "enum": [
+        "asc",
+        "desc"
+      ],
+      "default": "desc",
+      "description": "Sort direction."
+    },
+    "latest": {
+      "type": "boolean",
+      "description": "true keeps only the latest version per key (use it to find startable definitions)."
+    },
+    "key": {
+      "type": "string",
+      "description": "Filter by process definition key."
+    },
+    "category": {
+      "type": "string",
+      "description": "Filter by category."
+    },
+    "deployment": {
+      "type": "string",
+      "description": "Filter by deployment (id or IRI)."
+    },
+    "apiConfiguration": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+    }
+  },
+  "additionalProperties": false
+}

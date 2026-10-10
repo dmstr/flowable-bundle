@@ -19,10 +19,10 @@ final class FlowDeploymentProvider extends AbstractFlowableProvider implements P
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
+        $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
-            $envelope = $client->listDeployments($this->listQuery(self::FILTERS, 'deployTime'));
+            $envelope = $client->listDeployments($this->listQuery(self::FILTERS, 'deployTime', context: $context));
 
             return $this->paginate($envelope, FlowDeployment::fromApi(...));
         }

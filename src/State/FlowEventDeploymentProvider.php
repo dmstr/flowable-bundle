@@ -23,12 +23,12 @@ final class FlowEventDeploymentProvider extends AbstractFlowableProvider impleme
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
+        $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
             // Newest first. The sort field is "deployTime", not the response's
             // "deploymentTime" property — the engine rejects the latter with 400.
-            $envelope = $client->listEventDeployments($this->listQuery(self::FILTERS, 'deployTime'));
+            $envelope = $client->listEventDeployments($this->listQuery(self::FILTERS, 'deployTime', context: $context));
 
             return $this->paginate($envelope, FlowEventDeployment::fromApi(...));
         }

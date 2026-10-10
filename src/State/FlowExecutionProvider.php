@@ -19,12 +19,12 @@ final class FlowExecutionProvider extends AbstractFlowableProvider implements Pr
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
+        $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
             $query = array_merge(
-                $this->relationFilters(['processInstance' => 'processInstanceId']),
-                $this->listQuery(self::FILTERS),
+                $this->relationFilters(['processInstance' => 'processInstanceId'], $context),
+                $this->listQuery(self::FILTERS, context: $context),
             );
             $envelope = $client->listExecutions($query);
 

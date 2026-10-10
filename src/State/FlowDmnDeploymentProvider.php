@@ -19,10 +19,10 @@ final class FlowDmnDeploymentProvider extends AbstractFlowableProvider implement
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
+        $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
-            $envelope = $client->listDmnDeployments($this->listQuery(self::FILTERS, 'deployTime'));
+            $envelope = $client->listDmnDeployments($this->listQuery(self::FILTERS, 'deployTime', context: $context));
 
             return $this->paginate($envelope, FlowDmnDeployment::fromApi(...));
         }

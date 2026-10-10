@@ -19,12 +19,12 @@ final class FlowDecisionProvider extends AbstractFlowableProvider implements Pro
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
+        $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
             $query = array_merge(
-                $this->relationFilters(['dmnDeployment' => 'deploymentId']),
-                $this->listQuery(self::FILTERS),
+                $this->relationFilters(['dmnDeployment' => 'deploymentId'], $context),
+                $this->listQuery(self::FILTERS, context: $context),
             );
 
             return $this->paginate($client->listDecisions($query), FlowDecision::fromApi(...));

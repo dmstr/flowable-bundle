@@ -24,15 +24,15 @@ final class FlowEventDefinitionProvider extends AbstractFlowableProvider impleme
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $client = $this->client();
+        $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
             // No default sort: event definitions carry no timestamp column
             // (unlike channel definitions), so the engine's own default — name
             // ascending — is the only sensible ordering.
             $query = array_merge(
-                $this->relationFilters(['eventDeployment' => 'deploymentId']),
-                $this->listQuery(self::FILTERS),
+                $this->relationFilters(['eventDeployment' => 'deploymentId'], $context),
+                $this->listQuery(self::FILTERS, context: $context),
             );
 
             return $this->paginate($client->listEventDefinitions($query), FlowEventDefinition::fromApi(...));

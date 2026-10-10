@@ -20,6 +20,6 @@ packages are public and English-only.
 
 ## Requirements
 
-PHP >= 8.4 (see `composer.json`). No dedicated test suite or CI in this
-repository yet; the bundle is exercised through its consuming applications
-(e.g. the za7 API stacks).
+PHP >= 8.4 (see `composer.json`). There is a PHPUnit 12 suite in `tests/` (configuration `phpunit.dist.xml`) that needs no Flowable engine, database or kernel: the client is a `FlowableClientInterface` double, and the MCP tool metadata is built from the resource attributes. Run it with `composer install && vendor/bin/phpunit`, or in any PHP 8.4 image with the repository mounted, e.g. `docker run --rm -v "$PWD:/app" -w /app <php-8.4-image> vendor/bin/phpunit`. There is no CI in this repository yet; the bundle is also exercised through its consuming applications (e.g. the za7 API stacks).
+
+<!-- - revised 2026-10-08 (PHPUnit suite) -->
