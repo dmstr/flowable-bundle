@@ -4,6 +4,12 @@
 
 All notable changes to this bundle. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/) and come from the Git tags. Releases before 0.9.0 are described in the [GitHub releases](https://github.com/dmstr/flowable-bundle/releases).
 
+## [0.10.0] - 2026-10-21
+
+### Breaking changes
+
+- **Requires `dmstr/api-platform-utils-bundle` `^0.6.0`.** The constraint `^0.2.0 || ^0.3.0 || ^0.4.0 || ^0.5.0` is dropped, so the bundle installs next to applications that moved to utils 0.6 (for example through `hrzg/za7-core` 2.9). No code changes: the only class used from utils, `UuidResolver`, is unchanged between 0.5 and 0.6. Applications on utils 0.5 or older stay on 0.9.0.
+
 ## [0.9.0] - 2026-10-10
 
 Engine credentials are stored encrypted, using the secret handling of `dmstr/api-configuration-bundle` 0.5. Includes the MCP tools of 0.9.0-beta1 and 0.9.0-beta2.
@@ -63,6 +69,7 @@ Pre-release for integration testing against a Flowable engine in a consuming app
 
 - `symfony/yaml` is required; `symfony/mcp-bundle` and `mcp/sdk` are suggested.
 
+[0.10.0]: https://github.com/dmstr/flowable-bundle/compare/0.9.0...0.10.0
 [0.9.0]: https://github.com/dmstr/flowable-bundle/compare/0.9.0-beta2...0.9.0
 [0.9.0-beta2]: https://github.com/dmstr/flowable-bundle/compare/0.9.0-beta1...0.9.0-beta2
 [0.9.0-beta1]: https://github.com/dmstr/flowable-bundle/compare/0.8.0...0.9.0-beta1
