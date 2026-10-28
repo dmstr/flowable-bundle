@@ -26,7 +26,8 @@ use Symfony\Component\Serializer\Annotation\Groups;
 /**
  * Doctrine-less pass-through resource for Flowable process instances.
  *
- * Read is open to ROLE_USER; create/delete require ROLE_FLOWABLE_ADMIN. The
+ * Reading requires `flowable:read`; create requires `flowable:process_start`, delete requires
+ * `flowable:process_delete`. The
  * acting za7 user (JWT sub) is propagated as startUserId / the startedBy
  * variable on create — never taken from client input. Advancing a waiting
  * branch is done on FlowExecution (POST /executions/{id}/trigger), because
@@ -61,7 +62,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             validate: false,
             output: FlowProcessInstance::class,
             status: 201,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:process_start')",
         ),
         new Delete(
             uriTemplate: '/process_instances/{id}',
@@ -70,7 +71,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             // No Doctrine entity to load — skip the read step (which would 404 via
             // the default provider) and let the processor delete on the engine.
             read: false,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:process_delete')",
         ),
     ],
     mcp: [
@@ -79,7 +80,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'Get the current state of a running process instance in one call. Returns processInstance (id, processDefinitionId, processDefinitionKey, businessKey, startUserId, startTime, suspended, ended, tenantId), openTasks (each with id, name, assignee, taskDefinitionKey, createTime, dueDate), openTasksTotal, currentActivityIds (BPMN element ids it waits at) and activeExecutions (each with id and activityId); ended instances fail, use flowable_history_get for them.',
             annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:mcp_read')",
             provider: FlowProcessStatusProvider::class,
             output: FlowProcessStatus::class,
             normalizationContext: ['groups' => ['flow_mcp:read']],
@@ -91,13 +92,13 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'Start a new process instance by processDefinitionKey (latest version, preferred) or processDefinitionId, with optional businessKey and variables, preferably as a map {name: value}. Returns the new process instance with id, processDefinitionId, processDefinitionKey, businessKey, startUserId, startTime, suspended, ended and tenantId.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:process_start')",
             processor: ProcessInstanceCreateProcessor::class,
             read: false,
             extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowProcessInstance/create.input.json']],
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_process_instance:read']],

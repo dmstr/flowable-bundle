@@ -29,7 +29,7 @@ use Dmstr\Flowable\State\EventInstanceCreateProcessor;
  * eventDefinitionId) AND a channel definition reference (channelDefinitionKey
  * or channelDefinitionId) — the channel is what turns the payload into a
  * correlated event, so the engine rejects a body without one. Sending events
- * drives process state and therefore requires ROLE_FLOWABLE_ADMIN.
+ * drives process state and therefore requires `flowable:event_send`.
  */
 #[ApiResource(
     shortName: 'FlowEventInstance',
@@ -47,7 +47,7 @@ use Dmstr\Flowable\State\EventInstanceCreateProcessor;
             // the sent event, so there is nothing to serialise back.
             output: false,
             status: 204,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:event_send')",
             openapi: new Operation(tags: ['Flowable/Events']),
         ),
     ],
@@ -57,14 +57,14 @@ use Dmstr\Flowable\State\EventInstanceCreateProcessor;
             description: 'Send an event to an inbound channel of the event registry; needs eventDefinitionKey or eventDefinitionId, channelDefinitionKey or channelDefinitionId, and eventPayload as an object. Returns null on success; failures are tool errors.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable/Events'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:event_send')",
             processor: EventInstanceCreateProcessor::class,
             read: false,
             structuredContent: false,
             extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowEventInstance/create.input.json']],
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     openapi: new Operation(tags: ['Flowable/Events']),
 )]
 final class FlowEventInstance

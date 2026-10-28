@@ -26,7 +26,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 /**
  * Doctrine-less pass-through resource for Flowable (user) tasks.
  *
- * Read is open to ROLE_USER; completing a task requires ROLE_FLOWABLE_ADMIN.
+ * Reading requires `flowable:read`; completing a task requires `flowable:task_complete`.
  */
 #[ApiResource(
     shortName: 'FlowTask',
@@ -58,7 +58,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             validate: false,
             output: false,
             status: 204,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:task_complete')",
             // Points the client at the per-task form schema (resolved at
             // runtime); the static requestBody stays the generic variables map.
             openapi: new Operation(
@@ -73,7 +73,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             controller: TaskInputSchemaController::class,
             read: false,
             output: false,
-            security: "is_granted('ROLE_USER')",
+            security: "is_granted('flowable:read')",
             openapi: new Operation(
                 tags: ['Flowable'],
                 summary: 'Per-task input JSON-Schema for the complete operation.',
@@ -86,7 +86,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'List open user tasks, newest first, optionally filtered by process instance, process definition, assignee or task definition key. Returns a page of tasks, each with id, name, description, assignee, owner, processInstanceId, processDefinitionId, executionId, taskDefinitionKey, priority, createTime, dueDate and tenantId.',
             annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:mcp_read')",
             provider: FlowTaskProvider::class,
             extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowTask/mcpList.input.json']],
         ),
@@ -95,7 +95,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'Get the form of an open user task as the JSON schema of the flowable_complete_task arguments. Returns taskId and schema; the form fields (name, type, title, enum, required) are the properties of schema.properties.variables, and a task without form yields a schema without fields.',
             annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:mcp_read')",
             provider: FlowTaskFormProvider::class,
             output: FlowTaskForm::class,
             normalizationContext: ['groups' => ['flow_mcp:read'], 'preserve_empty_objects' => true],
@@ -107,7 +107,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'Complete an open user task with its form values as variables, preferably as a map {name: value} (flowable_get_task_form lists the fields). Returns null on success; failures are tool errors.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:task_complete')",
             processor: TaskCompleteProcessor::class,
             read: false,
             structuredContent: false,
@@ -115,7 +115,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowTask/complete.input.json', 'uriVariables' => ['id' => 'Id of the open user task to complete.']]],
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_task:read']],

@@ -27,7 +27,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * the engine.
  *
  * Deploying is done through FlowEventDeployment, so there are no write
- * operations here. Read is open to ROLE_USER.
+ * operations here. Reading requires `flowable:read`.
  */
 #[ApiResource(
     shortName: 'FlowChannelDefinition',
@@ -65,7 +65,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             provider: FlowChannelDefinitionProvider::class,
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_channel_definition:read']],

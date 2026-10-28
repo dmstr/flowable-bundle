@@ -22,12 +22,12 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * Doctrine-less pass-through resource for Flowable DMN decisions (decision
  * tables deployed to the DMN engine, see FlowDmnDeployment).
  *
- * Read is open to ROLE_USER. The custom collection operation
+ * Reading requires `flowable:read`. The custom collection operation
  * POST /decisions/execute evaluates a decision by key against the supplied
  * input variables and returns the matching rule outputs (design mirrors the
  * process-engine pass-through). Pass singleResult=true to use the engine's
  * single-result evaluation. Evaluation writes a historic execution and is
- * therefore gated behind ROLE_FLOWABLE_ADMIN.
+ * therefore gated behind `flowable:decision_evaluate`.
  */
 #[ApiResource(
     shortName: 'FlowDecision',
@@ -60,7 +60,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             validate: false,
             output: FlowDecision::class,
             status: 200,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:decision_evaluate')",
             openapi: new Operation(tags: ['Flowable/DMN']),
         ),
     ],
@@ -70,13 +70,13 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'Evaluate a deployed DMN decision by decisionKey with inputVariables, preferably as a map {name: value}; singleResult=true asks for one row. Returns the decision with id and key set to the decision key and result, a list of rows, each a map of output name to value (empty when no rule matched).',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable/DMN'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:decision_evaluate')",
             processor: DecisionExecuteProcessor::class,
             read: false,
             extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowDecision/execute.input.json']],
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_decision:read']],

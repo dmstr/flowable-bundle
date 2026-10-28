@@ -24,7 +24,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
  *
  * The collection lists ALL versions by default (no implicit latest=true);
  * pass ?latest=true to keep only the newest version per key (design D2).
- * Read is open to ROLE_USER; starting an instance requires ROLE_FLOWABLE_ADMIN.
+ * Reading requires `flowable:read`; starting an instance requires `flowable:process_start`.
  */
 #[ApiResource(
     shortName: 'FlowProcessDefinition',
@@ -55,7 +55,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             validate: false,
             output: FlowProcessInstance::class,
             status: 201,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:process_start')",
             // Points the client at the per-definition start-form schema
             // (resolved at runtime); the static requestBody stays the generic
             // businessKey/variables/apiConfiguration body.
@@ -71,7 +71,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             controller: ProcessDefinitionStartInputSchemaController::class,
             read: false,
             output: false,
-            security: "is_granted('ROLE_USER')",
+            security: "is_granted('flowable:read')",
             openapi: new Operation(
                 tags: ['Flowable'],
                 summary: 'Per-definition input JSON-Schema for the start operation.',
@@ -84,12 +84,12 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'List deployed BPMN process definitions; pass latest=true for one row per key. Returns a page of definitions, each with id, key, name, version, description, category, deploymentId, suspended, startFormDefined and tenantId; start one with flowable_start_process by its key.',
             annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:mcp_read')",
             provider: FlowProcessDefinitionProvider::class,
             extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowProcessDefinition/mcpList.input.json']],
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_process_definition:read']],

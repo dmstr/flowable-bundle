@@ -27,7 +27,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * child/leaf executions reference the flow elements where the process currently
  * waits (a receive task, an intermediate catch event, ...). Such a waiting
  * child execution — never the process-instance execution — is what `trigger`
- * advances. Read is open to ROLE_USER; triggering requires ROLE_FLOWABLE_ADMIN.
+ * advances. Reading requires `flowable:read`; triggering requires `flowable:execution_trigger`.
  */
 #[ApiResource(
     shortName: 'FlowExecution',
@@ -58,7 +58,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             validate: false,
             output: false,
             status: 204,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:execution_trigger')",
         ),
     ],
     mcp: [
@@ -67,7 +67,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'Trigger a waiting execution (e.g. a receive task) by execution id, taken from activeExecutions of flowable_get_process_status (not the process instance id), optionally with variables as a map {name: value}. Returns null on success; failures are tool errors.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable/System'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:execution_trigger')",
             processor: ExecutionTriggerProcessor::class,
             read: false,
             structuredContent: false,
@@ -75,7 +75,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowExecution/trigger.input.json', 'uriVariables' => ['id' => 'Id of the waiting execution (not the process instance id).']]],
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_execution:read']],
