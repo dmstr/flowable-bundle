@@ -385,7 +385,7 @@ The acting user is taken from the authenticated identity (JWT `sub`) and propaga
 
 ### Migrating from 0.10
 
-0.10 checked fixed roles: the read operations required the application's base user role, all write operations, all 14 MCP tools and the job stacktrace required its administrator role. 0.11 checks the permissions above, so an application without a voter for them loses all access after the upgrade. The old behaviour is reproduced by mapping the former user role to `flowable:read` and the former administrator role to all 13 permissions. The map has no hierarchy, so the administrator needs `flowable:read` explicitly. A minimal voter, with `<your-admin-role>` and `<your-user-role>` replaced by the roles your application uses:
+0.10 checked fixed roles: the read operations required the application's base user role, all write operations and all 14 MCP tools required its administrator role. The job stacktrace and the two input-schema operations declared a role but did not enforce it, so any request that passed the firewall got them. 0.11 checks the permissions above, so an application without a voter for them loses all access after the upgrade. The old behaviour is reproduced by mapping the former user role to `flowable:read` and the former administrator role to all 13 permissions. The map has no hierarchy, so the administrator needs `flowable:read` explicitly. A minimal voter, with `<your-admin-role>` and `<your-user-role>` replaced by the roles your application uses:
 
 ```php
 use Dmstr\Flowable\Security\FlowablePermissions;

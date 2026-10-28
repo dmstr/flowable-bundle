@@ -118,12 +118,9 @@ final class PermissionCatalog
     /**
      * The three operations that run a custom controller with `read: false`
      * (job stacktrace, the two input schemas). API Platform skips its provider
-     * chain for them and evaluates their `security` expression nowhere: they
-     * answer 200 for every authenticated user, with or without the permission.
-     * That predates the permission switch (ROLE_USER could read stacktraces
-     * before) and is fixed in the controllers, not in the expressions, so the
-     * generic matrices leave them out and
-     * {@see UnguardedControllerOperationsTest} states the expected behaviour.
+     * chain for them and evaluates their `security` expression nowhere, so the
+     * controllers check the permission themselves. The generic matrices leave
+     * them out and {@see ControllerOperationPermissionTest} covers them.
      *
      * @return array<string, array{string, string}> name => [uri, permission]
      */

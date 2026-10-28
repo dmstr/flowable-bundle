@@ -10,14 +10,19 @@ The bundle no longer checks role names: every HTTP operation and every MCP tool 
 
 ### Breaking changes
 
-- **Every operation and every MCP tool needs a permission voter in the application.** Each of the 13 permissions (`flowable:read`, `flowable:read_stacktrace`, `flowable:mcp_read`, `flowable:deploy`, `flowable:deploy_delete`, `flowable:decision_evaluate`, `flowable:process_start`, `flowable:process_delete`, `flowable:task_complete`, `flowable:event_send`, `flowable:execution_trigger`, `flowable:worker`, `flowable:job_execute`) is checked with `is_granted()` and subject `null`. Without a voter that maps them, everything answers `403`, so provide the mapping before upgrading. Before: the read operations required the base user role, all write operations, all 14 MCP tools and the job stacktrace required `ROLE_FLOWABLE_ADMIN`. To reproduce that, map the former user role to `flowable:read` and the former administrator role to all 13 permissions (the map has no hierarchy, so the administrator needs `flowable:read` explicitly). The README has a migration section with an example voter.
+- **Every operation and every MCP tool needs a permission voter in the application.** Each of the 13 permissions (`flowable:read`, `flowable:read_stacktrace`, `flowable:mcp_read`, `flowable:deploy`, `flowable:deploy_delete`, `flowable:decision_evaluate`, `flowable:process_start`, `flowable:process_delete`, `flowable:task_complete`, `flowable:event_send`, `flowable:execution_trigger`, `flowable:worker`, `flowable:job_execute`) is checked with `is_granted()` and subject `null`. Without a voter that maps them, everything answers `403`, so provide the mapping before upgrading. Before: the read operations required the base user role, all write operations and all 14 MCP tools required `ROLE_FLOWABLE_ADMIN`; the job stacktrace declared the same role but did not enforce it (see Security). To reproduce that, map the former user role to `flowable:read` and the former administrator role to all 13 permissions (the map has no hierarchy, so the administrator needs `flowable:read` explicitly). The README has a migration section with an example voter.
 - **Requires PHP >= 8.5.**
 - **Requires `dmstr/api-configuration-bundle` `^0.6`** (and `doctrine/orm` `^3`). Applications on api-configuration-bundle 0.5 stay on 0.10.0.
+- **Requires `symfony/expression-language` and `symfony/object-mapper`** (`^7.0`). The first evaluates the operations' `security` expressions; the second because API Platform enables its MCP integration only when it is installed.
 
 ### Added
 
 - `Dmstr\Flowable\Security\FlowablePermissions` with the 13 permission constants and `all()`. They are registered as 13 `za7_core.permission` container tags (tag attribute `permission`) in `config/services.yaml`, so applications that collect such tags can offer them for assignment. The bundle has no permission map, no config node and no za7-core dependency. The MCP switches `dmstr_flowable.mcp.read` / `mcp.write` / `mcp.deploy` are unchanged and independent: a tool needs its switch and its permission.
 - Kernel-based HTTP and MCP test suite (`tests/Kernel`, `tests/Http`) with its own test authentication (`X-Test-Roles` header, only under `tests/`), a GitHub Action (`.github/workflows/tests.yml`, PHP 8.5) and a `docker-compose.yml` CLI runner (`docker compose run --rm php`). Partially addresses Issue #14 (bundle test suite).
+
+### Security
+
+- `GET /jobs/{id}/stacktrace`, `GET /tasks/{id}/input_schema` and `GET /process_definitions/{id}/input_schema` did not evaluate their `security` expression: API Platform skips it for a custom controller with `read: false`, so every request that passed the firewall got them, with or without the declared role (the expression only filtered the hydra:operation list). The three controllers now check `flowable:read_stacktrace` and `flowable:read` themselves before calling the engine: `403` without the permission, `401` without authentication. This was already the case in 0.10.0 and earlier.
 
 ## [0.10.0] - 2026-10-21
 

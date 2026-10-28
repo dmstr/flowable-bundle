@@ -5,9 +5,12 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable\Controller;
 
+use Dmstr\Flowable\Security\FlowablePermissions;
 use Dmstr\OpenApiJsonSchema\Interface\InputSchemaResolverInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 /**
  * Runtime, per-definition input schema for starting a process instance
@@ -21,16 +24,25 @@ use Symfony\Component\HttpFoundation\Request;
  * vue-admin to render before the `start` call. When the definition has no
  * start form, the chain falls through to the static `start.input.json`
  * (generic businessKey/variables/apiConfiguration body).
+ *
+ * The controller checks `flowable:read` itself: API Platform does not
+ * evaluate the operation's `security` expression for a custom controller with
+ * `read: false` (the expression only filters the hydra:operation list).
  */
 final class ProcessDefinitionStartInputSchemaController
 {
     public function __construct(
         private readonly InputSchemaResolverInterface $resolver,
+        private readonly AuthorizationCheckerInterface $authorizationChecker,
     ) {
     }
 
     public function __invoke(string $id, Request $request): JsonResponse
     {
+        if (!$this->authorizationChecker->isGranted(FlowablePermissions::READ)) {
+            throw new AccessDeniedException();
+        }
+
         $context = ['id' => $id];
         $apiConfiguration = $request->query->get('apiConfiguration');
         if (\is_string($apiConfiguration) && '' !== $apiConfiguration) {
@@ -48,3 +60,4 @@ final class ProcessDefinitionStartInputSchemaController
         return new JsonResponse($schema, JsonResponse::HTTP_OK, ['Content-Type' => 'application/schema+json']);
     }
 }
+// - revised 2026-10-28 (checks flowable:read itself, security of read:false operations is not evaluated)

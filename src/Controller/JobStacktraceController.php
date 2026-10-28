@@ -6,10 +6,13 @@ declare(strict_types=1);
 namespace Dmstr\Flowable\Controller;
 
 use Dmstr\Flowable\Client\FlowableClientLocator;
+use Dmstr\Flowable\Security\FlowablePermissions;
 use Dmstr\Flowable\State\FlowJobProvider;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 /**
  * A job's exception stacktrace (GET /flowable/jobs/{id}/stacktrace).
@@ -23,16 +26,25 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * do not resolve across kinds, so a dead-lettered job needs
  * `?kind=deadletter`. `kind=history` has no stacktrace endpoint in the engine
  * and always yields 404.
+ *
+ * The controller checks `flowable:read_stacktrace` itself: API Platform does
+ * not evaluate the operation's `security` expression for a custom controller
+ * with `read: false` (the expression only filters the hydra:operation list).
  */
 final class JobStacktraceController
 {
     public function __construct(
         private readonly FlowableClientLocator $locator,
+        private readonly AuthorizationCheckerInterface $authorizationChecker,
     ) {
     }
 
     public function __invoke(string $id, Request $request): Response
     {
+        if (!$this->authorizationChecker->isGranted(FlowablePermissions::READ_STACKTRACE)) {
+            throw new AccessDeniedException();
+        }
+
         $apiConfiguration = $request->query->get('apiConfiguration');
         $client = $this->locator->resolve(
             \is_string($apiConfiguration) && '' !== $apiConfiguration ? $apiConfiguration : null,
@@ -52,3 +64,4 @@ final class JobStacktraceController
         return new Response($stacktrace, Response::HTTP_OK, ['Content-Type' => 'text/plain; charset=UTF-8']);
     }
 }
+// - revised 2026-10-28 (checks flowable:read_stacktrace itself, security of read:false operations is not evaluated)
