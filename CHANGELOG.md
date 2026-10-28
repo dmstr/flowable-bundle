@@ -4,6 +4,21 @@
 
 All notable changes to this bundle. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/) and come from the Git tags. Releases before 0.9.0 are described in the [GitHub releases](https://github.com/dmstr/flowable-bundle/releases).
 
+## [0.11.0] - Unreleased
+
+The bundle no longer checks role names: every HTTP operation and every MCP tool checks its own permission.
+
+### Breaking changes
+
+- **Every operation and every MCP tool needs a permission voter in the application.** Each of the 13 permissions (`flowable:read`, `flowable:read_stacktrace`, `flowable:mcp_read`, `flowable:deploy`, `flowable:deploy_delete`, `flowable:decision_evaluate`, `flowable:process_start`, `flowable:process_delete`, `flowable:task_complete`, `flowable:event_send`, `flowable:execution_trigger`, `flowable:worker`, `flowable:job_execute`) is checked with `is_granted()` and subject `null`. Without a voter that maps them, everything answers `403`, so provide the mapping before upgrading. Before: the read operations required the base user role, all write operations, all 14 MCP tools and the job stacktrace required `ROLE_FLOWABLE_ADMIN`. To reproduce that, map the former user role to `flowable:read` and the former administrator role to all 13 permissions (the map has no hierarchy, so the administrator needs `flowable:read` explicitly). The README has a migration section with an example voter.
+- **Requires PHP >= 8.5.**
+- **Requires `dmstr/api-configuration-bundle` `^0.6`** (and `doctrine/orm` `^3`). Applications on api-configuration-bundle 0.5 stay on 0.10.0.
+
+### Added
+
+- `Dmstr\Flowable\Security\FlowablePermissions` with the 13 permission constants and `all()`. They are registered as 13 `za7_core.permission` container tags (tag attribute `permission`) in `config/services.yaml`, so applications that collect such tags can offer them for assignment. The bundle has no permission map, no config node and no za7-core dependency. The MCP switches `dmstr_flowable.mcp.read` / `mcp.write` / `mcp.deploy` are unchanged and independent: a tool needs its switch and its permission.
+- Kernel-based HTTP and MCP test suite (`tests/Kernel`, `tests/Http`) with its own test authentication (`X-Test-Roles` header, only under `tests/`), a GitHub Action (`.github/workflows/tests.yml`, PHP 8.5) and a `docker-compose.yml` CLI runner (`docker compose run --rm php`). Partially addresses Issue #14 (bundle test suite).
+
 ## [0.10.0] - 2026-10-21
 
 ### Breaking changes
