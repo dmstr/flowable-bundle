@@ -29,6 +29,27 @@ services:
             - '../src/Worker/ExternalWorkerJob.php'
             - '../src/Worker/ExternalWorkerOutcome.php'
 
+    # Permission attributes of the bundle's operations and MCP tools. An
+    # application (e.g. za7-core) collects the `za7_core.permission` tags to
+    # offer them for assignment; the bundle itself depends on nothing for it.
+    # Replaces the definition discovered above (a constants class, never
+    # instantiated).
+    Dmstr\Flowable\Security\FlowablePermissions:
+        tags:
+            - { name: 'za7_core.permission', permission: 'flowable:read' }
+            - { name: 'za7_core.permission', permission: 'flowable:read_stacktrace' }
+            - { name: 'za7_core.permission', permission: 'flowable:mcp_read' }
+            - { name: 'za7_core.permission', permission: 'flowable:deploy' }
+            - { name: 'za7_core.permission', permission: 'flowable:deploy_delete' }
+            - { name: 'za7_core.permission', permission: 'flowable:decision_evaluate' }
+            - { name: 'za7_core.permission', permission: 'flowable:process_start' }
+            - { name: 'za7_core.permission', permission: 'flowable:process_delete' }
+            - { name: 'za7_core.permission', permission: 'flowable:task_complete' }
+            - { name: 'za7_core.permission', permission: 'flowable:event_send' }
+            - { name: 'za7_core.permission', permission: 'flowable:execution_trigger' }
+            - { name: 'za7_core.permission', permission: 'flowable:worker' }
+            - { name: 'za7_core.permission', permission: 'flowable:job_execute' }
+
     # The locator decrypts the writeOnly secrets (password, token) of a
     # "flowable" ApiConfiguration before it builds a client. ConfigSecrets is a
     # service of dmstr/api-configuration-bundle (^0.5); wired explicitly so the
@@ -130,3 +151,4 @@ services:
             $decorated: '@.inner'
 # - revised 2026-10-08 (MCP tool input schema factory)
 # - revised 2026-10-09 (mcp.deploy switch)
+# - revised 2026-10-28 (flowable:* permission tags)

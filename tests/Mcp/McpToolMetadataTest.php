@@ -21,9 +21,6 @@ use PHPUnit\Framework\TestCase;
  */
 final class McpToolMetadataTest extends TestCase
 {
-    /** No MCP tool is open to ROLE_USER, read tools included. */
-    private const ADMIN = "is_granted('ROLE_FLOWABLE_ADMIN')";
-
     /**
      * name => destructiveHint; every state-changing tool that cannot be
      * undone is destructive, so clients ask before calling it.
@@ -51,25 +48,25 @@ final class McpToolMetadataTest extends TestCase
     private const DEPLOY_TOOLS = ['flowable_dmn_deploy', 'flowable_deploy_bundle'];
 
     /**
-     * name => [resource short name, security, readOnlyHint, tag, input file, has id argument]
+     * name => [resource short name, security expression (one permission per tool), readOnlyHint, tag, input file, has id argument]
      *
      * @var array<string, array{string, string, bool, string, string, bool}>
      */
     private const TOOLS = [
-        'flowable_list_process_definitions' => ['FlowProcessDefinition', self::ADMIN, true, 'Flowable', 'FlowProcessDefinition/mcpList.input.json', false],
-        'flowable_list_tasks' => ['FlowTask', self::ADMIN, true, 'Flowable', 'FlowTask/mcpList.input.json', false],
-        'flowable_get_task_form' => ['FlowTask', self::ADMIN, true, 'Flowable', 'FlowTask/mcpForm.input.json', true],
-        'flowable_get_process_status' => ['FlowProcessInstance', self::ADMIN, true, 'Flowable', 'FlowProcessInstance/mcpStatus.input.json', true],
-        'flowable_history_get' => ['FlowHistoricProcessInstance', self::ADMIN, true, 'Flowable/History', 'FlowHistoricProcessInstance/mcpHistory.input.json', true],
-        'flowable_system_list_deadletter_jobs' => ['FlowJob', self::ADMIN, true, 'Flowable/System', 'FlowJob/mcpDeadletterList.input.json', false],
-        'flowable_start_process' => ['FlowProcessInstance', self::ADMIN, false, 'Flowable', 'FlowProcessInstance/create.input.json', false],
-        'flowable_complete_task' => ['FlowTask', self::ADMIN, false, 'Flowable', 'FlowTask/complete.input.json', true],
-        'flowable_dmn_evaluate' => ['FlowDecision', self::ADMIN, false, 'Flowable/DMN', 'FlowDecision/execute.input.json', false],
-        'flowable_events_send' => ['FlowEventInstance', self::ADMIN, false, 'Flowable/Events', 'FlowEventInstance/create.input.json', false],
-        'flowable_system_trigger_execution' => ['FlowExecution', self::ADMIN, false, 'Flowable/System', 'FlowExecution/trigger.input.json', true],
-        'flowable_dmn_deploy' => ['FlowDmnDeployment', self::ADMIN, false, 'Flowable/DMN', 'FlowDmnDeployment/mcpDeploy.input.json', false],
-        'flowable_deploy_bundle' => ['FlowDeployment', self::ADMIN, false, 'Flowable', 'FlowDeployment/mcpBundle.input.json', false],
-        'flowable_system_execute_timer_job' => ['FlowJob', self::ADMIN, false, 'Flowable/System', 'FlowJob/mcpExecuteTimer.input.json', true],
+        'flowable_list_process_definitions' => ['FlowProcessDefinition', "is_granted('flowable:mcp_read')", true, 'Flowable', 'FlowProcessDefinition/mcpList.input.json', false],
+        'flowable_list_tasks' => ['FlowTask', "is_granted('flowable:mcp_read')", true, 'Flowable', 'FlowTask/mcpList.input.json', false],
+        'flowable_get_task_form' => ['FlowTask', "is_granted('flowable:mcp_read')", true, 'Flowable', 'FlowTask/mcpForm.input.json', true],
+        'flowable_get_process_status' => ['FlowProcessInstance', "is_granted('flowable:mcp_read')", true, 'Flowable', 'FlowProcessInstance/mcpStatus.input.json', true],
+        'flowable_history_get' => ['FlowHistoricProcessInstance', "is_granted('flowable:mcp_read')", true, 'Flowable/History', 'FlowHistoricProcessInstance/mcpHistory.input.json', true],
+        'flowable_system_list_deadletter_jobs' => ['FlowJob', "is_granted('flowable:mcp_read')", true, 'Flowable/System', 'FlowJob/mcpDeadletterList.input.json', false],
+        'flowable_start_process' => ['FlowProcessInstance', "is_granted('flowable:process_start')", false, 'Flowable', 'FlowProcessInstance/create.input.json', false],
+        'flowable_complete_task' => ['FlowTask', "is_granted('flowable:task_complete')", false, 'Flowable', 'FlowTask/complete.input.json', true],
+        'flowable_dmn_evaluate' => ['FlowDecision', "is_granted('flowable:decision_evaluate')", false, 'Flowable/DMN', 'FlowDecision/execute.input.json', false],
+        'flowable_events_send' => ['FlowEventInstance', "is_granted('flowable:event_send')", false, 'Flowable/Events', 'FlowEventInstance/create.input.json', false],
+        'flowable_system_trigger_execution' => ['FlowExecution', "is_granted('flowable:execution_trigger')", false, 'Flowable/System', 'FlowExecution/trigger.input.json', true],
+        'flowable_dmn_deploy' => ['FlowDmnDeployment', "is_granted('flowable:deploy')", false, 'Flowable/DMN', 'FlowDmnDeployment/mcpDeploy.input.json', false],
+        'flowable_deploy_bundle' => ['FlowDeployment', "is_granted('flowable:deploy')", false, 'Flowable', 'FlowDeployment/mcpBundle.input.json', false],
+        'flowable_system_execute_timer_job' => ['FlowJob', "is_granted('flowable:job_execute')", false, 'Flowable/System', 'FlowJob/mcpExecuteTimer.input.json', true],
     ];
 
     private const READ_TOOLS = [
@@ -235,3 +232,4 @@ final class McpToolMetadataTest extends TestCase
     }
 }
 // - revised 2026-10-09 (admin-only tools, destructiveHint, mcp.deploy)
+// - revised 2026-10-28 (one flowable:* permission per tool)

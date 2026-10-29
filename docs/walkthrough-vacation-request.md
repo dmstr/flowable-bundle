@@ -46,15 +46,16 @@ flowchart TD
 > **Local-dev defaults** (docker compose): admin UI at `http://localhost:4401`,
 > Keycloak at `http://localhost:14405` (realm `demo`), Flowable REST at
 > `http://localhost:14408`. Sign-in user `za7-admin` / `test123` (realm role
-> `admin`, which inherits `ROLE_FLOWABLE_ADMIN`). Adjust to your environment.
+> `admin`, which the application's permission voter maps to the `flowable:*` permissions). Adjust to your environment.
 
 ## Steps
 
 ### 1. Sign in
 
 Open the admin UI and click **Anmelden mit IDP** / **Sign in**. Authenticate via
-Keycloak. Starting and completing tasks requires `ROLE_FLOWABLE_ADMIN`
-(`ROLE_ADMIN` inherits it); reading is open to any authenticated user.
+Keycloak. Starting and completing tasks requires the permissions `flowable:process_start` and
+`flowable:task_complete`, reading requires `flowable:read`; your application's permission
+voter maps them to roles (see the Security section of the README).
 
 ### 2. Open the process definition
 

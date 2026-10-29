@@ -39,7 +39,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * Read-only on purpose: moving, retrying or deleting engine jobs is an operator
  * action with process-wide consequences, not something to expose as a generic
  * pass-through. `GET /jobs/{id}/stacktrace` returns the job's exception
- * stacktrace as plain text and is gated behind ROLE_FLOWABLE_ADMIN, because a
+ * stacktrace as plain text and is gated behind `flowable:read_stacktrace`, because a
  * Java stacktrace leaks engine and application internals; `history` has no
  * stacktrace endpoint in the engine and always answers 404 here.
  */
@@ -114,7 +114,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             controller: JobStacktraceController::class,
             read: false,
             output: false,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:read_stacktrace')",
             openapi: new Operation(
                 tags: ['Flowable/System'],
                 summary: 'Exception stacktrace of a job, as plain text.',
@@ -127,7 +127,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'List dead-letter jobs, i.e. engine jobs whose retries are used up and that no longer run. Returns a page of jobs, each with id, kind (deadletter), handlerType, processInstanceId, executionId, processDefinitionId, elementId, elementName, retries, exceptionMessage, createTime, dueDate and tenantId.',
             annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable/System'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:mcp_read')",
             provider: FlowJobProvider::class,
             extraProperties: [
                 McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowJob/mcpDeadletterList.input.json'],
@@ -139,7 +139,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'Run a timer job now instead of at its due date, by timer job id; the remaining wait is skipped and cannot be restored. Returns null on success; failures are tool errors.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable/System'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:job_execute')",
             processor: TimerJobExecuteProcessor::class,
             read: false,
             structuredContent: false,
@@ -147,7 +147,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowJob/mcpExecuteTimer.input.json', 'uriVariables' => ['id' => 'Id of the timer job.']]],
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_job:read']],

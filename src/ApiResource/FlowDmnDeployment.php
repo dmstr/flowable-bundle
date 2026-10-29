@@ -30,7 +30,8 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * as a decision, so decision tables must be deployed here. The custom collection
  * operation POST /dmn_deployments/upload accepts a multipart .dmn (or a
  * .bar/.zip bundle of them) and forwards it to the engine's dmn-repository.
- * Read is open to ROLE_USER; upload and delete require ROLE_FLOWABLE_ADMIN.
+ * Reading requires `flowable:read`; upload requires `flowable:deploy`, delete requires
+ * `flowable:deploy_delete`.
  */
 #[ApiResource(
     shortName: 'FlowDmnDeployment',
@@ -61,7 +62,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             inputFormats: ['multipart' => ['multipart/form-data']],
             output: FlowDmnDeployment::class,
             status: 201,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:deploy')",
             openapi: new Operation(
                 tags: ['Flowable/DMN'],
                 requestBody: new RequestBody(
@@ -107,7 +108,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             // No Doctrine entity to load — skip the read step (which would 404 via
             // the default provider) and let the processor delete on the engine.
             read: false,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:deploy_delete')",
         ),
     ],
     mcp: [
@@ -116,13 +117,13 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'Deploy a DMN decision table to the DMN engine from inline content: name ending in .dmn and content as XML text (or base64 with contentEncoding "base64", e.g. for a .bar/.zip). Returns the DMN deployment with id, name, deploymentTime, category, parentDeploymentId and tenantId.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable/DMN'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:deploy')",
             processor: DmnDeploymentUploadProcessor::class,
             read: false,
             extraProperties: [McpToolSwitchResourceMetadataCollectionFactory::SWITCH_KEY => 'deploy', McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowDmnDeployment/mcpDeploy.input.json']],
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_dmn_deployment:read']],

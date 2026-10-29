@@ -14,9 +14,11 @@ credentials) are resolved per request from an `ApiConfiguration` of type
 
 ## Requirements
 
-- PHP >= 8.4
+- PHP >= 8.5
 - Symfony 7
 - API Platform 4, at least 4.3.18 (earlier releases do not enforce `security` on MCP tools)
+- `dmstr/api-configuration-bundle` `^0.6` (and `doctrine/orm` `^3`)
+- A permission voter in the application that maps the `flowable:*` [permissions](#security) to its roles
 - A reachable Flowable REST engine (`flowable-rest`)
 - `ext-pcntl` — only for `flowable:external-worker:run` as a long-lived process,
   where it enables the graceful shutdown described under
@@ -259,33 +261,33 @@ The bundle declares 14 [MCP](https://modelcontextprotocol.io/) tools as API Plat
 - `symfony/mcp-bundle` serves the tools;
 - `mcp/sdk` is the MCP server runtime it runs on.
 
-Nothing is exposed until the [switches](#bundle-configuration) `dmstr_flowable.mcp.read` / `mcp.write` / `mcp.deploy` are turned on. Every tool requires `ROLE_FLOWABLE_ADMIN`, the read tools included: unlike the HTTP read operations, they are not open to `ROLE_USER`, because tool results go to a language model and the engine has no per-user access check on tasks, variables and history.
+Nothing is exposed until the [switches](#bundle-configuration) `dmstr_flowable.mcp.read` / `mcp.write` / `mcp.deploy` are turned on. A tool needs its switch and its permission: the switch decides whether the tool exists, the permission whether the caller may use it (see [Security](#security)). The read tools have their own permission, `flowable:mcp_read`, separate from `flowable:read` of the HTTP read operations, because tool results go to a language model and the engine has no per-user access check on tasks, variables and history.
 
 > **Warning:** tool results contain engine data that users or external systems wrote (variables, task descriptions, exception messages). Treat it as untrusted input to the model, and do not give an agent that reads such data the write or deploy tools without a human confirming each call.
 
-| Tool | Switch | Security | Tag (`_meta` `de.dmstr/tag`) | Backing operation |
+| Tool | Switch | Permission | Tag (`_meta` `de.dmstr/tag`) | Backing operation |
 |---|---|---|---|---|
-| `flowable_list_process_definitions` | read | `ROLE_FLOWABLE_ADMIN` | `Flowable` | `GET /process_definitions` (`FlowProcessDefinitionProvider`) |
-| `flowable_list_tasks` | read | `ROLE_FLOWABLE_ADMIN` | `Flowable` | `GET /tasks` (`FlowTaskProvider`) |
-| `flowable_get_task_form` | read | `ROLE_FLOWABLE_ADMIN` | `Flowable` | like `GET /tasks/{id}/input_schema` (`FlowTaskFormProvider`) |
-| `flowable_get_process_status` | read | `ROLE_FLOWABLE_ADMIN` | `Flowable` | composite: process instance, open tasks, executions (`FlowProcessStatusProvider`) |
-| `flowable_history_get` | read | `ROLE_FLOWABLE_ADMIN` | `Flowable/History` | composite: historic activities, historic variables, failed decision executions (`FlowProcessHistoryProvider`) |
-| `flowable_system_list_deadletter_jobs` | read | `ROLE_FLOWABLE_ADMIN` | `Flowable/System` | `GET /jobs?kind=deadletter`, kind fixed (`FlowJobProvider`) |
-| `flowable_start_process` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable` | `POST /process_instances`, by key or id (`ProcessInstanceCreateProcessor`) |
-| `flowable_complete_task` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable` | `POST /tasks/{id}/complete` (`TaskCompleteProcessor`) |
-| `flowable_dmn_evaluate` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable/DMN` | `POST /decisions/execute` (`DecisionExecuteProcessor`) |
-| `flowable_events_send` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable/Events` | `POST /event_instances` (`EventInstanceCreateProcessor`) |
-| `flowable_system_trigger_execution` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable/System` | `POST /executions/{id}/trigger` (`ExecutionTriggerProcessor`) |
-| `flowable_dmn_deploy` | write + deploy | `ROLE_FLOWABLE_ADMIN` | `Flowable/DMN` | `POST /dmn_deployments/upload` with an inline file (`DmnDeploymentUploadProcessor`) |
-| `flowable_deploy_bundle` | write + deploy | `ROLE_FLOWABLE_ADMIN` | `Flowable` | several inline files as one `.bar` deployment (`DeploymentBundleProcessor`) |
-| `flowable_system_execute_timer_job` | write | `ROLE_FLOWABLE_ADMIN` | `Flowable/System` | no HTTP operation; `FlowableClientInterface::executeTimerJob()` (`TimerJobExecuteProcessor`) |
+| `flowable_list_process_definitions` | read | `flowable:mcp_read` | `Flowable` | `GET /process_definitions` (`FlowProcessDefinitionProvider`) |
+| `flowable_list_tasks` | read | `flowable:mcp_read` | `Flowable` | `GET /tasks` (`FlowTaskProvider`) |
+| `flowable_get_task_form` | read | `flowable:mcp_read` | `Flowable` | like `GET /tasks/{id}/input_schema` (`FlowTaskFormProvider`) |
+| `flowable_get_process_status` | read | `flowable:mcp_read` | `Flowable` | composite: process instance, open tasks, executions (`FlowProcessStatusProvider`) |
+| `flowable_history_get` | read | `flowable:mcp_read` | `Flowable/History` | composite: historic activities, historic variables, failed decision executions (`FlowProcessHistoryProvider`) |
+| `flowable_system_list_deadletter_jobs` | read | `flowable:mcp_read` | `Flowable/System` | `GET /jobs?kind=deadletter`, kind fixed (`FlowJobProvider`) |
+| `flowable_start_process` | write | `flowable:process_start` | `Flowable` | `POST /process_instances`, by key or id (`ProcessInstanceCreateProcessor`) |
+| `flowable_complete_task` | write | `flowable:task_complete` | `Flowable` | `POST /tasks/{id}/complete` (`TaskCompleteProcessor`) |
+| `flowable_dmn_evaluate` | write | `flowable:decision_evaluate` | `Flowable/DMN` | `POST /decisions/execute` (`DecisionExecuteProcessor`) |
+| `flowable_events_send` | write | `flowable:event_send` | `Flowable/Events` | `POST /event_instances` (`EventInstanceCreateProcessor`) |
+| `flowable_system_trigger_execution` | write | `flowable:execution_trigger` | `Flowable/System` | `POST /executions/{id}/trigger` (`ExecutionTriggerProcessor`) |
+| `flowable_dmn_deploy` | write + deploy | `flowable:deploy` | `Flowable/DMN` | `POST /dmn_deployments/upload` with an inline file (`DmnDeploymentUploadProcessor`) |
+| `flowable_deploy_bundle` | write + deploy | `flowable:deploy` | `Flowable` | several inline files as one `.bar` deployment (`DeploymentBundleProcessor`) |
+| `flowable_system_execute_timer_job` | write | `flowable:job_execute` | `Flowable/System` | no HTTP operation; `FlowableClientInterface::executeTimerJob()` (`TimerJobExecuteProcessor`) |
 
-Every tool carries `annotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`), its `security` expression and the `de.dmstr/tag` entry in `_meta`. Every tool that changes engine state in a way that cannot be undone (start, complete, trigger, send an event, deploy, execute a timer job) declares `destructiveHint: true`, so MCP clients ask before calling it; only `flowable_dmn_evaluate`, which adds no more than a history row, is a write tool with `destructiveHint: false`. Each description is one line that names the fields of the result, because some agent frameworks ignore `structuredContent`; the result is the serialised resource (or result object) in API Platform's MCP output format.
+Every tool carries `annotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`), its `security` expression (`is_granted()` with the permission) and the `de.dmstr/tag` entry in `_meta`. Every tool that changes engine state in a way that cannot be undone (start, complete, trigger, send an event, deploy, execute a timer job) declares `destructiveHint: true`, so MCP clients ask before calling it; only `flowable_dmn_evaluate`, which adds no more than a history row, is a write tool with `destructiveHint: false`. Each description is one line that names the fields of the result, because some agent frameworks ignore `structuredContent`; the result is the serialised resource (or result object) in API Platform's MCP output format.
 
 Notes on individual tools:
 
 - `flowable_start_process` starts by `processDefinitionKey` (latest version) or `processDefinitionId`, so an agent needs no prior lookup of the definition id; it is backed by `POST /process_instances`, not by `POST /process_definitions/{id}/start`.
-- `flowable_dmn_evaluate` changes no engine state except a history row, but it is gated behind `ROLE_FLOWABLE_ADMIN` like its HTTP operation, so it is declared a write tool (`readOnlyHint: false`, `idempotentHint: true`) and appears only with `mcp.write`.
+- `flowable_dmn_evaluate` changes no engine state except a history row, but it is gated behind its own permission, `flowable:decision_evaluate`, like its HTTP operation, so it is declared a write tool (`readOnlyHint: false`, `idempotentHint: true`) and appears only with `mcp.write`.
 - `flowable_get_process_status` answers only for running instances; `flowable_history_get` covers ended ones. Both are composites: when one of their engine calls fails, the tool fails as a whole and never returns a partial result. Each list holds at most 200 rows; the `*Total` fields tell whether it was cut.
 - `flowable_system_execute_timer_job` moves the timer job to the executable jobs (`POST management/timer-jobs/{id}` with `{"action": "move"}`), where the async executor runs it at once. The remaining wait cannot be restored, hence `destructiveHint: true`.
 - `flowable_deploy_bundle` refuses `.dmn` files: a process deployment does not register decision tables in the DMN engine, so they go to `flowable_dmn_deploy`. Building the archive needs the PHP `zip` extension.
@@ -357,11 +359,61 @@ every registered handler's topics), `--worker-id`, `--lock-duration=PT10M`,
 
 ## Security
 
-Reading is open to any authenticated user. Starting, triggering and completing
-(all write operations) require `ROLE_FLOWABLE_ADMIN`. The MCP tools all require
-`ROLE_FLOWABLE_ADMIN`, see [MCP tools](#mcp-tools). The acting user is taken
-from the authenticated identity (JWT `sub`) and propagated to Flowable — see
-[`docs/tenant-and-user.md`](docs/tenant-and-user.md).
+The bundle checks no role names. Every HTTP operation and every one of the 14 MCP tools checks its own permission attribute with `is_granted('<permission>')` and subject `null`. The bundle grants none of the permissions itself: a permission voter in the application maps its roles or users to them. Without such a voter every operation and every tool answers `403` (fail closed), so provide the mapping before you install or upgrade.
+
+| Permission | Guards |
+|---|---|
+| `flowable:read` | all read operations of the engine resources, the two input-schema operations (`/process_definitions/{id}/input_schema`, `/tasks/{id}/input_schema`) and `GET /jobs` with any `kind` (the dead-letter list is `GET /jobs?kind=deadletter`) |
+| `flowable:read_stacktrace` | `GET /jobs/{id}/stacktrace` |
+| `flowable:mcp_read` | the 6 read MCP tools, including `flowable_system_list_deadletter_jobs` |
+| `flowable:deploy` | the three upload operations (`/deployments/upload`, `/dmn_deployments/upload`, `/event_deployments/upload`) and the tools `flowable_deploy_bundle` and `flowable_dmn_deploy` |
+| `flowable:deploy_delete` | the three deployment delete operations (`DELETE /deployments/{id}`, `/dmn_deployments/{id}`, `/event_deployments/{id}`) |
+| `flowable:decision_evaluate` | `POST /decisions/execute` and `flowable_dmn_evaluate` |
+| `flowable:process_start` | `POST /process_definitions/{id}/start`, `POST /process_instances` and `flowable_start_process` |
+| `flowable:process_delete` | `DELETE /process_instances/{id}` |
+| `flowable:task_complete` | `POST /tasks/{id}/complete` and `flowable_complete_task` |
+| `flowable:event_send` | `POST /event_instances` and `flowable_events_send` |
+| `flowable:execution_trigger` | `POST /executions/{id}/trigger` and `flowable_system_trigger_execution` |
+| `flowable:worker` | the five External Worker operations (`acquire`, `complete`, `fail`, `bpmnError`, `unacquire` under `/external_worker_jobs`) |
+| `flowable:job_execute` | `flowable_system_execute_timer_job` |
+
+The constants are in `Dmstr\Flowable\Security\FlowablePermissions` (`all()` returns the 13 values). The bundle registers them as 13 `za7_core.permission` service tags (tag attribute `permission`), so applications that collect such tags, such as `hrzg/za7-core`, can offer them for assignment; the bundle itself depends on nothing for this and has no permission map or config node of its own.
+
+The MCP switches `dmstr_flowable.mcp.read` / `mcp.write` / `mcp.deploy` are independent of the permissions: a tool needs its switch and its permission.
+
+The acting user is taken from the authenticated identity (JWT `sub`) and propagated to Flowable, see [`docs/tenant-and-user.md`](docs/tenant-and-user.md).
+
+### Migrating from 0.10
+
+0.10 checked fixed roles: the read operations required the application's base user role, all write operations and all 14 MCP tools required its administrator role. The job stacktrace and the two input-schema operations declared a role but did not enforce it, so any request that passed the firewall got them. 0.11 checks the permissions above, so an application without a voter for them loses all access after the upgrade. The old behaviour is reproduced by mapping the former user role to `flowable:read` and the former administrator role to all 13 permissions. The map has no hierarchy, so the administrator needs `flowable:read` explicitly. A minimal voter, with `<your-admin-role>` and `<your-user-role>` replaced by the roles your application uses:
+
+```php
+use Dmstr\Flowable\Security\FlowablePermissions;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Authorization\Voter\Vote;
+use Symfony\Component\Security\Core\Authorization\Voter\Voter;
+
+final class FlowablePermissionVoter extends Voter
+{
+    protected function supports(string $attribute, mixed $subject): bool
+    {
+        return in_array($attribute, FlowablePermissions::all(), true);
+    }
+
+    protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token, ?Vote $vote = null): bool
+    {
+        $roles = $token->getRoleNames();
+
+        if (in_array('<your-admin-role>', $roles, true)) {
+            return true;
+        }
+
+        return $attribute === 'flowable:read' && in_array('<your-user-role>', $roles, true);
+    }
+}
+```
+
+With autoconfiguration the voter is registered by itself. If the application already has a permission voter driven by a role-to-permission map, add the permissions to the entries of your roles instead. Also note the other breaking changes of 0.11: PHP >= 8.5 and `dmstr/api-configuration-bundle` `^0.6`, see the [changelog](CHANGELOG.md).
 
 ## Documentation
 
@@ -376,12 +428,14 @@ from the authenticated identity (JWT `sub`) and propagated to Flowable — see
 
 ## Tests
 
-The PHPUnit suite (`tests/`, configuration `phpunit.dist.xml`) runs without an engine, a database or a kernel: the Flowable client is a test double, and the MCP tool metadata is read from the resource attributes with API Platform's attribute metadata factory.
+The suite (`tests/`, configuration `phpunit.dist.xml`) needs no Flowable engine and no database: the Flowable client is a test double. Besides the unit tests it has kernel-based suites under `tests/Kernel` and `tests/Http` that boot a test kernel and send HTTP and MCP requests; they authenticate with a test-only firewall that reads the roles from the `X-Test-Roles` header (it exists only under `tests/`). CI runs the suite on PHP 8.5 (`.github/workflows/tests.yml`).
 
 ```bash
-composer install
-vendor/bin/phpunit
+docker compose run --rm php composer install
+docker compose run --rm php vendor/bin/phpunit
 ```
+
+Without Docker, `composer install && vendor/bin/phpunit` works on any PHP 8.5 setup.
 
 ## License
 
@@ -389,3 +443,4 @@ vendor/bin/phpunit
 
 <!-- - revised 2026-10-08 (bundle configuration, MCP tools, tests) -->
 <!-- - revised 2026-10-09 (MCP tools admin-only, mcp.deploy, destructiveHint, changelog) -->
+<!-- - revised 2026-10-28 (permissions, migration from 0.10, tests) -->

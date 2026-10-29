@@ -33,8 +33,8 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * correct answer when the worker cannot do the work at all (no handler, or a
  * shutdown mid-flight).
  *
- * Reading is open to ROLE_USER; every worker operation requires
- * ROLE_FLOWABLE_ADMIN. Note that the actor of these operations is the *worker*,
+ * Reading requires `flowable:read`; every worker operation requires
+ * `flowable:worker`. Note that the actor of these operations is the *worker*,
  * not a za7 user, so no `triggeredBy` variable is injected — the worker id in
  * the request body is the identity that matters to the engine.
  *
@@ -89,7 +89,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             validate: false,
             output: FlowExternalWorkerJob::class,
             status: 200,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:worker')",
         ),
         new Post(
             uriTemplate: '/external_worker_jobs/{id}/complete',
@@ -100,7 +100,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             validate: false,
             output: false,
             status: 204,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:worker')",
         ),
         new Post(
             uriTemplate: '/external_worker_jobs/{id}/fail',
@@ -111,7 +111,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             validate: false,
             output: false,
             status: 204,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:worker')",
         ),
         new Post(
             uriTemplate: '/external_worker_jobs/{id}/bpmnError',
@@ -122,7 +122,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             validate: false,
             output: false,
             status: 204,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:worker')",
         ),
         new Post(
             uriTemplate: '/external_worker_jobs/{id}/unacquire',
@@ -133,10 +133,10 @@ use Symfony\Component\Serializer\Annotation\Groups;
             validate: false,
             output: false,
             status: 204,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:worker')",
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_external_worker_job:read']],

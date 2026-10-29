@@ -30,8 +30,8 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * or more process definitions. The custom collection operation
  * POST /deployments/upload accepts a multipart file upload (a single .bpmn /
  * .dmn / .form / .json resource or a .bar / .zip bundle) and forwards it to the
- * engine's repository service. Read is open to ROLE_USER; upload and delete
- * require ROLE_FLOWABLE_ADMIN.
+ * engine's repository service. Reading requires `flowable:read`; upload
+ * requires `flowable:deploy`, delete requires `flowable:deploy_delete`.
  */
 #[ApiResource(
     shortName: 'FlowDeployment',
@@ -62,7 +62,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             inputFormats: ['multipart' => ['multipart/form-data']],
             output: FlowDeployment::class,
             status: 201,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:deploy')",
             openapi: new Operation(
                 tags: ['Flowable'],
                 requestBody: new RequestBody(
@@ -113,7 +113,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             // the default provider) and let the processor delete on the engine.
             // Same pattern as FlowProcessInstance::Delete.
             read: false,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:deploy_delete')",
         ),
     ],
     mcp: [
@@ -122,13 +122,13 @@ use Symfony\Component\Serializer\Annotation\Groups;
             description: 'Deploy several files as one process deployment, typically a .bpmn20.xml plus the <formKey>.schema.json form schemas its user tasks reference (files: list of name, content and optional contentEncoding "base64"; decision tables go to flowable_dmn_deploy). Returns the deployment with id, name, deploymentTime, category, parentDeploymentId and tenantId.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable'],
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:deploy')",
             processor: DeploymentBundleProcessor::class,
             read: false,
             extraProperties: [McpToolSwitchResourceMetadataCollectionFactory::SWITCH_KEY => 'deploy', McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowDeployment/mcpBundle.input.json']],
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_deployment:read']],

@@ -17,6 +17,9 @@
             <directory>tests</directory>
         </testsuite>
     </testsuites>
+    <php>
+        <server name="KERNEL_CLASS" value="Dmstr\Flowable\Tests\Kernel\TestKernel"/>
+    </php>
     <source>
         <include>
             <directory>src</directory>

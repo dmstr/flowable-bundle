@@ -27,7 +27,8 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * "flowable" ApiConfiguration. It holds event definitions (.event) and channel
  * definitions (.channel); the custom collection operation
  * POST /event_deployments/upload forwards a multipart resource to it.
- * Read is open to ROLE_USER; upload and delete require ROLE_FLOWABLE_ADMIN.
+ * Reading requires `flowable:read`; upload requires `flowable:deploy`, delete requires
+ * `flowable:deploy_delete`.
  *
  * Unlike the process and DMN repositories this one accepts ONLY .event and
  * .channel files — there is no .bar/.zip bundle support, so a deployment that
@@ -68,7 +69,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             inputFormats: ['multipart' => ['multipart/form-data']],
             output: FlowEventDeployment::class,
             status: 201,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:deploy')",
             openapi: new Operation(
                 tags: ['Flowable/Events'],
                 requestBody: new RequestBody(
@@ -114,10 +115,10 @@ use Symfony\Component\Serializer\Annotation\Groups;
             // No Doctrine entity to load — skip the read step (which would 404 via
             // the default provider) and let the processor delete on the engine.
             read: false,
-            security: "is_granted('ROLE_FLOWABLE_ADMIN')",
+            security: "is_granted('flowable:deploy_delete')",
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_event_deployment:read']],

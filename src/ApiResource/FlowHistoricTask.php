@@ -42,7 +42,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             provider: FlowHistoricTaskProvider::class,
         ),
     ],
-    security: "is_granted('ROLE_USER')",
+    security: "is_granted('flowable:read')",
     paginationEnabled: true,
     paginationItemsPerPage: 30,
     normalizationContext: ['groups' => ['flow_historic_task:read']],
