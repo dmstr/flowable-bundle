@@ -20,7 +20,7 @@
     "require": {
         "php": ">=8.5",
         "api-platform/core": "^4.3.18",
-        "dmstr/api-configuration-bundle": "^0.6",
+        "dmstr/api-configuration-bundle": "^0.7",
         "dmstr/api-platform-utils-bundle": "^0.6.0",
         "dmstr/openapi-json-schema-bundle": "^0.3.0 || ^0.4.0",
         "doctrine/orm": "^3.0",
@@ -65,6 +65,11 @@
         }
     },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "audit": {
+            "ignore": {
+                "PKSA-s52d-n7sx-trsg": "mcp/sdk 0.8 is a dev-only dependency here; api-platform/core 4.4 supports mcp/sdk 0.9 only after api-platform/core#8837 (4.4.8). Remove once released."
+            }
+        }
     }
 }

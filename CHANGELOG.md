@@ -4,6 +4,16 @@
 
 All notable changes to this bundle. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/) and come from the Git tags. Releases before 0.9.0 are described in the [GitHub releases](https://github.com/dmstr/flowable-bundle/releases).
 
+## [Unreleased]
+
+### Changed
+
+- **Requires `dmstr/api-configuration-bundle` `^0.7`** (adds the optional `ApiConfiguration::$sourceKey`; applications run its migration `Version20261111100000`). Applications on api-configuration-bundle 0.6 stay on 0.11.0.
+
+### Development
+
+- The advisory [PKSA-s52d-n7sx-trsg](https://github.com/modelcontextprotocol/php-sdk/security/advisories/GHSA-f4rf-6ghj-mhr6) on `mcp/sdk` 0.8 is ignored in `config.audit.ignore` so the test suite installs again. `mcp/sdk` is a dev-only dependency of this bundle (applications choose their own version); `api-platform/core` 4.4 supports `mcp/sdk` 0.9 only from [api-platform/core#8837](https://github.com/api-platform/core/pull/8837) on. The entry is removed once that is released.
+
 ## [0.11.0] - 2026-10-29
 
 The bundle no longer checks role names: every HTTP operation and every MCP tool checks its own permission.
