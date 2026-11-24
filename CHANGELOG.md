@@ -4,6 +4,12 @@
 
 All notable changes to this bundle. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/) and come from the Git tags. Releases before 0.9.0 are described in the [GitHub releases](https://github.com/dmstr/flowable-bundle/releases).
 
+## [0.12.1] - 2026-11-24
+
+### Changed
+
+- Allows `dmstr/openapi-json-schema-bundle` `^0.5.0` (adds `InputSchemaValidator`, now required by symfony-job-queue-bundle 0.6 and symfony-system-resources-bundle 0.5), replacing `^0.3.0 || ^0.4.0`; nothing in this bundle changes.
+
 ## [0.12.0] - 2026-11-13
 
 ### Changed
