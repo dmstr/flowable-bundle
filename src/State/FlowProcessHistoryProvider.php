@@ -28,6 +28,7 @@ final class FlowProcessHistoryProvider extends AbstractFlowableProvider implemen
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): FlowProcessHistory
     {
+        $this->validateMcpInput($operation, $context);
         $id = self::requiredId($uriVariables, 'process instance id');
         $client = $this->client($context);
 
@@ -67,3 +68,4 @@ final class FlowProcessHistoryProvider extends AbstractFlowableProvider implemen
         return $history;
     }
 }
+// - revised 2026-11-26 (MCP tool arguments validated against the published input schema)

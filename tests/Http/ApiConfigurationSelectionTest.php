@@ -49,9 +49,23 @@ final class ApiConfigurationSelectionTest extends ApiTestCase
     }
 
     /**
+     * Every selector the lookup rejects: well-formed ones that select no
+     * single active flowable configuration, and malformed ones.
+     *
      * @return iterable<string, array{string}>
      */
     public static function rejectedSelectors(): iterable
+    {
+        yield from self::unmatchedSelectors();
+        yield from self::malformedSelectors();
+    }
+
+    /**
+     * Well-formed selectors that match no single active flowable configuration.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function unmatchedSelectors(): iterable
     {
         yield 'inactive, prefix' => [substr(self::INACTIVE, 0, 8)];
         yield 'inactive, full' => [self::INACTIVE];
@@ -59,6 +73,16 @@ final class ApiConfigurationSelectionTest extends ApiTestCase
         yield 'other type, full' => [self::OTHER_TYPE];
         yield 'ambiguous prefix' => [self::SHARED_PREFIX];
         yield 'unknown' => ['deadbeef'];
+    }
+
+    /**
+     * Selectors outside the selector format (8 lowercase hex characters or a
+     * full lowercase UUID).
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function malformedSelectors(): iterable
+    {
         yield '7 characters' => [substr(self::SELECTED, 0, 7)];
         yield '9 characters' => [substr(self::SELECTED, 0, 9)];
         yield '35 characters' => [substr(self::SELECTED, 0, 35)];
@@ -127,13 +151,28 @@ final class ApiConfigurationSelectionTest extends ApiTestCase
 
     // --- MCP -------------------------------------------------------------------
 
-    #[DataProvider('rejectedSelectors')]
+    #[DataProvider('unmatchedSelectors')]
     public function testMcpToolRejectsSelector(string $selector): void
     {
         $result = $this->mcpCallTool('flowable_list_tasks', ['apiConfiguration' => $selector], [P::roleFor(P::MCP_READ)]);
 
         self::assertMcpFailed($result);
         $this->assertGenericRejection(json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+    }
+
+    #[DataProvider('malformedSelectors')]
+    public function testMcpToolRejectsMalformedSelectorBySchema(string $selector): void
+    {
+        // The read tool validates its arguments against its published schema,
+        // whose selector pattern rejects these before any lookup.
+        $result = $this->mcpCallTool('flowable_list_tasks', ['apiConfiguration' => $selector], [P::roleFor(P::MCP_READ)]);
+
+        self::assertMcpFailed($result);
+        $output = json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        self::assertStringContainsString('Input validation failed', $output);
+        self::assertStringContainsString('/apiConfiguration', $output);
+        $this->assertNothingNamed($output);
+        self::assertSame([], $this->engine()->requests, 'a rejected selection reached the engine');
     }
 
     #[DataProvider('acceptedSelectors')]
@@ -267,11 +306,17 @@ final class ApiConfigurationSelectionTest extends ApiTestCase
     private function assertGenericRejection(string $output): void
     {
         self::assertStringContainsString(FlowableClientLocator::INVALID_SELECTION, $output);
+        $this->assertNothingNamed($output);
+        self::assertSame([], $this->engine()->requests, 'a rejected selection reached the engine');
+    }
+
+    /** The output names no configuration id and no other configuration type. */
+    private function assertNothingNamed(string $output): void
+    {
         self::assertStringNotContainsString(self::OTHER_TYPE_NAME, $output);
         foreach ([self::SELECTED, self::INACTIVE, self::OTHER_TYPE, self::SHARED_A, self::SHARED_B] as $id) {
             self::assertStringNotContainsString($id, $output);
         }
-        self::assertSame([], $this->engine()->requests, 'a rejected selection reached the engine');
     }
 
     private function assertReachedSelected(): void
@@ -288,3 +333,4 @@ final class ApiConfigurationSelectionTest extends ApiTestCase
         return (string) preg_replace('/\s+/', ' ', $display);
     }
 }
+// - revised 2026-11-26 (malformed selectors over MCP are rejected by the read tool schema)

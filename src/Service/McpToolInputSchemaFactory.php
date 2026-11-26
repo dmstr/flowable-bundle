@@ -19,8 +19,7 @@ use Dmstr\Flowable\Schema\InputSchemaLoader;
  * of the McpTool (here: the pass-through resource), which would advertise the
  * resource's output fields as tool arguments. The bundle's tools are fed from
  * the raw tool arguments instead (see State\OperationInputTrait), and their
- * contract is the same JSON schema the processors validate against. A tool
- * opts in with
+ * contract is the JSON schema of the input file. A tool opts in with
  *
  *     extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => [
  *         'input' => 'FlowTask/complete.input.json',
@@ -36,8 +35,17 @@ use Dmstr\Flowable\Schema\InputSchemaLoader;
  *  - `$schema`, `$id` and `title` removed, and top-level `allOf`/`anyOf`/
  *    `oneOf` removed: they only express "one of these keys is required",
  *    which several MCP clients cannot represent at the root. The tool
- *    description names the rule, and the processor still validates the full
- *    file.
+ *    description names the rule.
+ *
+ * This class only publishes the schema; it enforces nothing. Enforcement is
+ * done by the tools' state classes, in one of two ways:
+ *  - the write processors validate the tool arguments minus the URI variables
+ *    against the full input file (Service\InputSchemaValidator), so a dropped
+ *    root `allOf`/`anyOf`/`oneOf` is still checked;
+ *  - the read tools' providers and flowable_dmn_deploy validate the tool
+ *    arguments against exactly this published schema, URI variables included
+ *    (State\McpToolInputValidator), and reject the call when it cannot be
+ *    built.
  *
  * Decorates api_platform.mcp.json_schema.schema_factory (registered only when
  * API Platform's MCP support is enabled); all other schemas pass through.
@@ -144,3 +152,4 @@ final class McpToolInputSchemaFactory implements SchemaFactoryInterface
     }
 }
 // - revised 2026-11-26 (schema loaded through InputSchemaLoader)
+// - revised 2026-11-26 (docblock: publishing is not enforcing, where the schemas are enforced)

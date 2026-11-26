@@ -60,6 +60,7 @@ final class FlowJobProvider extends AbstractFlowableProvider implements Provider
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
+        $this->validateMcpInput($operation, $context);
         $client = $this->client($context);
         // An operation may pin the kind (the MCP tool
         // flowable_system_list_deadletter_jobs); a pinned kind wins over the
@@ -126,3 +127,4 @@ final class FlowJobProvider extends AbstractFlowableProvider implements Provider
     }
 }
 // - revised 2026-10-08 (kind pinned by an operation extra property, for the MCP deadletter tool)
+// - revised 2026-11-26 (MCP tool arguments validated against the published input schema)

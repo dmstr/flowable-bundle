@@ -5,8 +5,6 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable\Tests\Schema;
 
-use ApiPlatform\Metadata\McpTool;
-use ApiPlatform\Metadata\Resource\Factory\AttributesResourceMetadataCollectionFactory;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\Parameter;
 use Dmstr\Flowable\Client\FlowableClientInterface;
@@ -25,13 +23,22 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
  * Pins every input schema the bundle delivers to the state of release 0.12.1,
- * with one intended change since.
+ * with the intended changes since.
  *
  * The fixtures under snapshot-0.12.1/ were captured from the 0.12.1 code,
  * before the `apiConfiguration` block was moved into the shared definition
- * (src/Schema/api-configuration.json). The only change since: the `{uuid}`
- * object branch of `apiConfiguration` carries the same selector `pattern` as
- * the string branch. Each test rebuilds one delivery path
+ * (src/Schema/api-configuration.json). The intended changes since:
+ *  - the `{uuid}` object branch of `apiConfiguration` carries the same
+ *    selector `pattern` as the string branch;
+ *  - the upload schemas FlowDmnDeployment/mcpDeploy and
+ *    FlowDeployment/mcpBundle carry the size limits: `maxLength` 255 on the
+ *    file name and on deploymentName, deploymentSource, category and
+ *    tenantId, `maxLength` 1400000 on the inline content (a pre-filter, the
+ *    byte limit is enforced by State\UploadRule), `maxItems` 20 on the bundle
+ *    files, and the descriptions name the limits;
+ *  - the `name` pattern of FlowDmnDeployment/mcpDeploy accepts `.dmn` only
+ *    (archives stay with the HTTP upload), its descriptions say so.
+ * Each test rebuilds one delivery path
  * and compares its JSON encoding byte for byte, so key order and the {} / []
  * distinction are part of the contract:
  *
@@ -74,7 +81,7 @@ final class InputSchemaSnapshotTest extends StateTestCase
     public function testMcpToolInputSchemas(): void
     {
         $schemas = [];
-        foreach (self::tools() as $name => $tool) {
+        foreach (self::mcpTools() as $name => $tool) {
             $schemas[$name] = McpToolInputSchemaFactory::inputSchema($tool);
         }
         self::assertCount(14, $schemas);
@@ -246,26 +253,6 @@ final class InputSchemaSnapshotTest extends StateTestCase
         ];
     }
 
-    /** @return array<string, McpTool> */
-    private static function tools(): array
-    {
-        $factory = new AttributesResourceMetadataCollectionFactory();
-        $tools = [];
-        foreach (glob(\dirname(__DIR__, 2).'/src/ApiResource/*.php') ?: [] as $file) {
-            $class = 'Dmstr\\Flowable\\ApiResource\\'.basename($file, '.php');
-            foreach ($factory->create($class) as $resource) {
-                foreach ($resource->getMcp() ?? [] as $name => $tool) {
-                    if ($tool instanceof McpTool) {
-                        $tools[(string) ($tool->getName() ?? $name)] = $tool;
-                    }
-                }
-            }
-        }
-        ksort($tools);
-
-        return $tools;
-    }
-
     private static function container(): ContainerInterface
     {
         if (null === self::$kernel) {
@@ -292,3 +279,4 @@ final class InputSchemaSnapshotTest extends StateTestCase
     }
 }
 // - revised 2026-11-26 (fixtures carry the selector pattern in the {uuid} branch)
+// - revised 2026-11-26 (upload limits and .dmn-only pattern in the fixtures, tools from StateTestCase)

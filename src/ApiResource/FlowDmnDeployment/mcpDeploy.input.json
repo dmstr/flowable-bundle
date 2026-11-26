@@ -11,13 +11,15 @@
   "properties": {
     "name": {
       "type": "string",
-      "pattern": "\\.([dD][mM][nN]|[bB][aA][rR]|[zZ][iI][pP])$",
-      "description": "File name including the extension .dmn (or .bar/.zip for an archive)."
+      "maxLength": 255,
+      "pattern": "\\.[dD][mM][nN]$",
+      "description": "File name including the extension .dmn (archives .bar/.zip only through the HTTP upload)."
     },
     "content": {
       "type": "string",
       "minLength": 1,
-      "description": "File content: the DMN XML as text, or base64 with contentEncoding \"base64\" (required for .bar/.zip)."
+      "maxLength": 1400000,
+      "description": "File content: the DMN XML as text, or base64 with contentEncoding \"base64\"; at most 1 MiB after decoding."
     },
     "contentEncoding": {
       "type": "string",
@@ -28,14 +30,17 @@
     },
     "deploymentName": {
       "type": "string",
+      "maxLength": 255,
       "description": "Deployment name (defaults to the file name)."
     },
     "category": {
       "type": "string",
+      "maxLength": 255,
       "description": "Optional deployment category."
     },
     "tenantId": {
       "type": "string",
+      "maxLength": 255,
       "description": "Optional tenant id."
     },
     "apiConfiguration": {

@@ -119,7 +119,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
     mcp: [
         'flowable_deploy_bundle' => new McpTool(
             name: 'flowable_deploy_bundle',
-            description: 'Deploy several files as one process deployment, typically a .bpmn20.xml plus the <formKey>.schema.json form schemas its user tasks reference (files: list of name, content and optional contentEncoding "base64"; decision tables go to flowable_dmn_deploy). Returns the deployment with id, name, deploymentTime, category, parentDeploymentId and tenantId.',
+            description: 'Deploy several files as one process deployment, typically a .bpmn20.xml plus the <formKey>.schema.json form schemas its user tasks reference (files: list of name, content and optional contentEncoding "base64"; at most 20 files, 1 MiB per file and 4 MiB in total after decoding; decision tables go to flowable_dmn_deploy). Returns the deployment with id, name, deploymentTime, category, parentDeploymentId and tenantId.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable'],
             security: "is_granted('flowable:deploy')",
@@ -201,3 +201,4 @@ final class FlowDeployment
 }
 // - revised 2026-10-08 (MCP tool flowable_deploy_bundle)
 // - revised 2026-10-09 (MCP: destructiveHint)
+// - revised 2026-11-26 (flowable_deploy_bundle: limits in the tool description)

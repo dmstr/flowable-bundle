@@ -28,11 +28,15 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
  *  - JSON-body operations: the body properties as top-level arguments, plus
  *    the operation's URI variables (e.g. "id"), which are not part of the body;
  *  - query-only options (e.g. "cascade" on delete): top-level arguments;
- *  - apiConfiguration: top-level argument, a (partial) UUID string or {uuid};
+ *  - apiConfiguration: top-level argument, a selector string or {uuid}; any
+ *    other value (e.g. {"uuid": 5}) is rejected, not read as "no selection";
  *  - uploads: "name" (file name incl. extension) and "content" (file content
- *    as string; set "contentEncoding": "base64" for binary .bar/.zip), plus
+ *    as string; set "contentEncoding": "base64" for binary content), plus
  *    the optional form fields as deploymentName, deploymentSource, category,
  *    tenantId (multipart keeps deployment-name / deployment-source).
+ *
+ * Uploads follow UploadRule: the file name rule over every transport, the
+ * 1 MiB limit for decoded inline (MCP) content.
  */
 abstract class AbstractFlowableProcessor
 {
@@ -51,6 +55,7 @@ abstract class AbstractFlowableProcessor
         protected readonly FlowableVariableMapper $variableMapper,
         protected readonly ActingUserResolver $actingUser,
         protected readonly LoggerInterface $flowableLogger,
+        protected readonly McpToolInputValidator $mcpInput = new McpToolInputValidator(),
     ) {
     }
 
@@ -68,10 +73,10 @@ abstract class AbstractFlowableProcessor
      *
      * The MCP SDK decodes tool arguments into PHP arrays, which turns a
      * nested {} into []. Empty arrays are therefore re-encoded as {} at every
-     * level, so an object-typed argument such as eventPayload: {} passes the
-     * schema as it does over HTTP. No input schema has an array that may be
-     * empty and is not also allowed as an object, and validateRaw() returns
-     * the associative decoding, so the processors see the same data.
+     * level ({@see McpToolInputValidator::jsonObject()}), so an object-typed
+     * argument such as eventPayload: {} passes the schema as it does over
+     * HTTP. validateRaw() returns the associative decoding, so the processors
+     * see the same data.
      *
      * @param array<string,mixed> $context operation context (MCP arguments)
      */
@@ -80,24 +85,12 @@ abstract class AbstractFlowableProcessor
         $mcpBody = $this->mcpBody($context);
         if ($mcpBody !== null) {
             return json_encode(
-                (object) array_map(self::emptyArraysAsObjects(...), $mcpBody),
+                McpToolInputValidator::jsonObject($mcpBody),
                 \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE,
             );
         }
 
         return $this->requestStack->getCurrentRequest()?->getContent() ?? '';
-    }
-
-    private static function emptyArraysAsObjects(mixed $value): mixed
-    {
-        if (!\is_array($value)) {
-            return $value;
-        }
-        if ($value === []) {
-            return new \stdClass();
-        }
-
-        return array_map(self::emptyArraysAsObjects(...), $value);
     }
 
     /**
@@ -120,7 +113,9 @@ abstract class AbstractFlowableProcessor
     /**
      * The deployable resource of an upload operation: the multipart "file"
      * part over HTTP, the inline name/content arguments for an MCP tool call.
-     * The file name must carry one of $allowedExtensions.
+     * The file name must follow {@see UploadRule::assertFileName()} and carry
+     * one of $allowedExtensions; decoded inline content is limited by
+     * {@see UploadRule::assertInlineSize()}.
      *
      * @param array<string,mixed> $context operation context (MCP arguments)
      * @param list<string> $allowedExtensions
@@ -135,6 +130,7 @@ abstract class AbstractFlowableProcessor
             if ($filename === '') {
                 throw new BadRequestHttpException('Missing "name" argument (file name including extension).');
             }
+            UploadRule::assertFileName($filename, '"name"');
             if (!\is_string($mcp['content'] ?? null) || $mcp['content'] === '') {
                 throw new BadRequestHttpException('Missing "content" argument (file content).');
             }
@@ -148,6 +144,7 @@ abstract class AbstractFlowableProcessor
             } elseif ($encoding !== null && $encoding !== '') {
                 throw new BadRequestHttpException('Unsupported "contentEncoding"; only "base64" is accepted.');
             }
+            UploadRule::assertInlineSize($content, '"content"');
         } else {
             $file = $this->requestStack->getCurrentRequest()?->files->get('file');
             if (!$file instanceof UploadedFile) {
@@ -161,6 +158,7 @@ abstract class AbstractFlowableProcessor
             if ($filename === '') {
                 throw new BadRequestHttpException('Uploaded file has no name.');
             }
+            UploadRule::assertFileName($filename, 'The uploaded file name');
             $content = null;
         }
 
@@ -207,12 +205,23 @@ abstract class AbstractFlowableProcessor
         return $out;
     }
 
-    /** ApiConfiguration selector as id string: a (partial) UUID or {uuid}. */
+    /**
+     * ApiConfiguration selector as id string: a selector string or {uuid}.
+     * Absent (null or "") is no selection. Any other value, e.g. {"uuid": 5}
+     * or a number, is rejected with the locator's generic message instead of
+     * falling back to the implicit selection.
+     */
     private static function configurationId(mixed $ref): ?string
     {
+        if ($ref === null || $ref === '') {
+            return null;
+        }
         $id = \is_array($ref) ? ($ref['uuid'] ?? null) : $ref;
+        if (!\is_string($id) || $id === '') {
+            throw new BadRequestHttpException(FlowableClientLocator::INVALID_SELECTION);
+        }
 
-        return \is_string($id) && $id !== '' ? $id : null;
+        return $id;
     }
 
     protected function schemaPath(string $entity, string $verb): string
@@ -243,3 +252,4 @@ abstract class AbstractFlowableProcessor
     }
 }
 // - revised 2026-10-09 (nested {} in MCP arguments)
+// - revised 2026-11-26 (upload file name rule and inline size limit, strict apiConfiguration value, MCP input validator)

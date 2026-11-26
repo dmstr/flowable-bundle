@@ -5,6 +5,8 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable\Tests\State;
 
+use ApiPlatform\Metadata\McpTool;
+use ApiPlatform\Metadata\Resource\Factory\AttributesResourceMetadataCollectionFactory;
 use Dmstr\ApiConfiguration\Entity\ApiConfiguration;
 use Dmstr\ApiConfiguration\Security\ConfigSecrets;
 use Dmstr\ApiConfiguration\Security\SecretSchemaResolver;
@@ -136,6 +138,43 @@ abstract class StateTestCase extends TestCase
     }
 
     /**
+     * All McpTool operations of the bundle's resources, read from the real
+     * attribute metadata of src/ApiResource, by tool name (sorted).
+     *
+     * @return array<string, McpTool>
+     */
+    protected static function mcpTools(): array
+    {
+        $factory = new AttributesResourceMetadataCollectionFactory();
+        $tools = [];
+        foreach (glob(\dirname(__DIR__, 2).'/src/ApiResource/*.php') ?: [] as $file) {
+            $class = 'Dmstr\\Flowable\\ApiResource\\'.basename($file, '.php');
+            foreach ($factory->create($class) as $resource) {
+                foreach ($resource->getMcp() ?? [] as $name => $tool) {
+                    if ($tool instanceof McpTool) {
+                        $tools[(string) ($tool->getName() ?? $name)] = $tool;
+                    }
+                }
+            }
+        }
+        ksort($tools);
+
+        return $tools;
+    }
+
+    /**
+     * One McpTool of the bundle as API Platform's MCP handler receives it, so
+     * a provider validates the arguments against the tool's real schema.
+     */
+    protected static function mcpTool(string $name): McpTool
+    {
+        $tools = self::mcpTools();
+        self::assertArrayHasKey($name, $tools, 'unknown MCP tool');
+
+        return $tools[$name];
+    }
+
+    /**
      * Operation context as API Platform's MCP handler builds it: the tool
      * arguments in mcp_data and the URI variables copied out of them.
      *
@@ -152,3 +191,4 @@ abstract class StateTestCase extends TestCase
     }
 }
 // - revised 2026-11-26 (locator without UuidResolver, explicit selection through a decoy configuration)
+// - revised 2026-11-26 (real McpTool operations for MCP provider tests)
