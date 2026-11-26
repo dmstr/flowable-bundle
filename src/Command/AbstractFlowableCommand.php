@@ -17,7 +17,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * Shared scaffolding for the flowable:* CLI mirror of the REST operations.
  *
- * Common options: --api-configuration (full/partial UUID), and for write
+ * Common options: --api-configuration (the first 8 characters or the full
+ * UUID, lowercase, of an active Flowable ApiConfiguration), and for write
  * commands --acting-user (mandatory, propagated as startUserId — decision
  * 2026-06-16), --input / --input-file (validated against the same bundle-local
  * JSON schemas as the REST endpoints).
@@ -34,7 +35,7 @@ abstract class AbstractFlowableCommand extends Command
 
     protected function addApiConfigurationOption(): void
     {
-        $this->addOption('api-configuration', 'c', InputOption::VALUE_REQUIRED, 'Flowable ApiConfiguration UUID (full or partial)');
+        $this->addOption('api-configuration', 'c', InputOption::VALUE_REQUIRED, 'Active Flowable ApiConfiguration: first 8 characters or full UUID, lowercase');
     }
 
     protected function addWriteOptions(): void
@@ -177,3 +178,4 @@ abstract class AbstractFlowableCommand extends Command
         };
     }
 }
+// - revised 2026-11-26 (strict --api-configuration format)

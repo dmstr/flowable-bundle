@@ -17,7 +17,7 @@
           ],
           "properties": {
             "uuid": {
-              "type": "string"
+              "$ref": "#/$defs/uuidSelector"
             }
           },
           "additionalProperties": false

@@ -34,6 +34,8 @@ final class UploadProcessorInputTest extends StateTestCase
 
     public function testDeploymentUploadFromInlineMcpData(): void
     {
+        $this->expectExplicitSelection();
+
         $client = $this->createMock(FlowableClientInterface::class);
         $client->expects($this->once())->method('createDeployment')
             ->with('order.bpmn20.xml', self::BPMN, ['deployment-name' => 'Orders', 'category' => 'sales'])
@@ -50,7 +52,6 @@ final class UploadProcessorInputTest extends StateTestCase
 
         self::assertInstanceOf(FlowDeployment::class, $deployment);
         self::assertSame('dep-1', $deployment->id);
-        self::assertSame(['0a1b2c3d'], $this->requestedConfigurations);
     }
 
     public function testDeploymentUploadDefaultsNameAndDecodesBase64(): void
@@ -96,6 +97,8 @@ final class UploadProcessorInputTest extends StateTestCase
 
     public function testDeploymentUploadFromMultipartAsBefore(): void
     {
+        $this->expectExplicitSelection();
+
         $this->tempFile = (string) tempnam(sys_get_temp_dir(), 'flowable-test');
         file_put_contents($this->tempFile, self::BPMN);
         $file = new UploadedFile($this->tempFile, 'order.bpmn20.xml', 'application/xml', null, true);
@@ -115,8 +118,6 @@ final class UploadProcessorInputTest extends StateTestCase
 
         $this->processor(DeploymentUploadProcessor::class, $client, $request)
             ->process(null, new Post(), [], ['request' => $request]);
-
-        self::assertSame(['0a1b2c3d'], $this->requestedConfigurations);
     }
 
     public function testDeploymentUploadWithoutFileOverHttp(): void
@@ -161,3 +162,4 @@ final class UploadProcessorInputTest extends StateTestCase
             ]));
     }
 }
+// - revised 2026-11-26 (explicit selection proven through a decoy configuration)

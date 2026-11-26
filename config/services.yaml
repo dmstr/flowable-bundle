@@ -56,6 +56,9 @@ services:
     # "flowable" ApiConfiguration before it builds a client. ConfigSecrets is a
     # service of dmstr/api-configuration-bundle (^0.5); wired explicitly so the
     # dependency is visible here and fails at container build if it is missing.
+    # The other arguments (HTTP client, entity manager) are autowired; the
+    # configuration lookup is the locator's own, without UuidResolver of
+    # dmstr/api-platform-utils-bundle.
     Dmstr\Flowable\Client\FlowableClientLocator:
         arguments:
             $secrets: '@Dmstr\ApiConfiguration\Security\ConfigSecrets'
@@ -161,3 +164,4 @@ services:
 # - revised 2026-10-09 (mcp.deploy switch)
 # - revised 2026-10-28 (flowable:* permission tags)
 # - revised 2026-11-26 (input schemas loaded through InputSchemaLoader)
+# - revised 2026-11-26 (locator without UuidResolver)

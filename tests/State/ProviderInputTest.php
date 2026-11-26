@@ -38,6 +38,8 @@ final class ProviderInputTest extends StateTestCase
 
     public function testTaskListFromMcpData(): void
     {
+        $this->expectExplicitSelection();
+
         $client = $this->createMock(FlowableClientInterface::class);
         $client->expects($this->once())->method('listTasks')->with(self::EXPECTED_QUERY)->willReturn(self::ENVELOPE);
 
@@ -54,11 +56,12 @@ final class ProviderInputTest extends StateTestCase
 
         self::assertInstanceOf(TraversablePaginator::class, $result);
         self::assertSame(2.0, $result->getCurrentPage());
-        self::assertSame(['0a1b2c3d'], $this->requestedConfigurations);
     }
 
     public function testTaskListFromQueryAsBefore(): void
     {
+        $this->expectExplicitSelection();
+
         $request = Request::create('/api/flowable/tasks', 'GET', [
             'page' => '2',
             'itemsPerPage' => '10',
@@ -73,8 +76,6 @@ final class ProviderInputTest extends StateTestCase
 
         (new FlowTaskProvider($this->locator($client), $this->requestStack($request)))
             ->provide(new GetCollection(), [], ['request' => $request]);
-
-        self::assertSame(['0a1b2c3d'], $this->requestedConfigurations);
     }
 
     public function testMcpDataIgnoresTransportQuery(): void
@@ -88,8 +89,6 @@ final class ProviderInputTest extends StateTestCase
 
         (new FlowTaskProvider($this->locator($client), $this->requestStack($transport)))
             ->provide(new GetCollection(), [], self::mcpContext([]));
-
-        self::assertSame([], $this->requestedConfigurations);
     }
 
     public function testTaskItemFromMcpUriVariable(): void
@@ -116,3 +115,4 @@ final class ProviderInputTest extends StateTestCase
             ->provide(new GetCollection(), [], self::mcpContext(['kind' => 'timer', 'withException' => true]));
     }
 }
+// - revised 2026-11-26 (explicit selection proven through a decoy configuration)
