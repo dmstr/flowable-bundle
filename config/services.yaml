@@ -142,6 +142,9 @@ services:
     # off by default): removes this bundle's McpTool operations from the resource
     # metadata unless their switch is on. Decorates inside API Platform's
     # metadata cache (priority -10), so the cached metadata is the filtered one.
+    # A tool whose input schema cannot be built is removed in every switch
+    # configuration and logged (error, flowable.mcp.tool_hidden) on the
+    # bundle's channel, once per metadata cache warmup.
     Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory:
         decorates: api_platform.metadata.resource.metadata_collection_factory
         decoration_priority: 0
@@ -150,6 +153,7 @@ services:
             $readEnabled: '%dmstr_flowable.mcp.read%'
             $writeEnabled: '%dmstr_flowable.mcp.write%'
             $deployEnabled: '%dmstr_flowable.mcp.deploy%'
+            $flowableLogger: '@monolog.logger.flowable'
 
     # Input schemas of the bundle's MCP tools: served from the operation
     # *.input.json files named in each McpTool's extra properties, instead of
@@ -165,3 +169,4 @@ services:
 # - revised 2026-10-28 (flowable:* permission tags)
 # - revised 2026-11-26 (input schemas loaded through InputSchemaLoader)
 # - revised 2026-11-26 (locator without UuidResolver)
+# - revised 2026-11-26 (logger for hidden MCP tools)

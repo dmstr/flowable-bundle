@@ -71,6 +71,18 @@ final class InputSchemaValidator
             throw new \RuntimeException(sprintf('Invalid Flowable input schema: %s', $schemaPath));
         }
 
+        self::assertValid($payload, $schema);
+    }
+
+    /**
+     * Validate a decoded JSON value against a decoded schema, the one place
+     * that turns opis errors into the bundle's validation failure (also used
+     * for the MCP tool arguments, {@see \Dmstr\Flowable\State\McpToolInputValidator}).
+     *
+     * @throws UnprocessableEntityHttpException when the value violates the schema
+     */
+    public static function assertValid(mixed $payload, object $schema): void
+    {
         $result = (new Validator())->validate($payload, $schema);
         if (!$result->isValid()) {
             $errors = (new ErrorFormatter())->format($result->error());
@@ -81,3 +93,4 @@ final class InputSchemaValidator
     }
 }
 // - revised 2026-11-26 (schema loaded through InputSchemaLoader)
+// - revised 2026-11-26 (one opis validation for request bodies and MCP tool arguments)

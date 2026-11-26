@@ -7,9 +7,8 @@ namespace Dmstr\Flowable\State;
 
 use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Operation;
+use Dmstr\Flowable\Service\InputSchemaValidator;
 use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
-use Opis\JsonSchema\Errors\ErrorFormatter;
-use Opis\JsonSchema\Validator;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
@@ -41,13 +40,7 @@ final class McpToolInputValidator
         }
 
         $payload = json_decode(json_encode(self::jsonObject($arguments), \JSON_THROW_ON_ERROR));
-        $result = (new Validator())->validate($payload, self::schema($operation));
-        if (!$result->isValid()) {
-            $errors = (new ErrorFormatter())->format($result->error());
-            throw new UnprocessableEntityHttpException(
-                'Input validation failed: '.json_encode($errors, \JSON_UNESCAPED_SLASHES),
-            );
-        }
+        InputSchemaValidator::assertValid($payload, self::schema($operation));
     }
 
     /**
@@ -95,3 +88,4 @@ final class McpToolInputValidator
         return $schema;
     }
 }
+// - revised 2026-11-26 (opis validation shared with InputSchemaValidator)
