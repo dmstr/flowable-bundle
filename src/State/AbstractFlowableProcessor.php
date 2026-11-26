@@ -9,6 +9,7 @@ use Dmstr\Flowable\Client\FlowableClientInterface;
 use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Schema\InputSchemaPath;
 use Dmstr\Flowable\Service\ActingUserResolver;
+use Dmstr\Flowable\Service\FlowableAuditLogger;
 use Dmstr\Flowable\Service\FlowableVariableMapper;
 use Dmstr\Flowable\Service\InputSchemaValidator;
 use Psr\Log\LoggerInterface;
@@ -49,6 +50,9 @@ abstract class AbstractFlowableProcessor
         'deployment-source' => 'deploymentSource',
     ];
 
+    /** Built on first use from $flowableLogger, so the constructor stays as it is. */
+    private ?FlowableAuditLogger $auditLogger = null;
+
     public function __construct(
         protected readonly FlowableClientLocator $locator,
         protected readonly RequestStack $requestStack,
@@ -61,11 +65,15 @@ abstract class AbstractFlowableProcessor
     }
 
     /**
+     * Audit entry of this write, attributed to the authenticated user; the
+     * entry shape lives in {@see FlowableAuditLogger}.
+     *
      * @param array<string,mixed> $context
      */
     protected function audit(string $action, array $context = []): void
     {
-        $this->flowableLogger->info('flowable.'.$action, $context + ['actor' => $this->actingUser->currentUserId()]);
+        $this->auditLogger ??= new FlowableAuditLogger($this->flowableLogger);
+        $this->auditLogger->record($action, $this->actingUser->currentUserId(), $context);
     }
 
     /**
@@ -232,3 +240,4 @@ abstract class AbstractFlowableProcessor
 // - revised 2026-11-26 (schema path built by Schema\InputSchemaPath)
 // - revised 2026-11-26 (inline content decoding moved to UploadRule::decodeInlineContent)
 // - revised 2026-11-26 (configurationId() moved to OperationInputTrait)
+// - revised 2026-11-26 (audit entry written by Service\FlowableAuditLogger)
