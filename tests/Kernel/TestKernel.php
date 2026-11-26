@@ -18,6 +18,7 @@ use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
@@ -58,7 +59,11 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
  *   container in its own cache directory.
  *
  * Cache and logs live under the system temp directory, one directory per
- * environment name, so a test run leaves no files in the repository.
+ * environment name, so a test run leaves no files in the repository. A
+ * kernel with `$debug = false` gets a directory of its own, which is emptied
+ * once per PHP process: without debug, Symfony loads a cached container
+ * without checking it for freshness, so a container compiled from older code
+ * would survive.
  */
 final class TestKernel extends Kernel
 {
@@ -87,6 +92,9 @@ final class TestKernel extends Kernel
     /** The environment given to the constructor, without the options hash */
     private readonly string $variantOf;
 
+    /** @var array<string, true> non-debug directories emptied in this process */
+    private static array $clearedNonDebugDirs = [];
+
     /**
      * @param array{mcp?: array<string, mixed>, parameters?: array<string, mixed>, use_symfony_listeners?: bool} $options
      *        see the class docblock; [] is the plain kernel of the environment
@@ -107,6 +115,11 @@ final class TestKernel extends Kernel
             $options === [] ? $environment : $environment . '_' . substr(hash('xxh128', serialize($options)), 0, 12),
             $debug,
         );
+
+        if (!$debug && !isset(self::$clearedNonDebugDirs[$this->tmpDir()])) {
+            self::$clearedNonDebugDirs[$this->tmpDir()] = true;
+            (new Filesystem())->remove($this->tmpDir());
+        }
     }
 
     public function registerBundles(): iterable
@@ -158,7 +171,7 @@ final class TestKernel extends Kernel
 
     private function tmpDir(): string
     {
-        return sys_get_temp_dir() . '/dmstr-flowable-bundle-tests/' . $this->environment;
+        return sys_get_temp_dir() . '/dmstr-flowable-bundle-tests/' . $this->environment . ($this->debug ? '' : '_no_debug');
     }
 
     private function configureContainer(ContainerConfigurator $container): void
@@ -293,3 +306,4 @@ final class TestKernel extends Kernel
     }
 }
 // - revised 2026-11-26 (kernel options for MCP switches, parameters, use_symfony_listeners; recording flowable logger)
+// - revised 2026-11-26 (own, freshly emptied cache directory for a non-debug kernel)

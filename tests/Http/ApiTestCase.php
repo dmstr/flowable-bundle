@@ -28,7 +28,8 @@ use Symfony\Component\Uid\Uuid;
  * another kernel variant, e.g. {@see TestKernel::ENV_NO_VOTER}, and
  * {@see self::kernelOptions()} for the options of {@see TestKernel} (MCP
  * switches, extra parameters, `use_symfony_listeners`); a single test
- * switches with {@see self::useKernelVariant()}.
+ * switches with {@see self::useKernelVariant()}, which can also boot a
+ * non-debug kernel (the default is debug).
  *
  * Nothing leaks between tests: every test boots a new kernel and so gets new
  * instances of {@see TestFlowableEngine} (failures, recorded requests) and
@@ -90,19 +91,25 @@ abstract class ApiTestCase extends WebTestCase
      * container, so use it sparingly.
      *
      * @param array<string, mixed> $kernelOptions see {@see TestKernel}
+     * @param bool|null $debug false for a kernel without debug (as in
+     *        production), null for the default
      */
-    protected function useKernelVariant(array $kernelOptions, ?string $environment = null): void
+    protected function useKernelVariant(array $kernelOptions, ?string $environment = null, ?bool $debug = null): void
     {
         self::ensureKernelShutdown();
-        $this->bootClient($environment ?? static::kernelEnvironment(), $kernelOptions);
+        $this->bootClient($environment ?? static::kernelEnvironment(), $kernelOptions, $debug);
     }
 
     /**
      * @param array<string, mixed> $kernelOptions
      */
-    private function bootClient(string $environment, array $kernelOptions): void
+    private function bootClient(string $environment, array $kernelOptions, ?bool $debug = null): void
     {
-        $this->client = static::createClient(['environment' => $environment, 'kernel_options' => $kernelOptions]);
+        $options = ['environment' => $environment, 'kernel_options' => $kernelOptions];
+        if ($debug !== null) {
+            $options['debug'] = $debug;
+        }
+        $this->client = static::createClient($options);
         // A reboot would drop the in-memory database between requests
         $this->client->disableReboot();
 
@@ -387,3 +394,4 @@ abstract class ApiTestCase extends WebTestCase
 }
 // - revised 2026-11-26 (helper for additional ApiConfigurations)
 // - revised 2026-11-26 (kernel options, useKernelVariant(), flowableLog())
+// - revised 2026-11-26 (useKernelVariant() with a non-debug kernel)
