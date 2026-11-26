@@ -17,7 +17,8 @@ credentials) are resolved per request from an `ApiConfiguration` of type
 - PHP >= 8.5
 - Symfony 7
 - API Platform 4, at least 4.3.18 (earlier releases do not enforce `security` on MCP tools)
-- `dmstr/api-configuration-bundle` `^0.6` (and `doctrine/orm` `^3`)
+- `dmstr/api-configuration-bundle` `^0.9` (and `doctrine/orm` `^3`)
+- `dmstr/api-platform-utils-bundle` `^0.8` (marks the [custom actions](#custom-actions-in-the-hydra-documentation) in the Hydra documentation)
 - A permission voter in the application that maps the `flowable:*` [permissions](#security) to its roles
 - A reachable Flowable REST engine (`flowable-rest`)
 - `ext-pcntl` — only for `flowable:external-worker:run` as a long-lived process,
@@ -64,7 +65,7 @@ against [`schema.json`](schema.json):
 (requires `token`).
 
 `password` and `token` are marked `writeOnly` in the schema, so
-`dmstr/api-configuration-bundle` (^0.5) stores them encrypted at rest and
+`dmstr/api-configuration-bundle` stores them encrypted at rest and
 returns them masked as `********` on read; sending the mask back on update
 keeps the stored value. This requires a configured encryption key
 (`CREDENTIALS_ENCRYPTION_KEY`, see the api-configuration-bundle documentation).
@@ -118,6 +119,12 @@ All resources are served under `/api/flowable/*`:
 **Ids.** Every id that becomes a segment of an engine path must match `^[A-Za-z0-9][A-Za-z0-9:._-]*$`; any other id is answered with 400 before a request reaches the engine. The rule sits in `FlowableClient`, so it applies to HTTP, MCP, the CLI, the external worker and direct use of the client alike. It covers the id formats Flowable generates (UUID, numeric, `key:version:id`) but is not verified against a live engine; a process definition whose BPMN key starts with `_` or contains non-ASCII letters (id e.g. `_key:1:5`) cannot be addressed by id through the bundle. Deployment resource names (e.g. `<formKey>.schema.json`) only must not contain `.` or `..` segments.
 
 **Uploads.** The upload operations (`/deployments/upload`, `/dmn_deployments/upload`, `/event_deployments/upload`), the deploy tools and the upload commands (`flowable:deployments:upload`, `flowable:dmn:deployments:upload`, `flowable:events:deployments:upload`, which take the base name of `--file`) accept a plain file name only: at most 255 characters, no `/`, no `\`, no `..`, no leading `.`, no quotes and no control characters. Each accepts only the extensions its repository deploys, and a command the same ones as its HTTP upload, with the same messages: the process upload `bpmn`, `xml`, `dmn`, `form`, `json`, `bar`, `zip`, the DMN upload `dmn`, `bar`, `zip`, the event upload `event`, `channel`, `flowable_dmn_deploy` `dmn` only, `flowable_deploy_bundle` `bpmn`, `xml`, `form`, `json`. The check uses the full suffix, in any case: where DMN or CMMN is not accepted, `.dmn.xml` and `.cmmn.xml` are refused like `.dmn` and `.cmmn`, so the process upload, its command and `flowable_deploy_bundle` refuse `.cmmn.xml`, and `flowable_deploy_bundle` also `.dmn.xml`; the DMN and event uploads refuse `.dmn.xml` or `.event.xml` as `.xml`. A refused file name or extension is rejected before anything is sent (over HTTP with 400). The bundle sets no size limit for a multipart upload; it is bounded by the web server in front of the application (nginx `client_max_body_size`, default `1m`) and PHP's `upload_max_filesize` / `post_max_size`, so raise those for larger BPMN or DMN files. The limits of inline files over MCP are under [Tool arguments](#tool-arguments).
+
+### Custom actions in the Hydra documentation
+
+The operations that are actions rather than CRUD carry the marker `extraProperties: ['custom_action' => true]`: `POST /decisions/execute`, `POST /deployments/upload`, `POST /dmn_deployments/upload`, `POST /event_deployments/upload`, `POST /event_instances`, `POST /executions/{id}/trigger`, `POST /external_worker_jobs/acquire`, `POST /external_worker_jobs/{id}/{complete,fail,bpmnError,unacquire}`, `POST /process_definitions/{id}/start`, `POST /tasks/{id}/complete` and `GET /jobs/{id}/stacktrace`, 14 operations in all. The marker changes nothing about how an operation behaves; it is read by `dmstr/api-platform-utils-bundle`, which lists each marked operation in the static Hydra documentation (`/api/docs.jsonld`) as a custom action: `@type` contains `schema:Action`, `hydra:title` is the operation name (e.g. `flow_task_complete`, `flow_external_worker_job_bpmnError`), and the URL is in `@id` for a path without placeholder (`/api/flowable/decisions/execute`) or in `hydra:uriTemplate` for a path with `{id}` (`/api/flowable/tasks/{id}/complete`). API Platform lists the POST actions under the entrypoint property of their resource and the stacktrace GET under its class. A client, such as an admin UI building an actions menu, can thus tell the actions from CRUD without hard-coding paths.
+
+Not marked, on purpose: the two `input_schema` GETs (they read a schema for a form, they do not act), `POST /process_instances` (it creates a resource, so API Platform's own `schema:CreateAction` fits), every other CRUD operation including the `DELETE`s, and the MCP tools, which the marker does not concern. Utils 0.7 and older classified actions by path depth instead of the marker; compared with that, the `input_schema` GETs are no longer listed as actions and `POST /event_instances` is listed for the first time. `tests/Metadata/CustomActionMarkerTest.php` and `tests/Http/CustomActionHydraDocumentationTest.php` pin the set.
 
 ### Errors and correlation id
 
@@ -552,3 +559,4 @@ Without Docker, `composer install && vendor/bin/phpunit` works on any PHP 8.5 se
 <!-- - revised 2026-11-26 (MCP tool arguments validated only centrally, no per-provider check) -->
 <!-- - revised 2026-11-26 (flowable_history_get keeps the newest 200 rows) -->
 <!-- - revised 2026-11-26 (errors and correlation id, audit, rate limiting, MCP results and errors, DMN result shape, timer precondition, upload suffix rule, selector in the query string) -->
+<!-- - revised 2026-11-26 (custom_action marker, requirements) -->
