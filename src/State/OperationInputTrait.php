@@ -5,6 +5,9 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable\State;
 
+use Dmstr\Flowable\Client\FlowableClientLocator;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+
 /**
  * Single input source for the Flowable state providers and processors.
  *
@@ -94,4 +97,24 @@ trait OperationInputTrait
 
         return array_diff_key($mcp, $uriVariables);
     }
+
+    /**
+     * ApiConfiguration selector as id string: a selector string or {uuid}.
+     * Absent (null or "") is no selection. Any other value, e.g. {"uuid": 5}
+     * or a number, is rejected with the locator's generic message instead of
+     * falling back to the implicit selection.
+     */
+    protected static function configurationId(mixed $ref): ?string
+    {
+        if ($ref === null || $ref === '') {
+            return null;
+        }
+        $id = \is_array($ref) ? ($ref['uuid'] ?? null) : $ref;
+        if (!\is_string($id) || $id === '') {
+            throw new BadRequestHttpException(FlowableClientLocator::INVALID_SELECTION);
+        }
+
+        return $id;
+    }
 }
+// - revised 2026-11-26 (configurationId() moved here from AbstractFlowableProcessor)

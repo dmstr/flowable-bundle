@@ -200,25 +200,6 @@ abstract class AbstractFlowableProcessor
         return $out;
     }
 
-    /**
-     * ApiConfiguration selector as id string: a selector string or {uuid}.
-     * Absent (null or "") is no selection. Any other value, e.g. {"uuid": 5}
-     * or a number, is rejected with the locator's generic message instead of
-     * falling back to the implicit selection.
-     */
-    private static function configurationId(mixed $ref): ?string
-    {
-        if ($ref === null || $ref === '') {
-            return null;
-        }
-        $id = \is_array($ref) ? ($ref['uuid'] ?? null) : $ref;
-        if (!\is_string($id) || $id === '') {
-            throw new BadRequestHttpException(FlowableClientLocator::INVALID_SELECTION);
-        }
-
-        return $id;
-    }
-
     protected function schemaPath(string $entity, string $verb): string
     {
         return InputSchemaPath::forOperation($entity, $verb);
@@ -250,3 +231,4 @@ abstract class AbstractFlowableProcessor
 // - revised 2026-11-26 (upload file name rule and inline size limit, strict apiConfiguration value, MCP input validator)
 // - revised 2026-11-26 (schema path built by Schema\InputSchemaPath)
 // - revised 2026-11-26 (inline content decoding moved to UploadRule::decodeInlineContent)
+// - revised 2026-11-26 (configurationId() moved to OperationInputTrait)
