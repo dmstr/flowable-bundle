@@ -95,13 +95,13 @@ final class McpToolStateTest extends StateTestCase
         $client = $this->createMock(FlowableClientInterface::class);
         $client->method('findHistoricProcessInstance')->with('pi-1')->willReturn(['id' => 'pi-1']);
         $client->expects($this->once())->method('listHistoricActivities')
-            ->with(['processInstanceId' => 'pi-1', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'asc'])
+            ->with(['processInstanceId' => 'pi-1', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'desc'])
             ->willReturn(['data' => [['id' => 'a-1', 'activityId' => 'start', 'activityType' => 'startEvent']], 'total' => 1]);
         $client->expects($this->once())->method('listHistoricVariables')
             ->with(['processInstanceId' => 'pi-1', 'start' => 0, 'size' => 200])
             ->willReturn(['data' => [['id' => 'v-1', 'variable' => ['name' => 'amount', 'type' => 'integer', 'value' => 5]]], 'total' => 1]);
         $client->expects($this->once())->method('listHistoricDecisionExecutions')
-            ->with(['instanceId' => 'pi-1', 'failed' => 'true', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'asc'])
+            ->with(['instanceId' => 'pi-1', 'failed' => 'true', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'desc'])
             ->willReturn(['data' => [['id' => 'd-1', 'decisionKey' => 'rate', 'failed' => true], ['id' => 'd-2', 'decisionKey' => 'rate', 'failed' => false]], 'total' => 2]);
 
         $history = $this->historyProvider($client)->provide(self::mcpTool('flowable_history_get'), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
@@ -115,6 +115,75 @@ final class McpToolStateTest extends StateTestCase
         // An engine that ignores the failed filter cannot leak successful runs.
         self::assertSame(['d-1'], array_column($history->failedDecisionExecutions, 'id'));
         self::assertSame(1, $history->failedDecisionExecutionsTotal);
+    }
+
+    /**
+     * The cap cuts off the oldest rows: the provider asks for the newest page
+     * and returns it oldest first, with the engine's total.
+     */
+    public function testHistoryReturnsTheNewestActivitiesAndFailedDecisionsOldestFirst(): void
+    {
+        $client = $this->createMock(FlowableClientInterface::class);
+        $client->method('findHistoricProcessInstance')->willReturn(['id' => 'pi-1']);
+        $client->expects($this->once())->method('listHistoricActivities')
+            ->with(['processInstanceId' => 'pi-1', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'desc'])
+            ->willReturn(['data' => [
+                ['id' => 'a-450', 'startTime' => '2026-01-01T00:07:30Z'],
+                ['id' => 'a-449', 'startTime' => '2026-01-01T00:07:29Z'],
+                ['id' => 'a-448', 'startTime' => '2026-01-01T00:07:28Z'],
+            ], 'total' => 450]);
+        $client->method('listHistoricVariables')->willReturn(self::EMPTY_LIST);
+        $client->expects($this->once())->method('listHistoricDecisionExecutions')
+            ->with(['instanceId' => 'pi-1', 'failed' => 'true', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'desc'])
+            ->willReturn(['data' => [
+                ['id' => 'd-9', 'failed' => true, 'startTime' => '2026-01-01T00:09:00Z'],
+                ['id' => 'd-8', 'failed' => true, 'startTime' => '2026-01-01T00:08:00Z'],
+            ], 'total' => 2]);
+
+        $history = $this->history($client);
+
+        self::assertSame(['a-448', 'a-449', 'a-450'], array_column($history->activities, 'id'));
+        self::assertSame(450, $history->activitiesTotal);
+        self::assertSame(['d-8', 'd-9'], array_column($history->failedDecisionExecutions, 'id'));
+    }
+
+    /**
+     * failedDecisionExecutionsTotal, case (a): the engine honours the
+     * failed=true filter (only failed rows), so its total is passed through,
+     * also when it is larger than the page.
+     */
+    public function testHistoryDecisionTotalIsTheEngineTotalWhenTheFilterIsHonoured(): void
+    {
+        $client = $this->historyClient(['data' => [
+            ['id' => 'd-2', 'failed' => true],
+            ['id' => 'd-1', 'failed' => true],
+        ], 'total' => 350]);
+
+        $history = $this->history($client);
+
+        self::assertSame(['d-1', 'd-2'], array_column($history->failedDecisionExecutions, 'id'));
+        self::assertSame(350, $history->failedDecisionExecutionsTotal);
+    }
+
+    /**
+     * failedDecisionExecutionsTotal, case (b): the engine ignores the filter
+     * and returns successful executions too; they are dropped and the total
+     * is the number of failed rows within the fetched page, not the engine's
+     * total.
+     */
+    public function testHistoryDecisionTotalCountsFailedRowsOfThePageWhenTheFilterIsIgnored(): void
+    {
+        $client = $this->historyClient(['data' => [
+            ['id' => 'd-4', 'failed' => false],
+            ['id' => 'd-3', 'failed' => true],
+            ['id' => 'd-2', 'failed' => false],
+            ['id' => 'd-1', 'failed' => true],
+        ], 'total' => 999]);
+
+        $history = $this->history($client);
+
+        self::assertSame(['d-1', 'd-3'], array_column($history->failedDecisionExecutions, 'id'));
+        self::assertSame(2, $history->failedDecisionExecutionsTotal);
     }
 
     public function testHistoryFailsWhenASubCallFails(): void
@@ -296,6 +365,30 @@ final class McpToolStateTest extends StateTestCase
         return new FlowProcessStatusProvider($this->locator($client), $this->requestStack());
     }
 
+
+    /**
+     * A client whose history is empty except for the given decision executions.
+     *
+     * @param array<string,mixed> $decisions Flowable list envelope
+     */
+    private function historyClient(array $decisions): FlowableClientInterface
+    {
+        $client = $this->createStub(FlowableClientInterface::class);
+        $client->method('findHistoricProcessInstance')->willReturn(['id' => 'pi-1']);
+        $client->method('listHistoricActivities')->willReturn(self::EMPTY_LIST);
+        $client->method('listHistoricVariables')->willReturn(self::EMPTY_LIST);
+        $client->method('listHistoricDecisionExecutions')->willReturn($decisions);
+
+        return $client;
+    }
+
+    private function history(FlowableClientInterface $client): FlowProcessHistory
+    {
+        $history = $this->historyProvider($client)->provide(self::mcpTool('flowable_history_get'), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
+        self::assertInstanceOf(FlowProcessHistory::class, $history);
+
+        return $history;
+    }
     public function historyProvider(FlowableClientInterface $client): FlowProcessHistoryProvider
     {
         return new FlowProcessHistoryProvider($this->locator($client), $this->requestStack());
@@ -337,3 +430,4 @@ final class McpToolStateTest extends StateTestCase
 }
 // - revised 2026-11-26 (providers called with the real McpTool, read tools validate their arguments)
 // - revised 2026-11-26 (argument validation moved to the transport-level and decorator tests)
+// - revised 2026-11-26 (history: newest 200 rows oldest first, how the failed decision total comes about)

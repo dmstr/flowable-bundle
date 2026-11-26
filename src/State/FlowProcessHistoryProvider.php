@@ -20,6 +20,14 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * than three empty lists. Any failing call fails the tool; there is no
  * partial result (see CompositeRowsTrait).
  *
+ * Activities and failed decision executions are fetched newest first and
+ * returned oldest first: when an instance has more than COMPOSITE_LIMIT of
+ * them, the oldest are cut, not the newest ones someone debugging a stuck or
+ * failed instance needs. The *Total fields are the engine's totals, except
+ * when the engine ignores the failed=true filter and also returns successful
+ * executions: those are dropped and failedDecisionExecutionsTotal is then the
+ * number of failed rows within the fetched page.
+ *
  * @implements ProviderInterface<FlowProcessHistory>
  */
 final class FlowProcessHistoryProvider extends AbstractFlowableProvider implements ProviderInterface
@@ -35,18 +43,16 @@ final class FlowProcessHistoryProvider extends AbstractFlowableProvider implemen
             throw new NotFoundHttpException(sprintf('Process instance "%s" not found in the history.', $id));
         }
 
-        $page = ['start' => 0, 'size' => self::COMPOSITE_LIMIT, 'sort' => 'startTime', 'order' => 'asc'];
-
-        [$activities, $activitiesTotal] = self::rows(
-            $client->listHistoricActivities(['processInstanceId' => $id] + $page),
+        [$activities, $activitiesTotal] = self::newestRowsAscending(
+            $client->listHistoricActivities(['processInstanceId' => $id] + self::newestPage()),
             FlowHistoricActivity::fromApi(...),
         );
         [$variables, $variablesTotal] = self::rows(
             $client->listHistoricVariables(['processInstanceId' => $id, 'start' => 0, 'size' => self::COMPOSITE_LIMIT]),
             FlowHistoricVariable::fromApi(...),
         );
-        [$decisions, $decisionsTotal] = self::rows(
-            $client->listHistoricDecisionExecutions(['instanceId' => $id, 'failed' => 'true'] + $page),
+        [$decisions, $decisionsTotal] = self::newestRowsAscending(
+            $client->listHistoricDecisionExecutions(['instanceId' => $id, 'failed' => 'true'] + self::newestPage()),
             FlowHistoricDecisionExecution::fromApi(...),
         );
         // Keep only failed executions even if an engine ignores the filter.
@@ -66,6 +72,33 @@ final class FlowProcessHistoryProvider extends AbstractFlowableProvider implemen
 
         return $history;
     }
+
+    /**
+     * Query page for the newest COMPOSITE_LIMIT rows by start time.
+     *
+     * @return array{start:int,size:int,sort:string,order:string}
+     */
+    private static function newestPage(): array
+    {
+        return ['start' => 0, 'size' => self::COMPOSITE_LIMIT, 'sort' => 'startTime', 'order' => 'desc'];
+    }
+
+    /**
+     * The rows of a page fetched with newestPage(), turned back into
+     * ascending order (oldest first). Rows with the same start time come in
+     * the reverse of the engine's descending order.
+     *
+     * @param array<string,mixed> $envelope Flowable list envelope
+     * @param callable(array<string,mixed>):object $fromApi
+     * @return array{0:list<array<string,mixed>>,1:int} [rows, total]
+     */
+    private static function newestRowsAscending(array $envelope, callable $fromApi): array
+    {
+        [$rows, $total] = self::rows($envelope, $fromApi);
+
+        return [array_reverse($rows), $total];
+    }
 }
 // - revised 2026-11-26 (MCP tool arguments validated against the published input schema)
 // - revised 2026-11-26 (per-provider MCP input validation removed, done centrally)
+// - revised 2026-11-26 (newest 200 activities and failed decision executions, returned oldest first)

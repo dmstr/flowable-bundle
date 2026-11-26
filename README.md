@@ -298,7 +298,7 @@ Notes on individual tools:
 
 - `flowable_start_process` starts by `processDefinitionKey` (latest version) or `processDefinitionId`, so an agent needs no prior lookup of the definition id; it is backed by `POST /process_instances`, not by `POST /process_definitions/{id}/start`.
 - `flowable_dmn_evaluate` changes no engine state except a history row, but it is gated behind its own permission, `flowable:decision_evaluate`, like its HTTP operation, so it is declared a write tool (`readOnlyHint: false`, `idempotentHint: true`) and appears only with `mcp.write`.
-- `flowable_get_process_status` answers only for running instances; `flowable_history_get` covers ended ones. Both are composites: when one of their engine calls fails, the tool fails as a whole and never returns a partial result. Each list holds at most 200 rows; the `*Total` fields tell whether it was cut.
+- `flowable_get_process_status` answers only for running instances; `flowable_history_get` covers ended ones. Both are composites: when one of their engine calls fails, the tool fails as a whole and never returns a partial result. Each list holds at most 200 rows; the `*Total` fields tell whether it was cut. Of the activities and failed decision executions of `flowable_history_get` the newest 200 are kept, oldest first.
 - `flowable_system_execute_timer_job` moves the timer job to the executable jobs (`POST management/timer-jobs/{id}` with `{"action": "move"}`), where the async executor runs it at once. The remaining wait cannot be restored, hence `destructiveHint: true`.
 - `flowable_deploy_bundle` refuses `.dmn` files: a process deployment does not register decision tables in the DMN engine, so they go to `flowable_dmn_deploy`. Building the archive needs the PHP `zip` extension.
 
@@ -466,3 +466,4 @@ Without Docker, `composer install && vendor/bin/phpunit` works on any PHP 8.5 se
 <!-- - revised 2026-11-26 (MCP switches: literal booleans only, McpResource follows mcp.read) -->
 <!-- - revised 2026-11-26 (central validation of the MCP tool arguments) -->
 <!-- - revised 2026-11-26 (MCP tool arguments validated only centrally, no per-provider check) -->
+<!-- - revised 2026-11-26 (flowable_history_get keeps the newest 200 rows) -->

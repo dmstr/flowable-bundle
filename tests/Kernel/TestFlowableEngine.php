@@ -15,7 +15,8 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * It answers with plausible Flowable JSON, decided by the request path only:
  *
  * - `GET` on a collection (`.../tasks`, `.../process-definitions`, ...) returns
- *   the list envelope `{data: [], total: 0, start: 0, size: 0}`;
+ *   the list envelope `{data: [], total: 0, start: 0, size: 0}`, unless a
+ *   test gave that collection rows with {@see self::withList()};
  * - `GET` on `.../variables`, `.../resources` returns a plain empty list;
  * - `GET` on the engine info returns name and version;
  * - any other `GET` is a single object `{id: <last path segment>, name: ...}`;
@@ -26,7 +27,8 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * that an allowed operation reached the engine and a denied one did not; the
  * string body of each request is kept at the same index in
  * {@see self::$bodies} (null when the body is not a string), e.g. for the
- * multipart body of a deployment.
+ * multipart body of a deployment, and its decoded query string in
+ * {@see self::$queries}.
  *
  * By default no status above 399 is ever produced. A test makes the engine
  * fail with {@see self::failWith()} (an HTTP error status and body) or
@@ -63,6 +65,12 @@ final class TestFlowableEngine
 
     /** @var list<?string> the string body of the request at the same index of $requests */
     public array $bodies = [];
+
+    /** @var list<array<string, mixed>> the decoded query of the request at the same index of $requests */
+    public array $queries = [];
+
+    /** @var array<string, list<array<string, mixed>>> rows per collection path suffix, see withList() */
+    private array $lists = [];
 
     /**
      * @var list<array{status: ?int, body: string, error: ?string, path: ?string, method: ?string, times: ?int}>
@@ -114,13 +122,31 @@ final class TestFlowableEngine
     }
 
     /**
-     * Forgets the configured failures and the recorded requests.
+     * `GET` on a collection whose path ends with $pathSuffix answers with
+     * these rows as the engine would: sorted by the `sort` field in the
+     * requested `order` (asc when absent; unsorted without `sort`), then
+     * paged by `start` and `size`; `total` is the count of all rows. Other
+     * query parameters (filters) are ignored.
+     *
+     * @param list<array<string, mixed>> $rows
+     */
+    public function withList(string $pathSuffix, array $rows): self
+    {
+        $this->lists[$pathSuffix] = $rows;
+
+        return $this;
+    }
+
+    /**
+     * Forgets the configured failures and lists and the recorded requests.
      */
     public function reset(): void
     {
         $this->failures = [];
+        $this->lists = [];
         $this->requests = [];
         $this->bodies = [];
+        $this->queries = [];
     }
 
     /**
@@ -146,6 +172,8 @@ final class TestFlowableEngine
         $path = (string) parse_url($url, PHP_URL_PATH);
         $this->requests[] = ['method' => $method, 'path' => $path];
         $this->bodies[] = \is_string($options['body'] ?? null) ? $options['body'] : null;
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        $this->queries[] = $query;
 
         $failure = $this->takeFailure($method, $path);
         if ($failure !== null) {
@@ -164,7 +192,7 @@ final class TestFlowableEngine
             );
         }
 
-        return new MockResponse(json_encode($this->read($path), JSON_THROW_ON_ERROR), $headers);
+        return new MockResponse(json_encode($this->read($path, $query), JSON_THROW_ON_ERROR), $headers);
     }
 
     private function addFailure(
@@ -236,10 +264,16 @@ final class TestFlowableEngine
     }
 
     /**
+     * @param array<string, mixed> $query
      * @return array<string, mixed>|list<mixed>
      */
-    private function read(string $path): array
+    private function read(string $path, array $query): array
     {
+        foreach ($this->lists as $suffix => $rows) {
+            if (str_ends_with($path, $suffix)) {
+                return self::page($rows, $query);
+            }
+        }
         if (preg_match(self::COLLECTION_PATTERN, $path) === 1) {
             return ['data' => [], 'total' => 0, 'start' => 0, 'size' => 0];
         }
@@ -252,6 +286,25 @@ final class TestFlowableEngine
 
         return ['id' => basename($path), 'name' => 'stub'];
     }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     * @param array<string, mixed> $query
+     * @return array{data: list<array<string, mixed>>, total: int, start: int, size: int}
+     */
+    private static function page(array $rows, array $query): array
+    {
+        $sort = $query['sort'] ?? null;
+        if (\is_string($sort)) {
+            $direction = ($query['order'] ?? 'asc') === 'desc' ? -1 : 1;
+            usort($rows, static fn (array $a, array $b): int => $direction * (($a[$sort] ?? null) <=> ($b[$sort] ?? null)));
+        }
+        $start = (int) ($query['start'] ?? 0);
+        $data = \array_slice($rows, $start, isset($query['size']) ? (int) $query['size'] : null);
+
+        return ['data' => $data, 'total' => \count($rows), 'start' => $start, 'size' => \count($data)];
+    }
 }
 // - revised 2026-11-26 (failure mode: HTTP error status and transport errors)
 // - revised 2026-11-26 (request bodies recorded)
+// - revised 2026-11-26 (queries recorded, collections with rows that honour sort, order, start and size)
