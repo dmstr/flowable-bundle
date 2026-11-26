@@ -14,6 +14,7 @@ use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Functional HTTP and MCP tests against {@see TestKernel}: every test gets a
@@ -248,19 +249,47 @@ abstract class ApiTestCase extends WebTestCase
      */
     protected function createFlowableConfiguration(): ApiConfiguration
     {
-        $configuration = (new ApiConfiguration())
+        return $this->storeConfiguration(self::configuration('flowable', true, TestFlowableEngine::BASE_URL));
+    }
+
+    /**
+     * Stores one more ApiConfiguration with a fixed id, e.g. an inactive one,
+     * one of another type or two sharing an 8-character prefix, and detaches
+     * it. The type goes into `configJson['type']`, from which `onPrePersist()`
+     * sets the entity's type. $baseUrl lets a test see which configuration a
+     * request went to: the engine stub records the path.
+     */
+    protected function createApiConfiguration(
+        string $id,
+        string $type = 'flowable',
+        bool $active = true,
+        string $baseUrl = TestFlowableEngine::BASE_URL,
+    ): ApiConfiguration {
+        $configuration = self::configuration($type, $active, $baseUrl);
+        // ApiConfiguration::$id is a random Uuid::v4() without setter
+        (new \ReflectionProperty(ApiConfiguration::class, 'id'))->setValue($configuration, Uuid::fromString($id));
+
+        return $this->storeConfiguration($configuration);
+    }
+
+    private static function configuration(string $type, bool $active, string $baseUrl): ApiConfiguration
+    {
+        return (new ApiConfiguration())
             ->setName('Flowable engine')
             ->setConfigJson([
                 'flowable' => true,
-                'type' => 'flowable',
+                'type' => $type,
                 'endpoint_type' => 'rest',
-                'base_url' => TestFlowableEngine::BASE_URL,
+                'base_url' => $baseUrl,
                 'auth_type' => 'basic',
                 'username' => 'rest-admin',
                 'password' => 'test-password',
             ])
-            ->setActive(true);
+            ->setActive($active);
+    }
 
+    private function storeConfiguration(ApiConfiguration $configuration): ApiConfiguration
+    {
         $entityManager = $this->entityManager();
         $entityManager->persist($configuration);
         $entityManager->flush();
@@ -290,3 +319,4 @@ abstract class ApiTestCase extends WebTestCase
         return static::getContainer()->get('doctrine.orm.entity_manager');
     }
 }
+// - revised 2026-11-26 (helper for additional ApiConfigurations)

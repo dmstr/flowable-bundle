@@ -24,11 +24,14 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
- * Pins every input schema the bundle delivers to the state of release 0.12.1.
+ * Pins every input schema the bundle delivers to the state of release 0.12.1,
+ * with one intended change since.
  *
  * The fixtures under snapshot-0.12.1/ were captured from the 0.12.1 code,
  * before the `apiConfiguration` block was moved into the shared definition
- * (src/Schema/api-configuration.json). Each test rebuilds one delivery path
+ * (src/Schema/api-configuration.json). The only change since: the `{uuid}`
+ * object branch of `apiConfiguration` carries the same selector `pattern` as
+ * the string branch. Each test rebuilds one delivery path
  * and compares its JSON encoding byte for byte, so key order and the {} / []
  * distinction are part of the contract:
  *
@@ -288,3 +291,4 @@ final class InputSchemaSnapshotTest extends StateTestCase
         self::assertStringEqualsFile(self::FIXTURES.'/'.$fixture, $encoded, $fixture);
     }
 }
+// - revised 2026-11-26 (fixtures carry the selector pattern in the {uuid} branch)
