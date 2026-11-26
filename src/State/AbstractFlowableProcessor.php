@@ -7,6 +7,7 @@ namespace Dmstr\Flowable\State;
 
 use Dmstr\Flowable\Client\FlowableClientInterface;
 use Dmstr\Flowable\Client\FlowableClientLocator;
+use Dmstr\Flowable\Schema\InputSchemaPath;
 use Dmstr\Flowable\Service\ActingUserResolver;
 use Dmstr\Flowable\Service\FlowableVariableMapper;
 use Dmstr\Flowable\Service\InputSchemaValidator;
@@ -226,7 +227,7 @@ abstract class AbstractFlowableProcessor
 
     protected function schemaPath(string $entity, string $verb): string
     {
-        return \dirname(__DIR__).'/ApiResource/'.$entity.'/'.$verb.'.input.json';
+        return InputSchemaPath::forOperation($entity, $verb);
     }
 
     /**
@@ -253,3 +254,4 @@ abstract class AbstractFlowableProcessor
 }
 // - revised 2026-10-09 (nested {} in MCP arguments)
 // - revised 2026-11-26 (upload file name rule and inline size limit, strict apiConfiguration value, MCP input validator)
+// - revised 2026-11-26 (schema path built by Schema\InputSchemaPath)

@@ -11,6 +11,7 @@ use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Operation;
 use Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory;
 use Dmstr\Flowable\Schema\InputSchemaLoader;
+use Dmstr\Flowable\Schema\InputSchemaPath;
 
 /**
  * Serves the input schema of this bundle's MCP tools from the operation input
@@ -133,7 +134,7 @@ final class McpToolInputSchemaFactory implements SchemaFactoryInterface
             throw new \RuntimeException(sprintf('MCP tool input schema path must not contain "..": %s', $input));
         }
 
-        return \dirname(__DIR__).'/ApiResource/'.ltrim($input, '/');
+        return InputSchemaPath::relative($input);
     }
 
     /** @return array<string,mixed> */
@@ -172,3 +173,4 @@ final class McpToolInputSchemaFactory implements SchemaFactoryInterface
 // - revised 2026-11-26 (schema loaded through InputSchemaLoader)
 // - revised 2026-11-26 (docblock: publishing is not enforcing, where the schemas are enforced)
 // - revised 2026-11-26 (namespace guard, `..` rejected in the input path)
+// - revised 2026-11-26 (schema path built by Schema\InputSchemaPath)

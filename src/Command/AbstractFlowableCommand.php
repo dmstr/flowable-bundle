@@ -7,6 +7,7 @@ namespace Dmstr\Flowable\Command;
 
 use Dmstr\Flowable\Client\FlowableClientInterface;
 use Dmstr\Flowable\Client\FlowableClientLocator;
+use Dmstr\Flowable\Schema\InputSchemaPath;
 use Dmstr\Flowable\Service\FlowableVariableMapper;
 use Dmstr\Flowable\Service\InputSchemaValidator;
 use Symfony\Component\Console\Command\Command;
@@ -126,7 +127,7 @@ abstract class AbstractFlowableCommand extends Command
 
     protected function schemaPath(string $entity, string $verb): string
     {
-        return \dirname(__DIR__).'/ApiResource/'.$entity.'/'.$verb.'.input.json';
+        return InputSchemaPath::forOperation($entity, $verb);
     }
 
     /**
@@ -179,3 +180,4 @@ abstract class AbstractFlowableCommand extends Command
     }
 }
 // - revised 2026-11-26 (strict --api-configuration format)
+// - revised 2026-11-26 (schema path built by Schema\InputSchemaPath)
