@@ -9,6 +9,8 @@ use ApiPlatform\Symfony\Bundle\ApiPlatformBundle;
 use Dmstr\ApiConfiguration\ApiConfigurationBundle;
 use Dmstr\ApiPlatformUtils\ApiPlatformUtilsBundle;
 use Dmstr\Flowable\FlowableBundle;
+use Dmstr\Flowable\State\FlowProcessDefinitionProvider;
+use Dmstr\Flowable\Tests\Fixtures\ForeignMcp\ForeignMcpToolProvider;
 use Dmstr\OpenApiJsonSchema\OpenApiJsonSchemaBundle;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Doctrine\Bundle\MigrationsBundle\DoctrineMigrationsBundle;
@@ -53,7 +55,16 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
  *   - `parameters`: extra container parameters set by the "application",
  *     e.g. `['dmstr_flowable.mcp.read' => false]`;
  *   - `use_symfony_listeners`: API Platform's switch of that name (not set
- *     otherwise, API Platform's default is false).
+ *     otherwise, API Platform's default is false);
+ *   - `api_platform_mcp`: false turns API Platform's MCP support off
+ *     (`api_platform.mcp.enabled`), so there is no MCP handler and no tool;
+ *     symfony/mcp-bundle stays registered;
+ *   - `mcp_fixtures`: true replaces the bundle's FlowProcessDefinitionProvider
+ *     by {@see NonValidatingProcessDefinitionProvider} (as an application
+ *     would, for HTTP and the tool flowable_list_process_definitions alike)
+ *     and adds the application tool
+ *     {@see \Dmstr\Flowable\Tests\Fixtures\ForeignMcp\ForeignMcpTool};
+ *     both providers are public so that tests can read their calls.
  *   A kernel with options gets its own environment name, the given one plus
  *   a hash of the options, so every configuration compiles its own
  *   container in its own cache directory.
@@ -87,7 +98,7 @@ final class TestKernel extends Kernel
     /** The service id the bundle binds its audit and error logger to */
     public const string FLOWABLE_LOGGER = 'monolog.logger.flowable';
 
-    private const array OPTIONS = ['mcp', 'parameters', 'use_symfony_listeners'];
+    private const array OPTIONS = ['mcp', 'parameters', 'use_symfony_listeners', 'api_platform_mcp', 'mcp_fixtures'];
 
     /** The environment given to the constructor, without the options hash */
     private readonly string $variantOf;
@@ -96,7 +107,7 @@ final class TestKernel extends Kernel
     private static array $clearedNonDebugDirs = [];
 
     /**
-     * @param array{mcp?: array<string, mixed>, parameters?: array<string, mixed>, use_symfony_listeners?: bool} $options
+     * @param array{mcp?: array<string, mixed>, parameters?: array<string, mixed>, use_symfony_listeners?: bool, api_platform_mcp?: bool, mcp_fixtures?: bool} $options
      *        see the class docblock; [] is the plain kernel of the environment
      */
     public function __construct(string $environment, bool $debug, private readonly array $options = [])
@@ -239,8 +250,11 @@ final class TestKernel extends Kernel
             ],
             'enable_swagger_ui' => false,
             'enable_re_doc' => false,
-            'mcp' => ['enabled' => true],
+            'mcp' => ['enabled' => $this->options['api_platform_mcp'] ?? true],
         ];
+        if ($this->options['mcp_fixtures'] ?? false) {
+            $apiPlatform['mapping'] = ['paths' => [$projectDir . '/tests/Fixtures/ForeignMcp']];
+        }
         if (\array_key_exists('use_symfony_listeners', $this->options)) {
             $apiPlatform['use_symfony_listeners'] = $this->options['use_symfony_listeners'];
         }
@@ -286,6 +300,14 @@ final class TestKernel extends Kernel
 
         $services->set(TestHeaderAuthenticator::class);
 
+        if ($this->options['mcp_fixtures'] ?? false) {
+            // Replaces the bundle's provider without calling it
+            $services->set(NonValidatingProcessDefinitionProvider::class)
+                ->decorate(FlowProcessDefinitionProvider::class)
+                ->public();
+            $services->set(ForeignMcpToolProvider::class)->public();
+        }
+
         if ($this->hasPermissionVoter()) {
             // Autoconfiguration adds the `security.voter` tag; public so that
             // tests can tell the two variants apart instead of finding an
@@ -307,3 +329,4 @@ final class TestKernel extends Kernel
 }
 // - revised 2026-11-26 (kernel options for MCP switches, parameters, use_symfony_listeners; recording flowable logger)
 // - revised 2026-11-26 (own, freshly emptied cache directory for a non-debug kernel)
+// - revised 2026-11-26 (options api_platform_mcp and mcp_fixtures)

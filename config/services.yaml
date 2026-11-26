@@ -30,6 +30,11 @@ services:
             - '../src/Worker/ExternalWorkerOutcome.php'
             # Wired explicitly as flowable.input_schema_resolver below.
             - '../src/Schema/InputSchemaFileResolver.php'
+            # The central MCP tool input validation: a provider decorator
+            # registered by DependencyInjection\McpToolInputValidationPass
+            # only when API Platform's MCP handler exists (autoconfigured
+            # here it would become a state provider of its own).
+            - '../src/State/McpToolInputValidationProvider.php'
 
     # Permission attributes of the bundle's operations and MCP tools. An
     # application (e.g. za7-core) collects the `za7_core.permission` tags to
@@ -176,3 +181,4 @@ services:
 # - revised 2026-11-26 (locator without UuidResolver)
 # - revised 2026-11-26 (logger for hidden MCP tools)
 # - revised 2026-11-26 (switch order and cache comment, McpResource follows mcp.read)
+# - revised 2026-11-26 (MCP tool input validation decorator excluded, registered by its compiler pass)

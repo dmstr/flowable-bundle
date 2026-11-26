@@ -6,6 +6,7 @@ declare(strict_types=1);
 namespace Dmstr\Flowable;
 
 use Dmstr\Flowable\DependencyInjection\LiteralMcpSwitchesPass;
+use Dmstr\Flowable\DependencyInjection\McpToolInputValidationPass;
 use Dmstr\Flowable\Worker\ExternalWorkerHandlerInterface;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -41,6 +42,13 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
  * Metadata\McpToolSwitchResourceMetadataCollectionFactory). Each switch must
  * be a literal boolean when the container is built; an env placeholder or a
  * string fails the build (see DependencyInjection\LiteralMcpSwitchesPass).
+ *
+ * The arguments of every MCP tool call of the bundle's resources are
+ * validated in one place in front of the tool's provider, also when an
+ * application replaces that provider (State\McpToolInputValidationProvider,
+ * hooked into API Platform's provider chain by
+ * DependencyInjection\McpToolInputValidationPass; the build fails when API
+ * Platform's MCP support is on and the chain offers no place to hook in).
  */
 final class FlowableBundle extends AbstractBundle
 {
@@ -109,6 +117,15 @@ final class FlowableBundle extends AbstractBundle
             LiteralMcpSwitchesPass::TYPE,
             LiteralMcpSwitchesPass::PRIORITY,
         );
+
+        // Decorates the read step of the MCP provider chain; a pass because
+        // whether API Platform's MCP handler and which chain exist is known
+        // only after all extensions are loaded.
+        $container->addCompilerPass(
+            new McpToolInputValidationPass(),
+            McpToolInputValidationPass::TYPE,
+            McpToolInputValidationPass::PRIORITY,
+        );
     }
 
     public function prependExtension(
@@ -124,3 +141,4 @@ final class FlowableBundle extends AbstractBundle
 }
 // - revised 2026-10-09 (mcp.deploy switch)
 // - revised 2026-11-26 (compiler pass rejecting non-boolean MCP switches)
+// - revised 2026-11-26 (compiler pass for the central MCP tool input validation)
