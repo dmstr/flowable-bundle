@@ -22,8 +22,9 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
  * {@see \Dmstr\Flowable\Schema\StartFormInputSchemaResolver} computes the
  * definition-specific start form. Served as `application/schema+json` for the
  * vue-admin to render before the `start` call. When the definition has no
- * start form, the chain falls through to the static `start.input.json`
- * (generic businessKey/variables/apiConfiguration body).
+ * start form, or is unknown to the form endpoint, the chain resolves no
+ * schema and the open object schema below is returned (the static
+ * `start.input.json` is not served here), as for a task without form.
  *
  * The controller checks `flowable:read` itself: API Platform does not
  * evaluate the operation's `security` expression for a custom controller with
@@ -61,3 +62,4 @@ final class ProcessDefinitionStartInputSchemaController
     }
 }
 // - revised 2026-10-28 (checks flowable:read itself, security of read:false operations is not evaluated)
+// - revised 2026-11-26 (docblock: a definition without start form gets the open schema)

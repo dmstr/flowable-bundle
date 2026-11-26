@@ -18,8 +18,11 @@ use Dmstr\Flowable\ApiResource\FlowDeployment;
  * recorded on the bundle's audit channel — Flowable deployments carry no
  * variables, so there is no actor marker to propagate (unlike start/trigger).
  *
- * As an MCP tool the resource is passed inline instead (name, content,
- * optional contentEncoding "base64"); see AbstractFlowableProcessor.
+ * The MCP branch of AbstractFlowableProcessor::uploadedResource() and
+ * uploadFields() (the resource passed inline as name, content, optional
+ * contentEncoding "base64") is unused here: no McpTool has this processor.
+ * MCP deploys to the process repository go through flowable_deploy_bundle
+ * (DeploymentBundleProcessor). The branch is kept, not removed.
  *
  * @implements ProcessorInterface<mixed, FlowDeployment>
  */
@@ -53,3 +56,4 @@ final class DeploymentUploadProcessor extends AbstractFlowableProcessor implemen
 }
 // - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
 // - revised 2026-11-26 (ALLOWED_EXTENSIONS public, shared with the CLI upload command)
+// - revised 2026-11-26 (docblock: the MCP branch is unused, no tool has this processor)

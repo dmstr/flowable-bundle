@@ -67,7 +67,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
     mcp: [
         'flowable_dmn_evaluate' => new McpTool(
             name: 'flowable_dmn_evaluate',
-            description: 'Evaluate a deployed DMN decision by decisionKey with inputVariables, preferably as a map {name: value}; singleResult=true asks for one row. Returns the decision with id and key set to the decision key and result, a list of rows, each a map of output name to value (empty when no rule matched).',
+            description: 'Evaluate a deployed DMN decision by decisionKey with inputVariables, preferably as a map {name: value}; singleResult=true asks for one row. Returns the decision with id and key set to the decision key and result, a list of rows as the engine returns them, each a list of result variables {name, type, value}, not a map (one row with singleResult=true, empty when no rule matched); every call adds a row to the decision history.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable/DMN'],
             security: "is_granted('flowable:decision_evaluate')",
@@ -169,3 +169,4 @@ final class FlowDecision
 }
 // - revised 2026-10-08 (MCP tool flowable_dmn_evaluate)
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
+// - revised 2026-11-26 (tool description: result rows as the engine returns them, history row per call)

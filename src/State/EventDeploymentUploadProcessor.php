@@ -21,8 +21,10 @@ use Dmstr\Flowable\ApiResource\FlowEventDeployment;
  *    (deployment-name, category, tenantId — same as the process and DMN upload
  *    endpoints) and the client translates deployment-name → deploymentName.
  *
- * As an MCP tool the resource is passed inline instead (name, content,
- * optional contentEncoding "base64"); see AbstractFlowableProcessor.
+ * The MCP branch of AbstractFlowableProcessor::uploadedResource() and
+ * uploadFields() (the resource passed inline as name, content, optional
+ * contentEncoding "base64") is unused here: no McpTool has this processor,
+ * the bundle has no event deploy tool. The branch is kept, not removed.
  *
  * @implements ProcessorInterface<mixed, FlowEventDeployment>
  */
@@ -72,3 +74,4 @@ final class EventDeploymentUploadProcessor extends AbstractFlowableProcessor imp
 }
 // - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
 // - revised 2026-11-26 (ALLOWED_EXTENSIONS and EXTENSION_HINT public, shared with the CLI upload command)
+// - revised 2026-11-26 (docblock: the MCP branch is unused, no tool has this processor)

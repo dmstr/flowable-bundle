@@ -54,7 +54,7 @@ use Dmstr\Flowable\State\EventInstanceCreateProcessor;
     mcp: [
         'flowable_events_send' => new McpTool(
             name: 'flowable_events_send',
-            description: 'Send an event to an inbound channel of the event registry; needs eventDefinitionKey or eventDefinitionId, channelDefinitionKey or channelDefinitionId, and eventPayload as an object. Returns null on success; failures are tool errors.',
+            description: 'Send an event to an inbound channel of the event registry; needs eventDefinitionKey or eventDefinitionId, channelDefinitionKey or channelDefinitionId, and eventPayload as an object. Returns null on success; a failure is answered as a JSON-RPC error.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable/Events'],
             security: "is_granted('flowable:event_send')",
@@ -80,3 +80,4 @@ final class FlowEventInstance
 // - revised 2026-10-08 (MCP tool flowable_events_send)
 // - revised 2026-10-09 (MCP: destructiveHint)
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
+// - revised 2026-11-26 (tool description: failures are JSON-RPC errors)

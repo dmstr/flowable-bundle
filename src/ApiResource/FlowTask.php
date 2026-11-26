@@ -104,7 +104,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         ),
         'flowable_complete_task' => new McpTool(
             name: 'flowable_complete_task',
-            description: 'Complete an open user task with its form values as variables, preferably as a map {name: value} (flowable_get_task_form lists the fields). Returns null on success; failures are tool errors.',
+            description: 'Complete an open user task with its form values as variables, preferably as a map {name: value} (flowable_get_task_form lists the fields). Returns null on success; a failure is answered as a JSON-RPC error.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable'],
             security: "is_granted('flowable:task_complete')",
@@ -210,3 +210,4 @@ final class FlowTask
 // - revised 2026-10-08 (MCP tools flowable_list_tasks, flowable_get_task_form, flowable_complete_task)
 // - revised 2026-10-09 (MCP: admin-only, destructiveHint)
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
+// - revised 2026-11-26 (tool description: failures are JSON-RPC errors)

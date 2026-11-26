@@ -30,6 +30,9 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * multipart body of a deployment, and its decoded query string in
  * {@see self::$queries}.
  *
+ * A test gives one path its own JSON answer with {@see self::withResponse()},
+ * e.g. the result variables of a DMN evaluation or the form data of a task.
+ *
  * By default no status above 399 is ever produced. A test makes the engine
  * fail with {@see self::failWith()} (an HTTP error status and body) or
  * {@see self::failWithTransportError()} (the response errors before it has a
@@ -71,6 +74,9 @@ final class TestFlowableEngine
 
     /** @var array<string, list<array<string, mixed>>> rows per collection path suffix, see withList() */
     private array $lists = [];
+
+    /** @var list<array{suffix: string, method: ?string, body: array<mixed>, status: int}> see withResponse() */
+    private array $responses = [];
 
     /**
      * @var list<array{status: ?int, body: string, error: ?string, path: ?string, method: ?string, times: ?int}>
@@ -138,12 +144,34 @@ final class TestFlowableEngine
     }
 
     /**
-     * Forgets the configured failures and lists and the recorded requests.
+     * Requests whose path ends with $pathSuffix (and, when given, have the
+     * method) are answered with $body as JSON and $status, before the
+     * default answer and the lists of {@see self::withList()}; a failure of
+     * {@see self::failWith()} still wins. The first matching entry is used.
+     *
+     * @param array<mixed> $body
+     */
+    public function withResponse(string $pathSuffix, array $body, ?string $method = null, int $status = 200): self
+    {
+        $this->responses[] = [
+            'suffix' => $pathSuffix,
+            'method' => $method === null ? null : strtoupper($method),
+            'body' => $body,
+            'status' => $status,
+        ];
+
+        return $this;
+    }
+
+    /**
+     * Forgets the configured failures, lists and responses and the recorded
+     * requests.
      */
     public function reset(): void
     {
         $this->failures = [];
         $this->lists = [];
+        $this->responses = [];
         $this->requests = [];
         $this->bodies = [];
         $this->queries = [];
@@ -181,6 +209,15 @@ final class TestFlowableEngine
         }
 
         $headers = ['response_headers' => ['Content-Type: application/json']];
+
+        foreach ($this->responses as $response) {
+            if (($response['method'] === null || $response['method'] === $method) && str_ends_with($path, $response['suffix'])) {
+                return new MockResponse(
+                    json_encode($response['body'], JSON_THROW_ON_ERROR),
+                    ['http_code' => $response['status']] + $headers,
+                );
+            }
+        }
 
         if ($method === 'DELETE') {
             return new MockResponse('', ['http_code' => 204]);
@@ -308,3 +345,4 @@ final class TestFlowableEngine
 // - revised 2026-11-26 (failure mode: HTTP error status and transport errors)
 // - revised 2026-11-26 (request bodies recorded)
 // - revised 2026-11-26 (queries recorded, collections with rows that honour sort, order, start and size)
+// - revised 2026-11-26 (own JSON answer per path with withResponse())

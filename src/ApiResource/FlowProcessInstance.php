@@ -77,7 +77,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
     mcp: [
         'flowable_get_process_status' => new McpTool(
             name: 'flowable_get_process_status',
-            description: 'Get the current state of a running process instance in one call. Returns processInstance (id, processDefinitionId, processDefinitionKey, businessKey, startUserId, startTime, suspended, ended, tenantId), openTasks (each with id, name, assignee, taskDefinitionKey, createTime, dueDate), openTasksTotal, currentActivityIds (BPMN element ids it waits at) and activeExecutions (each with id and activityId); ended instances fail, use flowable_history_get for them.',
+            description: 'Get the current state of a running process instance in one call. Returns processInstance (id, processDefinitionId, processDefinitionKey, businessKey, startUserId, startTime, suspended, ended, tenantId), openTasks (each with id, name, assignee, taskDefinitionKey, createTime, dueDate), openTasksTotal, currentActivityIds (BPMN element ids it waits at) and activeExecutions (each with id and activityId; no total, taken from at most 200 executions); ended instances fail, use flowable_history_get for them.',
             annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable'],
             security: "is_granted('flowable:mcp_read')",
@@ -178,3 +178,4 @@ final class FlowProcessInstance
 // - revised 2026-10-08 (MCP tools flowable_get_process_status, flowable_start_process)
 // - revised 2026-10-09 (MCP: admin-only, destructiveHint)
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
+// - revised 2026-11-26 (tool description: executions have no total)
