@@ -4,6 +4,49 @@
 
 All notable changes to this bundle. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/) and come from the Git tags. Releases before 0.9.0 are described in the [GitHub releases](https://github.com/dmstr/flowable-bundle/releases).
 
+## [0.13.0] - 2026-11-26
+
+Hardens the input of every transport (part A of [#18](https://github.com/dmstr/flowable-bundle/issues/18)): a strict selector for the engine configuration, one rule for ids that enter an engine path, one rule for upload file names, size limits for inline files, and MCP tool arguments validated against the schemas the tools publish. Several inputs that were accepted before are now rejected; read the breaking changes before upgrading.
+
+### Breaking changes
+
+- **`FlowableClientLocator::__construct(HttpClientInterface, EntityManagerInterface, ConfigSecrets)`**: the `UuidResolver` argument is gone, the locator looks the configurations up itself. It is wired in the bundle's `config/services.yaml`; this only matters if you instantiate the locator yourself, for example in tests.
+- **Strict selector for an explicitly chosen configuration.** An explicit `apiConfiguration` (string or `{"uuid": …}`) must be the first 8 characters or the full UUID, lowercase, of an **active** `ApiConfiguration` of type `flowable`. Before, partial UUIDs of any length (9 to 35 characters included) and uppercase were accepted, an inactive configuration could be selected, and an ambiguous prefix was a server error (500). A malformed selector, an unknown id, an inactive configuration, another type and a prefix shared by two configurations now all answer the same 400 (`FlowableClientLocator::INVALID_SELECTION`: `apiConfiguration does not select an active Flowable API configuration. …`), which names no other configuration and no other type. The implicit selection (no selector, exactly one active `flowable` configuration) is unchanged.
+  - **HTTP:** applies to the `apiConfiguration` query parameter and body property. Where a JSON body is validated against its input schema first, a malformed selector gets the schema's 422 instead of the 400; the `{uuid}` form of the schemas now carries the same pattern as the string form.
+  - **MCP:** applies to the `apiConfiguration` argument of every tool; a malformed selector gets the schema's 422, as tool arguments are validated first. A `{uuid}` whose value is not a string (e.g. `{"uuid": 5}`) is rejected instead of falling back to the implicit selection.
+  - **CLI:** applies to `--api-configuration` of every `flowable:*` command; a longer prefix or uppercase that worked before is rejected.
+  - **Worker:** `flowable:external-worker:run` resolves its configuration once at start, so a start with an invalid selector or an inactive configuration fails. A running worker keeps its client until it is restarted, even if its configuration is deactivated meanwhile.
+- **Ids that enter an engine path must match `^[A-Za-z0-9][A-Za-z0-9:._-]*$`.** `FlowableClient` checks every id it puts into a path segment of an engine request (deployment, process definition, process instance, task, execution, job, decision, event and channel ids, …) and answers 400 (`Invalid Flowable id: …`) before any engine request is sent, for every caller: HTTP, MCP, CLI, the external worker and direct use of `FlowableClient`. This rejects the empty string, `.`/`..`, `/`, `%` and every non-ASCII character. Consequences: a process definition whose BPMN key starts with `_` or contains non-ASCII letters (id e.g. `_key:1:5`) can no longer be addressed by id through the bundle, and the job ids the external worker gets back from the engine fall under the rule as well. The rule is derived from the id formats Flowable generates (UUID, numeric, `key:version:id`) and not verified against a live engine. Deployment resource names (e.g. `<formKey>.schema.json`, a form key may contain `/` or spaces) are exempt; only `.` and `..` segments are rejected there.
+- **One rule for upload file names** (`Dmstr\Flowable\State\UploadRule`), used by the HTTP upload operations (`/deployments/upload`, `/dmn_deployments/upload`, `/event_deployments/upload`), `flowable_dmn_deploy` and the files of `flowable_deploy_bundle`: at most 255 characters, no `/`, no `\`, no `..`, no leading `.`, no quotes and no control characters (CR/LF among them); otherwise 400. `flowable_deploy_bundle` previously rejected only paths and a leading dot, the single uploads checked only the extension. Over HTTP, PHP strips the path from the uploaded file name already, so `/` and `\` only arrive over MCP.
+- **MCP: `flowable_dmn_deploy` takes only `.dmn`.** `.bar` and `.zip` (and e.g. `.DMN.zip`) are rejected; schema pattern and tool description say so. Over HTTP, `POST /dmn_deployments/upload` still takes `.dmn`, `.bar` and `.zip`.
+- **MCP: the arguments of the six read tools and of `flowable_dmn_deploy` are validated against the input schema the tool publishes** (URI variables included), with a 422 `Input validation failed: …`. Before, the read tools only advertised their schema. Calls that passed before are now rejected: unknown keys, strings for numbers (`"page": "2"`), `itemsPerPage` above 200; `flowable_system_list_deadletter_jobs` rejects `kind`, `flowable_list_tasks` rejects `processInstance` (the filter is `processInstanceId`). The HTTP read operations and their query parameters are unchanged.
+- **MCP: size limits for inline files**, fixed, not configurable: at most 1 MiB per file after decoding (base64 or text) in `flowable_dmn_deploy` and `flowable_deploy_bundle`, and for `flowable_deploy_bundle` at most 20 files and 4 MiB in total after decoding; otherwise 400. The input schemas add `maxLength` 1400000 for `content` (a pre-filter, the byte count is the limit), 255 for file names and for `deploymentName`, `deploymentSource`, `category` and `tenantId`, and `maxItems` 20 for `files`. Limits in front of the bundle apply first: the consumer's web server (nginx `client_max_body_size`, default `1m`, already refuses a request carrying a 1 MiB file) and the HTTP transport of `mcp/sdk`, which refuses request bodies above 4 MiB (4194304 bytes) by default (`StreamableHttpTransport::DEFAULT_MAX_BODY_BYTES`). The whole JSON-RPC request counts there, and base64 content is a third larger than its decoded bytes, so with the default transport limit a bundle near the 4 MiB total is refused by the transport before the bundle's own check. HTTP multipart uploads get no new size limit from the bundle.
+
+### Added
+
+- `Dmstr\Flowable\State\McpToolInputValidator`: validates MCP tool arguments against the published input schema, fail-closed (`\RuntimeException`) when the tool has no buildable schema; a no-op over HTTP.
+- An optional trailing constructor parameter `McpToolInputValidator $mcpInput = new McpToolInputValidator()` on `AbstractFlowableProvider`, `AbstractFlowableProcessor` and `FlowTaskFormProvider`, and `AbstractFlowableProvider::validateMcpInput()`. Existing subclasses keep working unchanged; an application's own provider behind an `McpTool` has to call `validateMcpInput()` itself to get the validation.
+- `Dmstr\Flowable\State\UploadRule` with the file name rule and the limits as constants (`MAX_FILE_NAME_LENGTH`, `MAX_INLINE_BYTES`, `MAX_BUNDLE_FILES`, `MAX_BUNDLE_BYTES`).
+- `src/Schema/api-configuration.json` holds the `apiConfiguration` definition once, instead of a copy in 20 input files; `Dmstr\Flowable\Schema\InputSchemaLoader` resolves it for the MCP `inputSchema`, the input validation, the OpenAPI `requestBody` and the form-schema fallback, so no `$ref` or `$defs` reaches a client. `Dmstr\Flowable\Schema\InputSchemaFileResolver` is now the class of the service `flowable.input_schema_resolver` and composes `OperationInputSchemaResolver` of `dmstr/openapi-json-schema-bundle`.
+
+### Changed
+
+- **MCP: a tool whose input schema cannot be built is hidden.** When the input file of a tool is missing, holds no valid JSON or its path contains `..`, `McpToolSwitchResourceMetadataCollectionFactory` removes the tool from the resource metadata, so it is neither listed nor callable, while all other tools stay available. This applies with every combination of the switches, all three on included. The error is logged once per metadata cache warmup on the `flowable` channel (level `error`, message `flowable.mcp.tool_hidden`, context `tool`, `reason`, `error`, `exception`). A tool that its switch removes anyway is not checked.
+- `McpToolInputSchemaFactory` acts only on the bundle's resources (`Dmstr\Flowable\ApiResource\`, the same guard as the tool switches, `McpToolSwitchResourceMetadataCollectionFactory::isBundleResource()`); a foreign resource that uses the same `EXTRA_KEY` keeps the schema API Platform builds for it. `McpToolInputSchemaFactory::path()` rejects an input path containing `..`.
+- The help text of `--api-configuration` describes the strict format.
+- `dmstr/api-platform-utils-bundle` stays a dependency in `composer.json`, although the locator no longer uses it.
+
+### Security
+
+- The explicit selector no longer reaches the database: the locator checks its format and compares it in PHP with the ids of the active `flowable` configurations. Before, it went into the `LIKE` lookup of `UuidResolver`, where `%` and `_` acted as wildcards.
+- The upload file name is escaped in the `Content-Disposition` header of the multipart request to the engine (`"`, CR and LF, as browsers do), and the file name rule rejects quotes and control characters before, so a name cannot end the header parameter.
+- The id rule keeps dot segments, `/` and encoded characters out of the engine paths, for every caller.
+
+### Development
+
+- `tests/Schema/InputSchemaSnapshotTest.php` compares the resolved input schemas of all loading paths with a snapshot of 0.12.1 (`tests/Schema/snapshot-0.12.1/`), byte for byte, with the intended changes of this release (selector pattern in the `{uuid}` form, upload limits, `.dmn` only), and asserts that no output carries `$ref` or `$defs`.
+- Regression tests for the selector over HTTP, MCP, CLI and the worker start, the id rule, the upload rules and limits, the read tool validation and the hidden tools. The suite now has 1001 tests.
+
 ## [0.12.1] - 2026-11-24
 
 ### Changed
@@ -105,6 +148,7 @@ Pre-release for integration testing against a Flowable engine in a consuming app
 
 - `symfony/yaml` is required; `symfony/mcp-bundle` and `mcp/sdk` are suggested.
 
+[0.13.0]: https://github.com/dmstr/flowable-bundle/compare/0.12.1...0.13.0
 [0.11.0]: https://github.com/dmstr/flowable-bundle/compare/0.10.0...0.11.0
 [0.10.0]: https://github.com/dmstr/flowable-bundle/compare/0.9.0...0.10.0
 [0.9.0]: https://github.com/dmstr/flowable-bundle/compare/0.9.0-beta2...0.9.0
@@ -112,3 +156,4 @@ Pre-release for integration testing against a Flowable engine in a consuming app
 [0.9.0-beta1]: https://github.com/dmstr/flowable-bundle/compare/0.8.0...0.9.0-beta1
 
 <!-- - revised 2026-10-09 (0.9.0-beta2) -->
+<!-- - revised 2026-11-26 (0.13.0) -->
