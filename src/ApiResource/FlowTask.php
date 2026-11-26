@@ -112,7 +112,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             read: false,
             structuredContent: false,
             uriVariables: ['id' => new Link(fromClass: FlowTask::class, identifiers: ['id'])],
-            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowTask/complete.input.json', 'uriVariables' => ['id' => 'Id of the open user task to complete.']]],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => TaskCompleteProcessor::INPUT_SCHEMA, 'uriVariables' => ['id' => 'Id of the open user task to complete.']]],
         ),
     ],
     security: "is_granted('flowable:read')",
@@ -209,3 +209,4 @@ final class FlowTask
 }
 // - revised 2026-10-08 (MCP tools flowable_list_tasks, flowable_get_task_form, flowable_complete_task)
 // - revised 2026-10-09 (MCP: admin-only, destructiveHint)
+// - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)

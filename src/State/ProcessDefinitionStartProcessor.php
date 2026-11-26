@@ -17,9 +17,11 @@ use Dmstr\Flowable\ApiResource\FlowProcessInstance;
  */
 final class ProcessDefinitionStartProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowProcessDefinition/start.input.json';
+
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): FlowProcessInstance
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowProcessDefinition', 'start'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $payload = ['processDefinitionId' => (string) ($uriVariables['id'] ?? '')];
@@ -47,3 +49,4 @@ final class ProcessDefinitionStartProcessor extends AbstractFlowableProcessor im
     }
 }
 // - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody())

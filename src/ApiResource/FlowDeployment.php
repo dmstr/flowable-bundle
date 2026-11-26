@@ -125,7 +125,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             security: "is_granted('flowable:deploy')",
             processor: DeploymentBundleProcessor::class,
             read: false,
-            extraProperties: [McpToolSwitchResourceMetadataCollectionFactory::SWITCH_KEY => 'deploy', McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowDeployment/mcpBundle.input.json']],
+            extraProperties: [McpToolSwitchResourceMetadataCollectionFactory::SWITCH_KEY => 'deploy', McpToolInputSchemaFactory::EXTRA_KEY => ['input' => DeploymentBundleProcessor::INPUT_SCHEMA]],
         ),
     ],
     security: "is_granted('flowable:read')",
@@ -202,3 +202,4 @@ final class FlowDeployment
 // - revised 2026-10-08 (MCP tool flowable_deploy_bundle)
 // - revised 2026-10-09 (MCP: destructiveHint)
 // - revised 2026-11-26 (flowable_deploy_bundle: limits in the tool description)
+// - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)

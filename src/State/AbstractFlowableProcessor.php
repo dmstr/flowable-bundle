@@ -51,6 +51,19 @@ abstract class AbstractFlowableProcessor
         'deployment-source' => 'deploymentSource',
     ];
 
+    /**
+     * The input file of this processor's operations, relative to
+     * src/ApiResource (e.g. 'FlowTask/complete.input.json'), the one place
+     * that names it: {@see self::validatedBody()} validates the body of
+     * every operation the processor serves against it, HTTP and MCP alike,
+     * and an MCP tool served by the processor publishes the same constant as
+     * its input file (`McpToolInputSchemaFactory::EXTRA_KEY => ['input' =>
+     * TaskCompleteProcessor::INPUT_SCHEMA]`), so the published and the
+     * enforced schema have one source. Null for a processor that validates no
+     * body against a file (deletes, uploads).
+     */
+    public const ?string INPUT_SCHEMA = null;
+
     /** Built on first use from $flowableLogger, so the constructor stays as it is. */
     private ?FlowableAuditLogger $auditLogger = null;
 
@@ -235,9 +248,28 @@ abstract class AbstractFlowableProcessor
         return $out;
     }
 
-    protected function schemaPath(string $entity, string $verb): string
+    /**
+     * Absolute path of this processor's input file ({@see self::INPUT_SCHEMA}),
+     * or null when it validates no body against a file.
+     */
+    public static function inputSchemaPath(): ?string
     {
-        return InputSchemaPath::forOperation($entity, $verb);
+        return static::INPUT_SCHEMA === null ? null : InputSchemaPath::relative(static::INPUT_SCHEMA);
+    }
+
+    /**
+     * The raw body ({@see self::rawBody()}) validated against the full input
+     * file of this processor ({@see self::INPUT_SCHEMA}), decoded.
+     *
+     * @param array<string,mixed> $context operation context (MCP arguments)
+     * @return array<string,mixed>
+     */
+    protected function validatedBody(array $context): array
+    {
+        $path = static::inputSchemaPath()
+            ?? throw new \LogicException(sprintf('%s declares no INPUT_SCHEMA.', static::class));
+
+        return $this->validator->validateRaw($this->rawBody($context), $path);
     }
 
     /**
@@ -270,3 +302,4 @@ abstract class AbstractFlowableProcessor
 // - revised 2026-11-26 (audit entry written by Service\FlowableAuditLogger)
 // - revised 2026-11-26 (audited(): attempt, success and failure entries with origin and MCP tool name)
 // - revised 2026-11-26 (per-provider MCP input validation removed, done centrally)
+// - revised 2026-11-26 (INPUT_SCHEMA, inputSchemaPath() and validatedBody() replace schemaPath(): one source for the published and the enforced input file)

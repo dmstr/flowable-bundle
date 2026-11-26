@@ -73,7 +73,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             security: "is_granted('flowable:decision_evaluate')",
             processor: DecisionExecuteProcessor::class,
             read: false,
-            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowDecision/execute.input.json']],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => DecisionExecuteProcessor::INPUT_SCHEMA]],
         ),
     ],
     security: "is_granted('flowable:read')",
@@ -168,3 +168,4 @@ final class FlowDecision
     }
 }
 // - revised 2026-10-08 (MCP tool flowable_dmn_evaluate)
+// - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)

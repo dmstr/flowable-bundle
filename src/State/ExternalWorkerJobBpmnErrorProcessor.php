@@ -21,9 +21,11 @@ use ApiPlatform\State\ProcessorInterface;
  */
 final class ExternalWorkerJobBpmnErrorProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowExternalWorkerJob/bpmnError.input.json';
+
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): null
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowExternalWorkerJob', 'bpmnError'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $jobId = (string) ($uriVariables['id'] ?? '');
@@ -46,3 +48,4 @@ final class ExternalWorkerJobBpmnErrorProcessor extends AbstractFlowableProcesso
     }
 }
 // - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody())

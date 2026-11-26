@@ -72,7 +72,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             read: false,
             structuredContent: false,
             uriVariables: ['id' => new Link(fromClass: FlowExecution::class, identifiers: ['id'])],
-            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowExecution/trigger.input.json', 'uriVariables' => ['id' => 'Id of the waiting execution (not the process instance id).']]],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => ExecutionTriggerProcessor::INPUT_SCHEMA, 'uriVariables' => ['id' => 'Id of the waiting execution (not the process instance id).']]],
         ),
     ],
     security: "is_granted('flowable:read')",
@@ -147,3 +147,4 @@ final class FlowExecution
 }
 // - revised 2026-10-08 (MCP tool flowable_system_trigger_execution)
 // - revised 2026-10-09 (MCP: destructiveHint)
+// - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)

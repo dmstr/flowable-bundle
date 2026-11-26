@@ -95,7 +95,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             security: "is_granted('flowable:process_start')",
             processor: ProcessInstanceCreateProcessor::class,
             read: false,
-            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowProcessInstance/create.input.json']],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => ProcessInstanceCreateProcessor::INPUT_SCHEMA]],
         ),
     ],
     security: "is_granted('flowable:read')",
@@ -177,3 +177,4 @@ final class FlowProcessInstance
 }
 // - revised 2026-10-08 (MCP tools flowable_get_process_status, flowable_start_process)
 // - revised 2026-10-09 (MCP: admin-only, destructiveHint)
+// - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)

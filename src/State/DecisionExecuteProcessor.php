@@ -22,9 +22,11 @@ use Dmstr\Flowable\ApiResource\FlowDecision;
  */
 final class DecisionExecuteProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowDecision/execute.input.json';
+
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): FlowDecision
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowDecision', 'execute'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $decisionKey = (string) ($body['decisionKey'] ?? '');
@@ -73,3 +75,4 @@ final class DecisionExecuteProcessor extends AbstractFlowableProcessor implement
     }
 }
 // - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody() and the MCP tool)

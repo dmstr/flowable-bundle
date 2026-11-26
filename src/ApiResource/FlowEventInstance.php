@@ -61,7 +61,7 @@ use Dmstr\Flowable\State\EventInstanceCreateProcessor;
             processor: EventInstanceCreateProcessor::class,
             read: false,
             structuredContent: false,
-            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowEventInstance/create.input.json']],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => EventInstanceCreateProcessor::INPUT_SCHEMA]],
         ),
     ],
     security: "is_granted('flowable:read')",
@@ -79,3 +79,4 @@ final class FlowEventInstance
 }
 // - revised 2026-10-08 (MCP tool flowable_events_send)
 // - revised 2026-10-09 (MCP: destructiveHint)
+// - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)

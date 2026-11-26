@@ -26,11 +26,13 @@ use Dmstr\Flowable\ApiResource\FlowExternalWorkerJob;
  */
 final class ExternalWorkerJobAcquireProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowExternalWorkerJob/acquire.input.json';
+
     private const DEFAULT_LOCK_DURATION = 'PT10M';
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): FlowExternalWorkerJob
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowExternalWorkerJob', 'acquire'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $topic = (string) ($body['topic'] ?? '');
@@ -68,3 +70,4 @@ final class ExternalWorkerJobAcquireProcessor extends AbstractFlowableProcessor 
     }
 }
 // - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody())

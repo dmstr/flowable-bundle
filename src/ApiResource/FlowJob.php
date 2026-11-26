@@ -144,7 +144,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             read: false,
             structuredContent: false,
             uriVariables: ['id' => new Link(fromClass: FlowJob::class, identifiers: ['id'])],
-            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowJob/mcpExecuteTimer.input.json', 'uriVariables' => ['id' => 'Id of the timer job.']]],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => TimerJobExecuteProcessor::INPUT_SCHEMA, 'uriVariables' => ['id' => 'Id of the timer job.']]],
         ),
     ],
     security: "is_granted('flowable:read')",
@@ -291,3 +291,4 @@ final class FlowJob
 }
 // - revised 2026-10-08 (MCP tools flowable_system_list_deadletter_jobs, flowable_system_execute_timer_job)
 // - revised 2026-10-09 (MCP: admin-only)
+// - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)

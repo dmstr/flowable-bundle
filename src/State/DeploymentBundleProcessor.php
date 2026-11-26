@@ -32,12 +32,14 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
  */
 final class DeploymentBundleProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowDeployment/mcpBundle.input.json';
+
     /** Extensions accepted for files inside the bundle. */
     public const ENTRY_EXTENSIONS = ['bpmn', 'xml', 'form', 'json'];
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): FlowDeployment
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowDeployment', 'mcpBundle'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $files = self::files(\is_array($body['files'] ?? null) ? $body['files'] : []);
@@ -172,3 +174,4 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
 // - revised 2026-11-26 (shared upload file name rule, file count and size limits)
 // - revised 2026-11-26 (inline content decoding moved to UploadRule::decodeInlineContent)
 // - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody() and the MCP tool)
