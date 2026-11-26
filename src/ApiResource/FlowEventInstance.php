@@ -39,6 +39,7 @@ use Dmstr\Flowable\State\EventInstanceCreateProcessor;
         new Post(
             uriTemplate: '/event_instances',
             name: 'flow_event_instance_create',
+            extraProperties: ['custom_action' => true],
             description: 'Send an event instance to an inbound channel of the event registry (no message broker involved)',
             processor: EventInstanceCreateProcessor::class,
             deserialize: false,
@@ -81,3 +82,4 @@ final class FlowEventInstance
 // - revised 2026-10-09 (MCP: destructiveHint)
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
 // - revised 2026-11-26 (tool description: failures are JSON-RPC errors)
+// - revised 2026-11-26 (mark custom actions)

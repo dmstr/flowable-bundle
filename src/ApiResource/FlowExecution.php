@@ -53,6 +53,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/executions/{id}/trigger',
             name: 'flow_execution_trigger',
+            extraProperties: ['custom_action' => true],
             description: 'Trigger this waiting execution (e.g. a receive task), optionally passing variables',
             processor: ExecutionTriggerProcessor::class,
             deserialize: false,
@@ -151,3 +152,4 @@ final class FlowExecution
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
 // - revised 2026-11-26 (tool description: failures are JSON-RPC errors)
 // - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)
+// - revised 2026-11-26 (mark custom actions)

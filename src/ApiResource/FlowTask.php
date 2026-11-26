@@ -53,6 +53,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/tasks/{id}/complete',
             name: 'flow_task_complete',
+            extraProperties: ['custom_action' => true],
             description: 'Complete this user task, optionally passing variables',
             processor: TaskCompleteProcessor::class,
             deserialize: false,
@@ -213,3 +214,4 @@ final class FlowTask
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
 // - revised 2026-11-26 (tool description: failures are JSON-RPC errors)
 // - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)
+// - revised 2026-11-26 (mark custom actions)

@@ -56,6 +56,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/deployments/upload',
             name: 'flow_deployment_upload',
+            extraProperties: ['custom_action' => true],
             description: 'Deploy a BPMN/DMN/form resource or a .bar/.zip bundle to the engine',
             processor: DeploymentUploadProcessor::class,
             deserialize: false,
@@ -205,3 +206,4 @@ final class FlowDeployment
 // - revised 2026-11-26 (flowable_deploy_bundle: limits in the tool description)
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
 // - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)
+// - revised 2026-11-26 (mark custom actions)

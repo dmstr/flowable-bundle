@@ -56,6 +56,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/dmn_deployments/upload',
             name: 'flow_dmn_deployment_upload',
+            extraProperties: ['custom_action' => true],
             description: 'Deploy a .dmn decision resource or a .bar/.zip bundle to the DMN engine',
             processor: DmnDeploymentUploadProcessor::class,
             deserialize: false,
@@ -189,3 +190,4 @@ final class FlowDmnDeployment
 // - revised 2026-10-09 (MCP: destructiveHint)
 // - revised 2026-11-26 (flowable_dmn_deploy: only .dmn, size limit in the tool description)
 // - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)
+// - revised 2026-11-26 (mark custom actions)

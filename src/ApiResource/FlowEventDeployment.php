@@ -63,6 +63,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/event_deployments/upload',
             name: 'flow_event_deployment_upload',
+            extraProperties: ['custom_action' => true],
             description: 'Deploy a .event or .channel resource to the event registry',
             processor: EventDeploymentUploadProcessor::class,
             deserialize: false,
@@ -181,3 +182,4 @@ final class FlowEventDeployment
     }
 }
 // - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)
+// - revised 2026-11-26 (mark custom actions)

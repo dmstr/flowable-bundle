@@ -4,6 +4,20 @@
 
 All notable changes to this bundle. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/) and come from the Git tags. Releases before 0.9.0 are described in the [GitHub releases](https://github.com/dmstr/flowable-bundle/releases).
 
+## [0.15.0] - 2026-11-26
+
+The action operations of the HTTP API are marked as custom actions, so that `dmstr/api-platform-utils-bundle` 0.8 lists them as `schema:Action` in the Hydra documentation. No operation behaves differently; the raised requirements are the reason to read the breaking changes.
+
+### Breaking changes
+
+- **Requires `dmstr/api-platform-utils-bundle` `^0.8.0`**, replacing `^0.6.0`. Utils 0.8 classifies custom actions by the marker only, no longer by path depth. Applications on utils 0.6 or 0.7 stay on 0.14.0.
+- **Requires `dmstr/api-configuration-bundle` `^0.9.0`**, replacing `^0.7`. Applications on api-configuration-bundle 0.7 or 0.8 stay on 0.14.0. The constraint `dmstr/openapi-json-schema-bundle` `^0.5.0 || ^0.6.0` is unchanged, but api-configuration-bundle 0.9 requires openapi-json-schema-bundle `^0.6.0`, so only 0.6 can be installed.
+
+### Added
+
+- `extraProperties: ['custom_action' => true]` on 14 HTTP operations: `POST /decisions/execute`, `/deployments/upload`, `/dmn_deployments/upload`, `/event_deployments/upload`, `/event_instances`, `/executions/{id}/trigger`, `/external_worker_jobs/acquire`, `/external_worker_jobs/{id}/complete`, `/fail`, `/bpmnError`, `/unacquire`, `/process_definitions/{id}/start`, `/tasks/{id}/complete` and `GET /jobs/{id}/stacktrace`. In `/api/docs.jsonld` each carries `@type` `schema:Action`, the operation name as `hydra:title` (e.g. `flow_task_complete`) and its URL in `@id` or, for a path with `{id}`, in `hydra:uriTemplate`. Not marked: the two `input_schema` GETs, `POST /process_instances`, the other CRUD operations including `DELETE`, and the MCP tools. Compared with the path heuristic of utils 0.7 and older, the `input_schema` GETs are no longer listed as actions and `POST /event_instances` is listed for the first time. See "Custom actions in the Hydra documentation" in the README.
+- `tests/Metadata/CustomActionMarkerTest.php` and `tests/Http/CustomActionHydraDocumentationTest.php` pin the marked set and its shape in the Hydra documentation.
+
 ## [0.14.0] - 2026-11-26
 
 Completes [#18](https://github.com/dmstr/flowable-bundle/issues/18) after part A in 0.13.0: errors from the engine reach callers only as a generic message with a correlation id, every write leaves an attempt entry and then a success or failure entry in the audit log, for every transport, the arguments of every MCP tool of the bundle are validated in one central place, and the MCP switches must be literal booleans. Messages and log entries that callers or log pipelines match change; read the breaking changes before upgrading.
@@ -214,6 +228,7 @@ Pre-release for integration testing against a Flowable engine in a consuming app
 
 - `symfony/yaml` is required; `symfony/mcp-bundle` and `mcp/sdk` are suggested.
 
+[0.15.0]: https://github.com/dmstr/flowable-bundle/compare/0.14.0...0.15.0
 [0.14.0]: https://github.com/dmstr/flowable-bundle/compare/0.13.0...0.14.0
 [0.13.0]: https://github.com/dmstr/flowable-bundle/compare/0.12.1...0.13.0
 [0.12.1]: https://github.com/dmstr/flowable-bundle/compare/0.12.0...0.12.1
@@ -227,3 +242,4 @@ Pre-release for integration testing against a Flowable engine in a consuming app
 <!-- - revised 2026-10-09 (0.9.0-beta2) -->
 <!-- - revised 2026-11-26 (0.13.0) -->
 <!-- - revised 2026-11-26 (0.14.0) -->
+<!-- - revised 2026-11-26 (0.15.0) -->
