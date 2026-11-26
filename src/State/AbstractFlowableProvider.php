@@ -5,7 +5,6 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable\State;
 
-use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\Pagination\TraversablePaginator;
 use Dmstr\Flowable\Client\FlowableClientInterface;
 use Dmstr\Flowable\Client\FlowableClientLocator;
@@ -21,9 +20,9 @@ use Symfony\Component\HttpFoundation\RequestStack;
  * tool, parameters come from $context['mcp_data'] instead of the query string
  * (see OperationInputTrait). Without a context the request is read as before.
  *
- * A provider behind an MCP tool calls {@see self::validateMcpInput()} first:
- * the tool arguments are validated against the tool's published input schema
- * and the call is rejected when there is none. HTTP calls are not affected.
+ * The arguments of an MCP tool call are validated before the provider runs,
+ * by {@see McpToolInputValidationProvider} at the read step of the MCP
+ * provider chain; a provider does not validate them itself.
  */
 abstract class AbstractFlowableProvider
 {
@@ -32,20 +31,7 @@ abstract class AbstractFlowableProvider
     public function __construct(
         protected readonly FlowableClientLocator $locator,
         protected readonly RequestStack $requestStack,
-        protected readonly McpToolInputValidator $mcpInput = new McpToolInputValidator(),
     ) {
-    }
-
-    /**
-     * For an MCP tool call, validate the tool arguments against the input
-     * schema the tool publishes (URI variables included); fail-closed when the
-     * operation has no buildable input schema. No-op over HTTP.
-     *
-     * @param array<string,mixed> $context operation context (MCP arguments)
-     */
-    protected function validateMcpInput(Operation $operation, array $context): void
-    {
-        $this->mcpInput->validate($operation, $context);
     }
 
     /**
@@ -162,3 +148,4 @@ abstract class AbstractFlowableProvider
     }
 }
 // - revised 2026-11-26 (MCP tool arguments validated against the published input schema)
+// - revised 2026-11-26 (per-provider MCP input validation removed, done centrally)

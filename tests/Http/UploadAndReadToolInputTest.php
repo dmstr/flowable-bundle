@@ -21,8 +21,9 @@ use Symfony\Component\HttpFoundation\Response;
  *    for flowable_deploy_bundle, 255 characters for names and deployment
  *    fields;
  *  - flowable_dmn_deploy takes a single .dmn, archives only over HTTP;
- *  - read tools validate their arguments against their published schema,
- *    HTTP reads ignore what they did before.
+ *  - the arguments of the read tools and of flowable_dmn_deploy are
+ *    validated against their published schema before the tool's state class
+ *    runs, HTTP reads ignore what they did before.
  *
  * A rejected call never reaches the engine.
  */
@@ -140,6 +141,35 @@ final class UploadAndReadToolInputTest extends ApiTestCase
         ], [P::roleFor(P::DEPLOY)]);
 
         $this->assertRejected($result, '/name');
+    }
+
+    /**
+     * Arguments outside the published schema of flowable_dmn_deploy, and the
+     * schema path the error names. The processor does not validate them
+     * against the schema itself; the central validation rejects them first.
+     *
+     * @return iterable<string, array{array<string, mixed>, string}>
+     */
+    public static function invalidDmnArguments(): iterable
+    {
+        yield 'unknown property' => [['name' => 'rates.dmn', 'content' => self::DMN, 'unknown' => 1], 'unknown'];
+        yield 'name as number' => [['name' => 5, 'content' => self::DMN], '/name'];
+        yield 'contentEncoding not base64' => [['name' => 'rates.dmn', 'content' => self::DMN, 'contentEncoding' => 'hex'], '/contentEncoding'];
+        yield 'content missing' => [['name' => 'rates.dmn'], 'content'];
+        yield 'archive name' => [['name' => 'rates.bar', 'content' => base64_encode('PK'), 'contentEncoding' => 'base64'], '/name'];
+    }
+
+    /**
+     * @param array<string, mixed> $arguments
+     */
+    #[DataProvider('invalidDmnArguments')]
+    public function testDmnToolRejectsArgumentsOutsideItsSchema(array $arguments, string $path): void
+    {
+        $result = $this->mcpCallTool('flowable_dmn_deploy', $arguments, [P::roleFor(P::DEPLOY)]);
+
+        $this->assertRejected($result, 'Input validation failed');
+        self::assertStringContainsString($path, json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        self::assertSame([], $this->flowableLog()->records(), 'a call rejected by the schema is not audited');
     }
 
     /**
@@ -315,6 +345,7 @@ final class UploadAndReadToolInputTest extends ApiTestCase
             yield $tool . ' itemsPerPage 201' => [$tool, ['itemsPerPage' => 201], '/itemsPerPage'];
             yield $tool . ' unknown property' => [$tool, ['unknown' => 'x'], 'unknown'];
         }
+        yield 'flowable_system_list_deadletter_jobs kind' => ['flowable_system_list_deadletter_jobs', ['kind' => 'async'], 'kind'];
         foreach (['flowable_get_task_form', 'flowable_get_process_status', 'flowable_history_get'] as $tool) {
             yield $tool . ' unknown property' => [$tool, ['id' => 'x1', 'unknown' => 'x'], 'unknown'];
             yield $tool . ' page' => [$tool, ['id' => 'x1', 'page' => 2], 'page'];
@@ -422,3 +453,4 @@ final class UploadAndReadToolInputTest extends ApiTestCase
         self::assertNotSame([], $this->engine()->requests);
     }
 }
+// - revised 2026-11-26 (kind on the deadletter tool, schema errors of flowable_dmn_deploy)

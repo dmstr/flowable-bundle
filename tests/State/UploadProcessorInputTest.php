@@ -17,7 +17,6 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
  * Upload processors take the resource inline (name/content) from MCP tool
@@ -337,14 +336,20 @@ final class UploadProcessorInputTest extends StateTestCase
         yield '.DMN.zip' => ['rates.DMN.zip'];
     }
 
+    /**
+     * Over the MCP transport the published schema rejects an archive name
+     * before the processor runs (Tests\Http\UploadAndReadToolInputTest::
+     * testDmnToolRejectsArchives); the processor's own extension check holds
+     * behind it.
+     */
     #[DataProvider('dmnArchives')]
-    public function testDmnToolRejectsArchives(string $name): void
+    public function testDmnProcessorItselfRejectsArchives(string $name): void
     {
         $client = $this->createMock(FlowableClientInterface::class);
         $client->expects($this->never())->method('createDmnDeployment');
 
-        $this->expectException(UnprocessableEntityHttpException::class);
-        $this->expectExceptionMessage('Input validation failed');
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('Allowed: dmn (archives .bar/.zip only through the HTTP upload).');
         $this->processor(DmnDeploymentUploadProcessor::class, $client)->process(null, self::mcpTool('flowable_dmn_deploy'), [], self::mcpContext([
             'name' => $name,
             'content' => base64_encode('PK'),
@@ -384,3 +389,4 @@ final class UploadProcessorInputTest extends StateTestCase
 }
 // - revised 2026-11-26 (explicit selection proven through a decoy configuration)
 // - revised 2026-11-26 (upload file name rule, inline byte limits, .dmn over MCP, non-string selectors)
+// - revised 2026-11-26 (.dmn rule: processor's own check; schema rejection tested over the transport)

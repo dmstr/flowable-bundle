@@ -61,7 +61,6 @@ abstract class AbstractFlowableProcessor
         protected readonly FlowableVariableMapper $variableMapper,
         protected readonly ActingUserResolver $actingUser,
         protected readonly LoggerInterface $flowableLogger,
-        protected readonly McpToolInputValidator $mcpInput = new McpToolInputValidator(),
     ) {
     }
 
@@ -270,3 +269,4 @@ abstract class AbstractFlowableProcessor
 // - revised 2026-11-26 (configurationId() moved to OperationInputTrait)
 // - revised 2026-11-26 (audit entry written by Service\FlowableAuditLogger)
 // - revised 2026-11-26 (audited(): attempt, success and failure entries with origin and MCP tool name)
+// - revised 2026-11-26 (per-provider MCP input validation removed, done centrally)

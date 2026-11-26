@@ -18,10 +18,10 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
  * one schema.
  *
  * Used for every tool call of the bundle's resources by the central
- * {@see McpToolInputValidationProvider}, and where no body is validated
- * against the schema file: the read tools (their providers) and
- * flowable_dmn_deploy. Over HTTP (no mcp_data in the context) it does
- * nothing; the HTTP query parameters are read as before.
+ * {@see McpToolInputValidationProvider}, the only caller of validate(); the
+ * write processors additionally validate the body against the full input
+ * file. Over HTTP (no mcp_data in the context) it does nothing; the HTTP
+ * query parameters are read as before.
  *
  * Fail-closed: a call whose operation is not an McpTool, declares no input
  * schema or has one that cannot be built is rejected, never let through
@@ -92,3 +92,4 @@ final class McpToolInputValidator
 }
 // - revised 2026-11-26 (opis validation shared with InputSchemaValidator)
 // - revised 2026-11-26 (docblock: used by the central McpToolInputValidationProvider)
+// - revised 2026-11-26 (docblock: the central provider is the only caller)

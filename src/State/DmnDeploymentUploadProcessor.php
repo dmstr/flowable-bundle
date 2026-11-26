@@ -20,11 +20,13 @@ use Dmstr\Flowable\ApiResource\FlowDmnDeployment;
  *
  * As an MCP tool (flowable_dmn_deploy) the resource is passed inline instead
  * (name, content, optional contentEncoding "base64"; see
- * AbstractFlowableProcessor), the arguments are validated against the
- * published input schema of the tool, and only a single .dmn is accepted:
- * archives (.bar, .zip) stay with the HTTP upload. The transport is told
- * apart by the MCP tool arguments in the operation context (mcp_data), which
- * only API Platform's MCP handler sets.
+ * AbstractFlowableProcessor) and only a single .dmn is accepted: archives
+ * (.bar, .zip) stay with the HTTP upload. The arguments have been validated
+ * against the published input schema of the tool before the processor runs
+ * (McpToolInputValidationProvider); the processor still applies the file
+ * name rule, the extension check and the content decoding itself. The
+ * transport is told apart by the MCP tool arguments in the operation context
+ * (mcp_data), which only API Platform's MCP handler sets.
  *
  * @implements ProcessorInterface<mixed, FlowDmnDeployment>
  */
@@ -40,7 +42,7 @@ final class DmnDeploymentUploadProcessor extends AbstractFlowableProcessor imple
     {
         $resource = null === $this->mcpData($context)
             ? $this->uploadedResource($context, self::ALLOWED_EXTENSIONS)
-            : $this->mcpResource($operation, $context);
+            : $this->uploadedResource($context, self::MCP_EXTENSIONS, ' (archives .bar/.zip only through the HTTP upload)');
         $filename = $resource['name'];
 
         $client = $this->client($this->uploadFields($context, ['apiConfiguration']), $context);
@@ -56,17 +58,7 @@ final class DmnDeploymentUploadProcessor extends AbstractFlowableProcessor imple
             static fn (FlowDmnDeployment $deployment): array => ['deployment' => $deployment->id],
         );
     }
-
-    /**
-     * @param array<string,mixed> $context
-     * @return array{name:string,content:string}
-     */
-    private function mcpResource(Operation $operation, array $context): array
-    {
-        $this->mcpInput->validate($operation, $context);
-
-        return $this->uploadedResource($context, self::MCP_EXTENSIONS, ' (archives .bar/.zip only through the HTTP upload)');
-    }
 }
 // - revised 2026-11-26 (only .dmn over MCP, arguments validated against the published schema)
 // - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (per-provider MCP input validation removed, done centrally)

@@ -32,14 +32,12 @@ final class FlowTaskFormProvider extends AbstractFlowableProvider implements Pro
         FlowableClientLocator $locator,
         RequestStack $requestStack,
         private readonly TaskInputSchema $taskInputSchema,
-        McpToolInputValidator $mcpInput = new McpToolInputValidator(),
     ) {
-        parent::__construct($locator, $requestStack, $mcpInput);
+        parent::__construct($locator, $requestStack);
     }
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): FlowTaskForm
     {
-        $this->validateMcpInput($operation, $context);
         $taskId = self::requiredId($uriVariables, 'user task id');
         $apiConfiguration = $this->queryParam('apiConfiguration', $context);
 
@@ -55,3 +53,4 @@ final class FlowTaskFormProvider extends AbstractFlowableProvider implements Pro
     }
 }
 // - revised 2026-11-26 (MCP tool arguments validated against the published input schema)
+// - revised 2026-11-26 (per-provider MCP input validation removed, done centrally)
