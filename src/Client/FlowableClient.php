@@ -6,6 +6,7 @@ declare(strict_types=1);
 namespace Dmstr\Flowable\Client;
 
 use Dmstr\Flowable\Exception\FlowableApiException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -82,7 +83,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findDeployment(string $id): ?array
     {
-        return $this->findOne('/service/repository/deployments/'.rawurlencode($id));
+        return $this->findOne('/service/repository/deployments/'.self::idSegment($id));
     }
 
     public function createDeployment(string $filename, string $content, array $fields = []): array
@@ -100,7 +101,7 @@ final class FlowableClient implements FlowableClientInterface
     public function deleteDeployment(string $id, bool $cascade = false): void
     {
         $query = $cascade ? ['cascade' => 'true'] : [];
-        $this->request('DELETE', '/service/repository/deployments/'.rawurlencode($id), $query);
+        $this->request('DELETE', '/service/repository/deployments/'.self::idSegment($id), $query);
     }
 
     public function listProcessDefinitions(array $query = []): array
@@ -110,7 +111,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findProcessDefinition(string $id): ?array
     {
-        return $this->findOne('/service/repository/process-definitions/'.rawurlencode($id));
+        return $this->findOne('/service/repository/process-definitions/'.self::idSegment($id));
     }
 
     public function listProcessInstances(array $query = []): array
@@ -120,7 +121,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findProcessInstance(string $id): ?array
     {
-        return $this->findOne('/service/runtime/process-instances/'.rawurlencode($id));
+        return $this->findOne('/service/runtime/process-instances/'.self::idSegment($id));
     }
 
     public function startProcessInstance(array $payload): array
@@ -130,7 +131,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function deleteProcessInstance(string $id): void
     {
-        $this->request('DELETE', '/service/runtime/process-instances/'.rawurlencode($id));
+        $this->request('DELETE', '/service/runtime/process-instances/'.self::idSegment($id));
     }
 
     public function listTasks(array $query = []): array
@@ -140,12 +141,12 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findTask(string $id): ?array
     {
-        return $this->findOne('/service/runtime/tasks/'.rawurlencode($id));
+        return $this->findOne('/service/runtime/tasks/'.self::idSegment($id));
     }
 
     public function completeTask(string $id, array $payload): ?array
     {
-        return $this->decodeOrNull($this->request('POST', '/service/runtime/tasks/'.rawurlencode($id), [], $payload));
+        return $this->decodeOrNull($this->request('POST', '/service/runtime/tasks/'.self::idSegment($id), [], $payload));
     }
 
     public function listExecutions(array $query = []): array
@@ -155,12 +156,12 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findExecution(string $id): ?array
     {
-        return $this->findOne('/service/runtime/executions/'.rawurlencode($id));
+        return $this->findOne('/service/runtime/executions/'.self::idSegment($id));
     }
 
     public function triggerExecution(string $executionId, array $payload): ?array
     {
-        return $this->decodeOrNull($this->request('PUT', '/service/runtime/executions/'.rawurlencode($executionId), [], $payload));
+        return $this->decodeOrNull($this->request('PUT', '/service/runtime/executions/'.self::idSegment($executionId), [], $payload));
     }
 
     public function getTaskFormData(string $taskId): ?array
@@ -171,7 +172,7 @@ final class FlowableClient implements FlowableClientInterface
     public function getTaskVariables(string $taskId): array
     {
         try {
-            $raw = $this->decode($this->request('GET', '/service/runtime/tasks/'.rawurlencode($taskId).'/variables'));
+            $raw = $this->decode($this->request('GET', '/service/runtime/tasks/'.self::idSegment($taskId).'/variables'));
         } catch (FlowableApiException $e) {
             if (404 === $e->getStatusCode()) {
                 return [];
@@ -199,14 +200,14 @@ final class FlowableClient implements FlowableClientInterface
 
     public function listDeploymentResources(string $deploymentId): array
     {
-        $data = $this->decode($this->request('GET', '/service/repository/deployments/'.rawurlencode($deploymentId).'/resources'));
+        $data = $this->decode($this->request('GET', '/service/repository/deployments/'.self::idSegment($deploymentId).'/resources'));
 
         return array_values(array_filter($data, 'is_array'));
     }
 
     public function getDeploymentResource(string $deploymentId, string $resourceId): ?string
     {
-        $path = '/service/repository/deployments/'.rawurlencode($deploymentId).'/resourcedata/'.rawurlencode($resourceId);
+        $path = '/service/repository/deployments/'.self::idSegment($deploymentId).'/resourcedata/'.self::resourceSegment($resourceId);
         try {
             return $this->request('GET', $path)->getContent(false);
         } catch (FlowableApiException $e) {
@@ -226,12 +227,12 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findHistoricProcessInstance(string $id): ?array
     {
-        return $this->findOne('/service/history/historic-process-instances/'.rawurlencode($id));
+        return $this->findOne('/service/history/historic-process-instances/'.self::idSegment($id));
     }
 
     public function deleteHistoricProcessInstance(string $id): void
     {
-        $this->request('DELETE', '/service/history/historic-process-instances/'.rawurlencode($id));
+        $this->request('DELETE', '/service/history/historic-process-instances/'.self::idSegment($id));
     }
 
     public function listHistoricTasks(array $query = []): array
@@ -241,7 +242,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findHistoricTask(string $id): ?array
     {
-        return $this->findOne('/service/history/historic-task-instances/'.rawurlencode($id));
+        return $this->findOne('/service/history/historic-task-instances/'.self::idSegment($id));
     }
 
     public function listHistoricVariables(array $query = []): array
@@ -261,7 +262,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findDmnDeployment(string $id): ?array
     {
-        return $this->findOne('/dmn-api/dmn-repository/deployments/'.rawurlencode($id));
+        return $this->findOne('/dmn-api/dmn-repository/deployments/'.self::idSegment($id));
     }
 
     public function createDmnDeployment(string $filename, string $content, array $fields = []): array
@@ -278,7 +279,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function deleteDmnDeployment(string $id): void
     {
-        $this->request('DELETE', '/dmn-api/dmn-repository/deployments/'.rawurlencode($id));
+        $this->request('DELETE', '/dmn-api/dmn-repository/deployments/'.self::idSegment($id));
     }
 
     public function listDecisions(array $query = []): array
@@ -288,7 +289,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findDecision(string $id): ?array
     {
-        return $this->findOne('/dmn-api/dmn-repository/decisions/'.rawurlencode($id));
+        return $this->findOne('/dmn-api/dmn-repository/decisions/'.self::idSegment($id));
     }
 
     public function executeDecision(array $payload): array
@@ -308,7 +309,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findHistoricDecisionExecution(string $id): ?array
     {
-        return $this->findOne('/dmn-api/dmn-history/historic-decision-executions/'.rawurlencode($id));
+        return $this->findOne('/dmn-api/dmn-history/historic-decision-executions/'.self::idSegment($id));
     }
 
     public function listEventDeployments(array $query = []): array
@@ -318,7 +319,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findEventDeployment(string $id): ?array
     {
-        return $this->findOne('/event-registry-api/event-registry-repository/deployments/'.rawurlencode($id));
+        return $this->findOne('/event-registry-api/event-registry-repository/deployments/'.self::idSegment($id));
     }
 
     public function createEventDeployment(string $filename, string $content, array $query = []): array
@@ -338,7 +339,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function deleteEventDeployment(string $id): void
     {
-        $this->request('DELETE', '/event-registry-api/event-registry-repository/deployments/'.rawurlencode($id));
+        $this->request('DELETE', '/event-registry-api/event-registry-repository/deployments/'.self::idSegment($id));
     }
 
     public function listEventDefinitions(array $query = []): array
@@ -348,7 +349,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findEventDefinition(string $id): ?array
     {
-        return $this->findOne('/event-registry-api/event-registry-repository/event-definitions/'.rawurlencode($id));
+        return $this->findOne('/event-registry-api/event-registry-repository/event-definitions/'.self::idSegment($id));
     }
 
     public function listChannelDefinitions(array $query = []): array
@@ -358,7 +359,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findChannelDefinition(string $id): ?array
     {
-        return $this->findOne('/event-registry-api/event-registry-repository/channel-definitions/'.rawurlencode($id));
+        return $this->findOne('/event-registry-api/event-registry-repository/channel-definitions/'.self::idSegment($id));
     }
 
     public function getEventRegistryEngineInfo(): array
@@ -397,22 +398,22 @@ final class FlowableClient implements FlowableClientInterface
 
     public function completeExternalWorkerJob(string $id, array $payload): void
     {
-        $this->request('POST', '/external-job-api/acquire/jobs/'.rawurlencode($id).'/complete', [], $payload);
+        $this->request('POST', '/external-job-api/acquire/jobs/'.self::idSegment($id).'/complete', [], $payload);
     }
 
     public function failExternalWorkerJob(string $id, array $payload): void
     {
-        $this->request('POST', '/external-job-api/acquire/jobs/'.rawurlencode($id).'/fail', [], $payload);
+        $this->request('POST', '/external-job-api/acquire/jobs/'.self::idSegment($id).'/fail', [], $payload);
     }
 
     public function bpmnErrorExternalWorkerJob(string $id, array $payload): void
     {
-        $this->request('POST', '/external-job-api/acquire/jobs/'.rawurlencode($id).'/bpmnError', [], $payload);
+        $this->request('POST', '/external-job-api/acquire/jobs/'.self::idSegment($id).'/bpmnError', [], $payload);
     }
 
     public function unacquireExternalWorkerJob(string $id, array $payload): void
     {
-        $this->request('POST', '/external-job-api/unacquire/jobs/'.rawurlencode($id), [], $payload);
+        $this->request('POST', '/external-job-api/unacquire/jobs/'.self::idSegment($id), [], $payload);
     }
 
     public function unacquireAllExternalWorkerJobs(array $payload): void
@@ -427,7 +428,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findExternalWorkerJob(string $id): ?array
     {
-        return $this->findOne('/external-job-api/jobs/'.rawurlencode($id));
+        return $this->findOne('/external-job-api/jobs/'.self::idSegment($id));
     }
 
     public function listJobs(array $query = []): array
@@ -457,7 +458,7 @@ final class FlowableClient implements FlowableClientInterface
 
     public function findJob(string $id, string $kind = 'async'): ?array
     {
-        return $this->findOne($this->jobCollection($kind).'/'.rawurlencode($id));
+        return $this->findOne($this->jobCollection($kind).'/'.self::idSegment($id));
     }
 
     public function getJobExceptionStacktrace(string $id, string $kind = 'async'): ?string
@@ -468,7 +469,7 @@ final class FlowableClient implements FlowableClientInterface
             return null;
         }
 
-        $path = $this->jobCollection($kind).'/'.rawurlencode($id).'/exception-stacktrace';
+        $path = $this->jobCollection($kind).'/'.self::idSegment($id).'/exception-stacktrace';
         try {
             // text/plain, not JSON — read the body verbatim.
             return $this->request('GET', $path)->getContent(false);
@@ -485,7 +486,7 @@ final class FlowableClient implements FlowableClientInterface
     public function executeTimerJob(string $id): void
     {
         // The engine answers 204 No Content — there is no body to decode.
-        $this->request('POST', $this->jobCollection('timer').'/'.rawurlencode($id), [], ['action' => 'move']);
+        $this->request('POST', $this->jobCollection('timer').'/'.self::idSegment($id), [], ['action' => 'move']);
     }
 
     private function jobCollection(string $kind): string
@@ -496,6 +497,43 @@ final class FlowableClient implements FlowableClientInterface
                 $kind,
                 implode(', ', array_keys(self::JOB_COLLECTIONS)),
             ));
+    }
+
+    /**
+     * The one rule for every id that becomes a segment of an engine path:
+     * a letter or digit, then letters, digits, ":", ".", "_" or "-". This
+     * rejects the empty string, dot segments, "/", "%" and any non-ASCII
+     * character before a request is sent, for every caller (HTTP, MCP, CLI).
+     *
+     * @throws BadRequestHttpException when the id does not match the rule
+     */
+    private static function idSegment(string $id): string
+    {
+        if (preg_match('/\A[A-Za-z0-9][A-Za-z0-9:._-]*\z/', $id) !== 1) {
+            throw new BadRequestHttpException(
+                'Invalid Flowable id: expected a letter or digit followed by letters, digits, ":", ".", "_" or "-".',
+            );
+        }
+
+        return rawurlencode($id);
+    }
+
+    /**
+     * A deployment resource name comes from engine data (e.g.
+     * "<formKey>.schema.json", and a formKey may contain "/" or spaces), so
+     * only dot segments are rejected; the name is sent as one encoded segment.
+     *
+     * @throws BadRequestHttpException when the name contains a dot segment
+     */
+    private static function resourceSegment(string $resourceId): string
+    {
+        foreach (explode('/', $resourceId) as $segment) {
+            if ($segment === '.' || $segment === '..') {
+                throw new BadRequestHttpException('Invalid Flowable resource name: "." and ".." segments are not allowed.');
+            }
+        }
+
+        return rawurlencode($resourceId);
     }
 
     /**
@@ -570,6 +608,10 @@ final class FlowableClient implements FlowableClientInterface
                 .'Content-Disposition: form-data; name="'.$name.'"'.$eol.$eol
                 .$value.$eol;
         }
+
+        // Escape the file name as browsers do (WHATWG multipart/form-data), so
+        // a quote, CR or LF in it cannot end the parameter or the header.
+        $filename = strtr($filename, ['"' => '%22', "\r" => '%0D', "\n" => '%0A']);
 
         $body .= '--'.$boundary.$eol
             .'Content-Disposition: form-data; name="'.$fileField.'"; filename="'.$filename.'"'.$eol
@@ -649,3 +691,4 @@ final class FlowableClient implements FlowableClientInterface
     }
 }
 // - revised 2026-10-08 (executeTimerJob for the MCP timer tool)
+// - revised 2026-11-26 (id rule for engine paths, escaped multipart file name)
