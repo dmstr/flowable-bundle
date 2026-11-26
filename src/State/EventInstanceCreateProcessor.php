@@ -25,6 +25,8 @@ use ApiPlatform\State\ProcessorInterface;
  */
 final class EventInstanceCreateProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowEventInstance/create.input.json';
+
     /** Body keys the engine's event-instance endpoint accepts. */
     private const PAYLOAD_KEYS = [
         'eventDefinitionId',
@@ -37,7 +39,7 @@ final class EventInstanceCreateProcessor extends AbstractFlowableProcessor imple
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): null
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowEventInstance', 'create'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $payload = [];
@@ -54,12 +56,18 @@ final class EventInstanceCreateProcessor extends AbstractFlowableProcessor imple
             $payload['eventPayload'] = new \stdClass();
         }
 
-        $client->createEventInstance($payload);
-        $this->audit('event_instance.create', [
-            'eventDefinition' => $body['eventDefinitionKey'] ?? $body['eventDefinitionId'] ?? null,
-            'channelDefinition' => $body['channelDefinitionKey'] ?? $body['channelDefinitionId'] ?? null,
-        ]);
+        $this->audited(
+            'event_instance.create',
+            $context,
+            [
+                'eventDefinition' => $body['eventDefinitionKey'] ?? $body['eventDefinitionId'] ?? null,
+                'channelDefinition' => $body['channelDefinitionKey'] ?? $body['channelDefinitionId'] ?? null,
+            ],
+            static fn () => $client->createEventInstance($payload),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody() and the MCP tool)

@@ -16,15 +16,15 @@ use Dmstr\Flowable\State\FlowJobProvider;
 use Dmstr\Flowable\State\FlowProcessDefinitionProvider;
 use Dmstr\Flowable\State\FlowTaskProvider;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
  * Providers read query/list parameters from $context['mcp_data'] for an MCP
  * tool call and from the query string otherwise.
  *
- * An MCP call goes through a real McpTool: the provider validates the
- * arguments against the tool's input schema first, so only arguments the
- * schema declares reach it.
+ * An MCP call uses the real McpTool of its tool with arguments its input
+ * schema declares: over the MCP transport the arguments are validated before
+ * the provider runs (State\McpToolInputValidationProvider, see
+ * Tests\Http\UploadAndReadToolInputTest), the provider does not validate.
  */
 final class ProviderInputTest extends StateTestCase
 {
@@ -63,16 +63,6 @@ final class ProviderInputTest extends StateTestCase
 
         self::assertInstanceOf(TraversablePaginator::class, $result);
         self::assertSame(2.0, $result->getCurrentPage());
-    }
-
-    public function testTaskListRejectsAnArgumentOutsideItsSchema(): void
-    {
-        $client = $this->createMock(FlowableClientInterface::class);
-        $client->expects($this->never())->method($this->anything());
-
-        $this->expectException(UnprocessableEntityHttpException::class);
-        (new FlowTaskProvider($this->locator($client), $this->requestStack()))
-            ->provide(self::mcpTool('flowable_list_tasks'), [], self::mcpContext(['notAFilter' => 'ignored']));
     }
 
     public function testTaskListFromQueryAsBefore(): void
@@ -155,3 +145,4 @@ final class ProviderInputTest extends StateTestCase
 }
 // - revised 2026-11-26 (explicit selection proven through a decoy configuration)
 // - revised 2026-11-26 (MCP calls through real McpTool operations, arguments validated against the tool schema)
+// - revised 2026-11-26 (argument validation moved to the transport-level tests)

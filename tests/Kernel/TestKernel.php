@@ -9,6 +9,8 @@ use ApiPlatform\Symfony\Bundle\ApiPlatformBundle;
 use Dmstr\ApiConfiguration\ApiConfigurationBundle;
 use Dmstr\ApiPlatformUtils\ApiPlatformUtilsBundle;
 use Dmstr\Flowable\FlowableBundle;
+use Dmstr\Flowable\State\FlowProcessDefinitionProvider;
+use Dmstr\Flowable\Tests\Fixtures\ForeignMcp\ForeignMcpToolProvider;
 use Dmstr\OpenApiJsonSchema\OpenApiJsonSchemaBundle;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Doctrine\Bundle\MigrationsBundle\DoctrineMigrationsBundle;
@@ -18,6 +20,7 @@ use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
@@ -38,12 +41,40 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
  * - API Platform routes below {@see self::API_PREFIX}, the MCP endpoint at
  *   {@see self::MCP_PATH}. All three `dmstr_flowable.mcp` switches are on, as
  *   the bundle removes its MCP tools otherwise.
+ * - The bundle's `flowable` logger channel is a {@see RecordingLogger}
+ *   (public service {@see self::FLOWABLE_LOGGER}); the general `logger`
+ *   stays silent.
  * - Two variants, selected by the kernel environment:
  *   {@see self::ENV_WITH_VOTER} registers {@see TestPermissionVoter},
  *   {@see self::ENV_NO_VOTER} registers no custom voter at all.
+ * - Further variants through the constructor's $options, on top of either
+ *   environment:
+ *   - `mcp`: the `dmstr_flowable.mcp` extension config, passed as given
+ *     instead of the three switches on; values may be env placeholders such
+ *     as `'%env(bool:FLOWABLE_MCP_READ)%'`;
+ *   - `parameters`: extra container parameters set by the "application",
+ *     e.g. `['dmstr_flowable.mcp.read' => false]`;
+ *   - `use_symfony_listeners`: API Platform's switch of that name (not set
+ *     otherwise, API Platform's default is false);
+ *   - `api_platform_mcp`: false turns API Platform's MCP support off
+ *     (`api_platform.mcp.enabled`), so there is no MCP handler and no tool;
+ *     symfony/mcp-bundle stays registered;
+ *   - `mcp_fixtures`: true replaces the bundle's FlowProcessDefinitionProvider
+ *     by {@see NonValidatingProcessDefinitionProvider} (as an application
+ *     would, for HTTP and the tool flowable_list_process_definitions alike)
+ *     and adds the application tool
+ *     {@see \Dmstr\Flowable\Tests\Fixtures\ForeignMcp\ForeignMcpTool};
+ *     both providers are public so that tests can read their calls.
+ *   A kernel with options gets its own environment name, the given one plus
+ *   a hash of the options, so every configuration compiles its own
+ *   container in its own cache directory.
  *
  * Cache and logs live under the system temp directory, one directory per
- * variant, so a test run leaves no files in the repository.
+ * environment name, so a test run leaves no files in the repository. A
+ * kernel with `$debug = false` gets a directory of its own, which is emptied
+ * once per PHP process: without debug, Symfony loads a cached container
+ * without checking it for freshness, so a container compiled from older code
+ * would survive.
  */
 final class TestKernel extends Kernel
 {
@@ -63,6 +94,44 @@ final class TestKernel extends Kernel
 
     /** 32 raw bytes, as CredentialEncryption expects them */
     public const string CREDENTIALS_KEY = '0123456789abcdef0123456789abcdef';
+
+    /** The service id the bundle binds its audit and error logger to */
+    public const string FLOWABLE_LOGGER = 'monolog.logger.flowable';
+
+    private const array OPTIONS = ['mcp', 'parameters', 'use_symfony_listeners', 'api_platform_mcp', 'mcp_fixtures'];
+
+    /** The environment given to the constructor, without the options hash */
+    private readonly string $variantOf;
+
+    /** @var array<string, true> non-debug directories emptied in this process */
+    private static array $clearedNonDebugDirs = [];
+
+    /**
+     * @param array{mcp?: array<string, mixed>, parameters?: array<string, mixed>, use_symfony_listeners?: bool, api_platform_mcp?: bool, mcp_fixtures?: bool} $options
+     *        see the class docblock; [] is the plain kernel of the environment
+     */
+    public function __construct(string $environment, bool $debug, private readonly array $options = [])
+    {
+        $unknown = array_diff(array_keys($options), self::OPTIONS);
+        if ($unknown !== []) {
+            throw new \InvalidArgumentException(sprintf(
+                'Unknown TestKernel option(s) "%s". Allowed: %s.',
+                implode('", "', $unknown),
+                implode(', ', self::OPTIONS),
+            ));
+        }
+
+        $this->variantOf = $environment;
+        parent::__construct(
+            $options === [] ? $environment : $environment . '_' . substr(hash('xxh128', serialize($options)), 0, 12),
+            $debug,
+        );
+
+        if (!$debug && !isset(self::$clearedNonDebugDirs[$this->tmpDir()])) {
+            self::$clearedNonDebugDirs[$this->tmpDir()] = true;
+            (new Filesystem())->remove($this->tmpDir());
+        }
+    }
 
     public function registerBundles(): iterable
     {
@@ -108,12 +177,12 @@ final class TestKernel extends Kernel
 
     public function hasPermissionVoter(): bool
     {
-        return $this->environment !== self::ENV_NO_VOTER;
+        return $this->variantOf !== self::ENV_NO_VOTER;
     }
 
     private function tmpDir(): string
     {
-        return sys_get_temp_dir() . '/dmstr-flowable-bundle-tests/' . $this->environment;
+        return sys_get_temp_dir() . '/dmstr-flowable-bundle-tests/' . $this->environment . ($this->debug ? '' : '_no_debug');
     }
 
     private function configureContainer(ContainerConfigurator $container): void
@@ -121,8 +190,11 @@ final class TestKernel extends Kernel
         $projectDir = $this->getProjectDir();
         $apiConfigurationEntities = $this->apiConfigurationDir() . '/src/Entity';
 
-        $container->parameters()
+        $parameters = $container->parameters()
             ->set('app.oauth.redirect_uri', self::OAUTH_REDIRECT_URI);
+        foreach ($this->options['parameters'] ?? [] as $name => $value) {
+            $parameters->set($name, $value);
+        }
 
         $container->extension('framework', [
             'test' => true,
@@ -167,7 +239,7 @@ final class TestKernel extends Kernel
 
         // The bundle's ApiResource classes under src/ApiResource are found by
         // API Platform on its own (every bundle's src/ApiResource is scanned).
-        $container->extension('api_platform', [
+        $apiPlatform = [
             'title' => 'flowable-bundle tests',
             'formats' => [
                 'jsonld' => ['application/ld+json'],
@@ -178,8 +250,15 @@ final class TestKernel extends Kernel
             ],
             'enable_swagger_ui' => false,
             'enable_re_doc' => false,
-            'mcp' => ['enabled' => true],
-        ]);
+            'mcp' => ['enabled' => $this->options['api_platform_mcp'] ?? true],
+        ];
+        if ($this->options['mcp_fixtures'] ?? false) {
+            $apiPlatform['mapping'] = ['paths' => [$projectDir . '/tests/Fixtures/ForeignMcp']];
+        }
+        if (\array_key_exists('use_symfony_listeners', $this->options)) {
+            $apiPlatform['use_symfony_listeners'] = $this->options['use_symfony_listeners'];
+        }
+        $container->extension('api_platform', $apiPlatform);
 
         $container->extension('dmstr_api_platform_utils', [
             'credential_encryption' => ['key' => self::CREDENTIALS_KEY],
@@ -187,9 +266,10 @@ final class TestKernel extends Kernel
             'hydra_operations' => ['filter_operations_by_security' => true],
         ]);
 
-        // All switches on: otherwise the bundle removes its MCP tools
+        // All switches on unless a variant says otherwise: the bundle removes
+        // its MCP tools when a switch is off
         $container->extension('dmstr_flowable', [
-            'mcp' => ['read' => true, 'write' => true, 'deploy' => true],
+            'mcp' => $this->options['mcp'] ?? ['read' => true, 'write' => true, 'deploy' => true],
         ]);
 
         $container->extension('mcp', [
@@ -208,8 +288,9 @@ final class TestKernel extends Kernel
 
         // Keep the test output free of framework log lines
         $services->set('logger', NullLogger::class);
-        // FlowableBundle binds its audit logger to the monolog channel
-        $services->set('monolog.logger.flowable', NullLogger::class);
+        // FlowableBundle binds its audit logger to the monolog channel.
+        // Public so that tests can read the records.
+        $services->set(self::FLOWABLE_LOGGER, RecordingLogger::class)->public();
 
         // The engine: every Flowable REST call is answered by the stub.
         // Public so that tests can read the recorded requests.
@@ -218,6 +299,14 @@ final class TestKernel extends Kernel
             ->args([service(TestFlowableEngine::class)]);
 
         $services->set(TestHeaderAuthenticator::class);
+
+        if ($this->options['mcp_fixtures'] ?? false) {
+            // Replaces the bundle's provider without calling it
+            $services->set(NonValidatingProcessDefinitionProvider::class)
+                ->decorate(FlowProcessDefinitionProvider::class)
+                ->public();
+            $services->set(ForeignMcpToolProvider::class)->public();
+        }
 
         if ($this->hasPermissionVoter()) {
             // Autoconfiguration adds the `security.voter` tag; public so that
@@ -238,3 +327,6 @@ final class TestKernel extends Kernel
         return \dirname((new \ReflectionClass(ApiConfigurationBundle::class))->getFileName(), 2);
     }
 }
+// - revised 2026-11-26 (kernel options for MCP switches, parameters, use_symfony_listeners; recording flowable logger)
+// - revised 2026-11-26 (own, freshly emptied cache directory for a non-debug kernel)
+// - revised 2026-11-26 (options api_platform_mcp and mcp_fixtures)

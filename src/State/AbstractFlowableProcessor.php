@@ -7,9 +7,12 @@ namespace Dmstr\Flowable\State;
 
 use Dmstr\Flowable\Client\FlowableClientInterface;
 use Dmstr\Flowable\Client\FlowableClientLocator;
+use Dmstr\Flowable\Schema\InputSchemaPath;
 use Dmstr\Flowable\Service\ActingUserResolver;
+use Dmstr\Flowable\Service\FlowableAuditLogger;
 use Dmstr\Flowable\Service\FlowableVariableMapper;
 use Dmstr\Flowable\Service\InputSchemaValidator;
+use Mcp\Schema\Request\CallToolRequest;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -48,6 +51,22 @@ abstract class AbstractFlowableProcessor
         'deployment-source' => 'deploymentSource',
     ];
 
+    /**
+     * The input file of this processor's operations, relative to
+     * src/ApiResource (e.g. 'FlowTask/complete.input.json'), the one place
+     * that names it: {@see self::validatedBody()} validates the body of
+     * every operation the processor serves against it, HTTP and MCP alike,
+     * and an MCP tool served by the processor publishes the same constant as
+     * its input file (`McpToolInputSchemaFactory::EXTRA_KEY => ['input' =>
+     * TaskCompleteProcessor::INPUT_SCHEMA]`), so the published and the
+     * enforced schema have one source. Null for a processor that validates no
+     * body against a file (deletes, uploads).
+     */
+    public const ?string INPUT_SCHEMA = null;
+
+    /** Built on first use from $flowableLogger, so the constructor stays as it is. */
+    private ?FlowableAuditLogger $auditLogger = null;
+
     public function __construct(
         protected readonly FlowableClientLocator $locator,
         protected readonly RequestStack $requestStack,
@@ -55,16 +74,46 @@ abstract class AbstractFlowableProcessor
         protected readonly FlowableVariableMapper $variableMapper,
         protected readonly ActingUserResolver $actingUser,
         protected readonly LoggerInterface $flowableLogger,
-        protected readonly McpToolInputValidator $mcpInput = new McpToolInputValidator(),
     ) {
     }
 
     /**
-     * @param array<string,mixed> $context
+     * Run the engine call of this write with its audit entries (attempt, then
+     * success or failure; see {@see FlowableAuditLogger::audited()}),
+     * attributed to the authenticated user. Call it after permission checks
+     * and input validation, with only the engine call (and the mapping of its
+     * answer) in $call: an exception thrown before writes no entry, one
+     * thrown by $call a failure entry, and is rethrown unchanged.
+     *
+     * The origin comes from the operation context: API Platform's MCP handler
+     * (ApiPlatform\Mcp\Server\Handler) puts the JSON-RPC request under
+     * "mcp_request" — besides "request", which then is the transport request
+     * to the MCP endpoint — so "mcp_request" is checked first; for a tool
+     * call it is a CallToolRequest whose name is the tool name. Without it
+     * the write came in over HTTP.
+     *
+     * @template T
+     * @param array<string,mixed> $context operation context
+     * @param array<string,mixed> $auditContext what is known before the call
+     * @param \Closure(): T $call the engine call
+     * @param (\Closure(T): array<string,mixed>)|null $successContext keys derived from the result
+     * @return T
      */
-    protected function audit(string $action, array $context = []): void
+    protected function audited(string $action, array $context, array $auditContext, \Closure $call, ?\Closure $successContext = null): mixed
     {
-        $this->flowableLogger->info('flowable.'.$action, $context + ['actor' => $this->actingUser->currentUserId()]);
+        $mcpRequest = $context['mcp_request'] ?? null;
+
+        $this->auditLogger ??= new FlowableAuditLogger($this->flowableLogger);
+
+        return $this->auditLogger->audited(
+            $action,
+            $mcpRequest !== null ? FlowableAuditLogger::VIA_MCP : FlowableAuditLogger::VIA_HTTP,
+            $this->actingUser->currentUserId(),
+            $mcpRequest instanceof CallToolRequest ? $mcpRequest->name : null,
+            $auditContext,
+            $call,
+            $successContext,
+        );
     }
 
     /**
@@ -113,8 +162,9 @@ abstract class AbstractFlowableProcessor
     /**
      * The deployable resource of an upload operation: the multipart "file"
      * part over HTTP, the inline name/content arguments for an MCP tool call.
-     * The file name must follow {@see UploadRule::assertFileName()} and carry
-     * one of $allowedExtensions; decoded inline content is limited by
+     * The file name must follow {@see UploadRule::assertFileName()} and
+     * {@see UploadRule::assertResourceSuffix()} with $allowedExtensions;
+     * decoded inline content is limited by
      * {@see UploadRule::assertInlineSize()}.
      *
      * @param array<string,mixed> $context operation context (MCP arguments)
@@ -131,20 +181,14 @@ abstract class AbstractFlowableProcessor
                 throw new BadRequestHttpException('Missing "name" argument (file name including extension).');
             }
             UploadRule::assertFileName($filename, '"name"');
-            if (!\is_string($mcp['content'] ?? null) || $mcp['content'] === '') {
-                throw new BadRequestHttpException('Missing "content" argument (file content).');
-            }
-            $content = $mcp['content'];
-            $encoding = $mcp['contentEncoding'] ?? null;
-            if ($encoding === 'base64') {
-                $content = base64_decode($content, true);
-                if ($content === false) {
-                    throw new BadRequestHttpException('"content" is not valid base64.');
-                }
-            } elseif ($encoding !== null && $encoding !== '') {
-                throw new BadRequestHttpException('Unsupported "contentEncoding"; only "base64" is accepted.');
-            }
-            UploadRule::assertInlineSize($content, '"content"');
+            $content = UploadRule::decodeInlineContent(
+                $mcp['content'] ?? null,
+                $mcp['contentEncoding'] ?? null,
+                '"content"',
+                'Missing "content" argument (file content).',
+                '"content" is not valid base64.',
+                'Unsupported "contentEncoding"; only "base64" is accepted.',
+            );
         } else {
             $file = $this->requestStack->getCurrentRequest()?->files->get('file');
             if (!$file instanceof UploadedFile) {
@@ -162,15 +206,7 @@ abstract class AbstractFlowableProcessor
             $content = null;
         }
 
-        $extension = strtolower(pathinfo($filename, \PATHINFO_EXTENSION));
-        if (!\in_array($extension, $allowedExtensions, true)) {
-            throw new BadRequestHttpException(sprintf(
-                'Unsupported resource extension ".%s". Allowed: %s%s.',
-                $extension,
-                implode(', ', $allowedExtensions),
-                $extensionHint,
-            ));
-        }
+        UploadRule::assertResourceSuffix($filename, $allowedExtensions, $extensionHint);
 
         // Read the upload only once the name has been accepted (as before).
         $content ??= (string) file_get_contents($file->getPathname());
@@ -206,27 +242,27 @@ abstract class AbstractFlowableProcessor
     }
 
     /**
-     * ApiConfiguration selector as id string: a selector string or {uuid}.
-     * Absent (null or "") is no selection. Any other value, e.g. {"uuid": 5}
-     * or a number, is rejected with the locator's generic message instead of
-     * falling back to the implicit selection.
+     * Absolute path of this processor's input file ({@see self::INPUT_SCHEMA}),
+     * or null when it validates no body against a file.
      */
-    private static function configurationId(mixed $ref): ?string
+    public static function inputSchemaPath(): ?string
     {
-        if ($ref === null || $ref === '') {
-            return null;
-        }
-        $id = \is_array($ref) ? ($ref['uuid'] ?? null) : $ref;
-        if (!\is_string($id) || $id === '') {
-            throw new BadRequestHttpException(FlowableClientLocator::INVALID_SELECTION);
-        }
-
-        return $id;
+        return static::INPUT_SCHEMA === null ? null : InputSchemaPath::relative(static::INPUT_SCHEMA);
     }
 
-    protected function schemaPath(string $entity, string $verb): string
+    /**
+     * The raw body ({@see self::rawBody()}) validated against the full input
+     * file of this processor ({@see self::INPUT_SCHEMA}), decoded.
+     *
+     * @param array<string,mixed> $context operation context (MCP arguments)
+     * @return array<string,mixed>
+     */
+    protected function validatedBody(array $context): array
     {
-        return \dirname(__DIR__).'/ApiResource/'.$entity.'/'.$verb.'.input.json';
+        $path = static::inputSchemaPath()
+            ?? throw new \LogicException(sprintf('%s declares no INPUT_SCHEMA.', static::class));
+
+        return $this->validator->validateRaw($this->rawBody($context), $path);
     }
 
     /**
@@ -253,3 +289,11 @@ abstract class AbstractFlowableProcessor
 }
 // - revised 2026-10-09 (nested {} in MCP arguments)
 // - revised 2026-11-26 (upload file name rule and inline size limit, strict apiConfiguration value, MCP input validator)
+// - revised 2026-11-26 (schema path built by Schema\InputSchemaPath)
+// - revised 2026-11-26 (inline content decoding moved to UploadRule::decodeInlineContent)
+// - revised 2026-11-26 (configurationId() moved to OperationInputTrait)
+// - revised 2026-11-26 (audit entry written by Service\FlowableAuditLogger)
+// - revised 2026-11-26 (audited(): attempt, success and failure entries with origin and MCP tool name)
+// - revised 2026-11-26 (per-provider MCP input validation removed, done centrally)
+// - revised 2026-11-26 (INPUT_SCHEMA, inputSchemaPath() and validatedBody() replace schemaPath(): one source for the published and the enforced input file)
+// - revised 2026-11-26 (resource suffix checked by UploadRule::assertResourceSuffix, full suffix)

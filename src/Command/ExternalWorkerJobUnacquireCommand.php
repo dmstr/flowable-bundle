@@ -49,13 +49,24 @@ final class ExternalWorkerJobUnacquireCommand extends AbstractExternalWorkerJobC
                 if ($tenantId !== null && $tenantId !== '') {
                     $payload['tenantId'] = (string) $tenantId;
                 }
-                $client->unacquireAllExternalWorkerJobs($payload);
+                $this->audited(
+                    'external_worker.unacquire_all',
+                    $workerId,
+                    ['worker' => $workerId, 'tenantId' => $payload['tenantId'] ?? null],
+                    static fn () => $client->unacquireAllExternalWorkerJobs($payload),
+                );
                 $io->success(sprintf('Released all jobs held by worker "%s".', $workerId));
 
                 return self::SUCCESS;
             }
 
-            $client->unacquireExternalWorkerJob((string) $id, ['workerId' => $workerId]);
+            $jobId = (string) $id;
+            $this->audited(
+                'external_worker.unacquire',
+                $workerId,
+                ['job' => $jobId, 'worker' => $workerId],
+                static fn () => $client->unacquireExternalWorkerJob($jobId, ['workerId' => $workerId]),
+            );
             $io->success('External worker job released.');
 
             return self::SUCCESS;
@@ -66,3 +77,4 @@ final class ExternalWorkerJobUnacquireCommand extends AbstractExternalWorkerJobC
         }
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): audit entries via cli)

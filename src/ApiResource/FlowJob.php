@@ -14,6 +14,7 @@ use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\McpToolCollection;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Controller\JobStacktraceController;
 use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\FlowJobProvider;
@@ -89,7 +90,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'withoutScopeId' => new QueryParameter(description: 'Only jobs without a scope id'),
                 'withoutScopeType' => new QueryParameter(description: 'Only jobs without a scope type'),
                 'withoutTenantId' => new QueryParameter(description: 'Only jobs without a tenant id'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -104,7 +105,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                     ],
                     description: 'Which engine job collection the id lives in — ids do not resolve across kinds',
                 ),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -136,7 +137,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         ),
         'flowable_system_execute_timer_job' => new McpTool(
             name: 'flowable_system_execute_timer_job',
-            description: 'Run a timer job now instead of at its due date, by timer job id; the remaining wait is skipped and cannot be restored. Returns null on success; failures are tool errors.',
+            description: 'Run a timer job now instead of at its due date, by timer job id: it is moved to the executable jobs, which only an active async executor of the engine runs; the remaining wait is skipped and cannot be restored. Returns null on success; a failure is answered as a JSON-RPC error.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable/System'],
             security: "is_granted('flowable:job_execute')",
@@ -144,7 +145,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             read: false,
             structuredContent: false,
             uriVariables: ['id' => new Link(fromClass: FlowJob::class, identifiers: ['id'])],
-            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowJob/mcpExecuteTimer.input.json', 'uriVariables' => ['id' => 'Id of the timer job.']]],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => TimerJobExecuteProcessor::INPUT_SCHEMA, 'uriVariables' => ['id' => 'Id of the timer job.']]],
         ),
     ],
     security: "is_granted('flowable:read')",
@@ -291,3 +292,6 @@ final class FlowJob
 }
 // - revised 2026-10-08 (MCP tools flowable_system_list_deadletter_jobs, flowable_system_execute_timer_job)
 // - revised 2026-10-09 (MCP: admin-only)
+// - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
+// - revised 2026-11-26 (tool descriptions: JSON-RPC errors, active async executor for the timer tool)
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

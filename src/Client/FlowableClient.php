@@ -6,6 +6,8 @@ declare(strict_types=1);
 namespace Dmstr\Flowable\Client;
 
 use Dmstr\Flowable\Exception\FlowableApiException;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
@@ -18,9 +20,21 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * Conservative timeouts (connect/inactivity ~3s, total ~15s) keep a hung
  * engine from tying up PHP-FPM workers. Transport and HTTP failures are
  * translated into FlowableApiException (design D11).
+ *
+ * A failure that becomes a 502 or 504 reaches the caller only as a generic
+ * message with a correlation id; what the engine or the transport said
+ * (upstream status, engine message, body excerpt, URL, exception) is logged
+ * once, as {@see self::LOG_UPSTREAM_ERROR} (level error) on the `flowable`
+ * channel, with the same id.
  */
 final class FlowableClient implements FlowableClientInterface
 {
+    /** Message of the error-log entry behind every 502 and 504 */
+    public const string LOG_UPSTREAM_ERROR = 'flowable.upstream_error';
+
+    /** Characters of the engine message and body kept in the log entry */
+    private const int LOG_EXCERPT_LENGTH = 2000;
+
     private readonly HttpClientInterface $http;
     private readonly string $baseUrl;
 
@@ -35,6 +49,7 @@ final class FlowableClient implements FlowableClientInterface
         ?string $password,
         ?string $token,
         bool $verifySsl = true,
+        private readonly LoggerInterface $flowableLogger = new NullLogger(),
     ) {
         $this->baseUrl = rtrim($baseUrl, '/');
 
@@ -67,7 +82,8 @@ final class FlowableClient implements FlowableClientInterface
             return ['status' => 'UP', 'reachable' => true, 'info' => $info];
         } catch (FlowableApiException $e) {
             // A non-504 status means the engine answered (e.g. auth rejected) —
-            // it is reachable, just not healthy from our perspective.
+            // it is reachable, just not healthy from our perspective. The
+            // message is the generic one; the details are in the log.
             return [
                 'status' => 'DOWN',
                 'reachable' => $e->getStatusCode() !== 504,
@@ -209,14 +225,12 @@ final class FlowableClient implements FlowableClientInterface
     {
         $path = '/service/repository/deployments/'.self::idSegment($deploymentId).'/resourcedata/'.self::resourceSegment($resourceId);
         try {
-            return $this->request('GET', $path)->getContent(false);
+            return $this->content($this->request('GET', $path));
         } catch (FlowableApiException $e) {
             if (404 === $e->getStatusCode()) {
                 return null;
             }
             throw $e;
-        } catch (HttpClientExceptionInterface $e) {
-            throw FlowableApiException::unreachable($e->getMessage());
         }
     }
 
@@ -472,14 +486,12 @@ final class FlowableClient implements FlowableClientInterface
         $path = $this->jobCollection($kind).'/'.self::idSegment($id).'/exception-stacktrace';
         try {
             // text/plain, not JSON — read the body verbatim.
-            return $this->request('GET', $path)->getContent(false);
+            return $this->content($this->request('GET', $path));
         } catch (FlowableApiException $e) {
             if (404 === $e->getStatusCode()) {
                 return null;
             }
             throw $e;
-        } catch (HttpClientExceptionInterface $e) {
-            throw FlowableApiException::unreachable($e->getMessage());
         }
     }
 
@@ -554,11 +566,11 @@ final class FlowableClient implements FlowableClientInterface
             $response = $this->http->request($method, $this->baseUrl.$path, $options);
             $status = $response->getStatusCode();
         } catch (TransportExceptionInterface $e) {
-            throw FlowableApiException::unreachable($e->getMessage());
+            throw $this->unreachable($e, $method, $this->baseUrl.$path);
         }
 
         if ($status >= 400) {
-            throw FlowableApiException::fromUpstreamStatus($status, $this->messageFrom($response));
+            throw $this->upstreamError($response, $status, $method, $this->baseUrl.$path);
         }
 
         return $response;
@@ -578,11 +590,11 @@ final class FlowableClient implements FlowableClientInterface
             ]);
             $status = $response->getStatusCode();
         } catch (TransportExceptionInterface $e) {
-            throw FlowableApiException::unreachable($e->getMessage());
+            throw $this->unreachable($e, $method, $this->baseUrl.$path);
         }
 
         if ($status >= 400) {
-            throw FlowableApiException::fromUpstreamStatus($status, $this->messageFrom($response));
+            throw $this->upstreamError($response, $status, $method, $this->baseUrl.$path);
         }
 
         return $response;
@@ -653,11 +665,7 @@ final class FlowableClient implements FlowableClientInterface
     /** @return array<string,mixed> */
     private function decode(ResponseInterface $response): array
     {
-        try {
-            $content = $response->getContent(false);
-        } catch (HttpClientExceptionInterface $e) {
-            throw FlowableApiException::unreachable($e->getMessage());
-        }
+        $content = $this->content($response);
 
         if (trim($content) === '') {
             return [];
@@ -675,20 +683,90 @@ final class FlowableClient implements FlowableClientInterface
         return $data === [] ? null : $data;
     }
 
-    private function messageFrom(ResponseInterface $response): string
+    /**
+     * The body of a successful response; a transport failure while reading
+     * it (e.g. a timeout mid-body) is a 504 like one before the status.
+     */
+    private function content(ResponseInterface $response): string
     {
         try {
-            $content = $response->getContent(false);
-        } catch (HttpClientExceptionInterface) {
-            return 'no response body';
+            return $response->getContent(false);
+        } catch (HttpClientExceptionInterface $e) {
+            throw $this->unreachable(
+                $e,
+                (string) $response->getInfo('http_method'),
+                (string) $response->getInfo('url'),
+            );
         }
-        $data = json_decode($content, true);
-        if (\is_array($data)) {
-            return (string) ($data['message'] ?? $data['exception'] ?? $content);
+    }
+
+    private function upstreamError(ResponseInterface $response, int $status, string $method, string $url): FlowableApiException
+    {
+        try {
+            $body = $response->getContent(false);
+        } catch (HttpClientExceptionInterface) {
+            $body = '';
+        }
+        $engineMessage = self::messageFrom($body);
+
+        return $this->logged(FlowableApiException::fromUpstreamStatus($status, $engineMessage), [
+            'upstreamStatus' => $status,
+            'method' => $method,
+            'url' => $url,
+            'engineMessage' => $engineMessage === null ? null : mb_substr($engineMessage, 0, self::LOG_EXCERPT_LENGTH),
+            'body' => mb_substr($body, 0, self::LOG_EXCERPT_LENGTH),
+        ]);
+    }
+
+    private function unreachable(HttpClientExceptionInterface $e, string $method, string $url): FlowableApiException
+    {
+        return $this->logged(FlowableApiException::unreachable(), [
+            'method' => $method,
+            'url' => $url,
+            'exception' => $e::class,
+            'exceptionMessage' => $e->getMessage(),
+        ]);
+    }
+
+    /**
+     * Writes the error-log entry of an exception that carries a correlation
+     * id (502, 504); a 404 or 422 hides nothing and is not logged.
+     *
+     * @param array<string,mixed> $details
+     */
+    private function logged(FlowableApiException $exception, array $details): FlowableApiException
+    {
+        $correlationId = $exception->getCorrelationId();
+        if ($correlationId !== null) {
+            $this->flowableLogger->error(self::LOG_UPSTREAM_ERROR, [
+                'correlationId' => $correlationId,
+                'status' => $exception->getStatusCode(),
+            ] + $details);
         }
 
-        return $content !== '' ? $content : 'no response body';
+        return $exception;
+    }
+
+    /**
+     * The message of a Flowable error JSON (`message`, else `exception`), or
+     * null when the body is no JSON object or carries no non-empty string
+     * there. The raw body is never the message.
+     */
+    private static function messageFrom(string $body): ?string
+    {
+        $data = json_decode($body, true);
+        if (!\is_array($data)) {
+            return null;
+        }
+        foreach (['message', 'exception'] as $key) {
+            if (\is_string($data[$key] ?? null) && trim($data[$key]) !== '') {
+                return $data[$key];
+            }
+        }
+
+        return null;
     }
 }
 // - revised 2026-10-08 (executeTimerJob for the MCP timer tool)
 // - revised 2026-11-26 (id rule for engine paths, escaped multipart file name)
+// - revised 2026-11-26 (generic 502/504 messages with a correlation id, details in the flowable log)

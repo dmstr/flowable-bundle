@@ -123,6 +123,16 @@ final class ApiConfigurationSelectionTest extends ApiTestCase
         $this->assertReachedSelected();
     }
 
+    public function testHttpQueryTakesNoUuidObject(): void
+    {
+        // The {uuid} form exists for a JSON body and MCP arguments only: an
+        // array in the query string is a 400 and reaches no configuration.
+        $response = $this->requestAs('GET', self::FLOWABLE . '/tasks?apiConfiguration[uuid]=' . substr(self::SELECTED, 0, 8), ['ROLE_USER']);
+
+        self::assertSame(400, $response->getStatusCode(), (string) $response->getContent());
+        self::assertSame([], $this->engine()->requests);
+    }
+
     public function testHttpBodyRejectsInactiveUuidObject(): void
     {
         $response = $this->completeTaskOverHttp(['uuid' => substr(self::INACTIVE, 0, 8)]);
@@ -334,3 +344,4 @@ final class ApiConfigurationSelectionTest extends ApiTestCase
     }
 }
 // - revised 2026-11-26 (malformed selectors over MCP are rejected by the read tool schema)
+// - revised 2026-11-26 (an array selector in the query string is a 400)

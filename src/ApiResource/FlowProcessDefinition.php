@@ -13,6 +13,7 @@ use ApiPlatform\Metadata\McpToolCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Controller\ProcessDefinitionStartInputSchemaController;
 use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\FlowProcessDefinitionProvider;
@@ -39,7 +40,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'key' => new QueryParameter(description: 'Filter by process definition key'),
                 'category' => new QueryParameter(description: 'Filter by category'),
                 'deployment' => new QueryParameter(description: 'Filter by deployment (IRI or id) — relation filter'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -172,3 +173,4 @@ final class FlowProcessDefinition
 }
 // - revised 2026-10-08 (MCP tool flowable_list_process_definitions)
 // - revised 2026-10-09 (MCP: admin-only)
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable\Command;
 
+use Dmstr\Flowable\State\EventDeploymentUploadProcessor;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -23,9 +24,6 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 #[AsCommand(name: 'flowable:events:deployments:upload', description: 'Deploy a local .event or .channel resource to the event registry')]
 final class EventDeploymentUploadCommand extends AbstractFlowableCommand
 {
-    /** Extensions the event registry interprets as deployable resources. */
-    private const ALLOWED_EXTENSIONS = ['event', 'channel'];
-
     protected function configure(): void
     {
         $this->addApiConfigurationOption();
@@ -44,16 +42,12 @@ final class EventDeploymentUploadCommand extends AbstractFlowableCommand
             if ($path === null || !is_file((string) $path)) {
                 throw new \RuntimeException(sprintf('Resource file not found: %s', $path ?? '(none)'));
             }
-            $filename = basename((string) $path);
-            $extension = strtolower(pathinfo($filename, \PATHINFO_EXTENSION));
-            if (!\in_array($extension, self::ALLOWED_EXTENSIONS, true)) {
-                throw new \RuntimeException(sprintf(
-                    'Unsupported resource extension ".%s". Allowed: %s (the event registry accepts no .bar/.zip bundles).',
-                    $extension,
-                    implode(', ', self::ALLOWED_EXTENSIONS),
-                ));
-            }
-            $this->requireActingUser($input);
+            $filename = $this->uploadFileName(
+                (string) $path,
+                EventDeploymentUploadProcessor::ALLOWED_EXTENSIONS,
+                EventDeploymentUploadProcessor::EXTENSION_HINT,
+            );
+            $actor = $this->requireActingUser($input);
             $client = $this->client($input);
 
             // Engine spelling: deploymentName (camelCase), read off the query string.
@@ -67,7 +61,13 @@ final class EventDeploymentUploadCommand extends AbstractFlowableCommand
 
             $content = (string) file_get_contents((string) $path);
 
-            return $this->renderItem($io, $client->createEventDeployment($filename, $content, $query));
+            return $this->renderItem($io, $this->audited(
+                'event_deployment.upload',
+                $actor,
+                ['file' => $filename, 'sha256' => hash('sha256', $content)],
+                static fn (): array => $client->createEventDeployment($filename, $content, $query),
+                static fn (array $deployment): array => ['deployment' => $deployment['id'] ?? null],
+            ));
         } catch (\Throwable $e) {
             $io->error($e->getMessage());
 
@@ -75,3 +75,5 @@ final class EventDeploymentUploadCommand extends AbstractFlowableCommand
         }
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): audit entries via cli)
+// - revised 2026-11-26 (file name and suffix rule of the HTTP upload, extensions read from the processor)

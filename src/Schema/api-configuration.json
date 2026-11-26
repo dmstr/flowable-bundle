@@ -5,7 +5,7 @@
       "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
     },
     "apiConfiguration": {
-      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+      "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
       "oneOf": [
         {
           "$ref": "#/$defs/uuidSelector"
@@ -26,11 +26,33 @@
     },
     "apiConfigurationOrDefault": {
       "$ref": "#/$defs/apiConfiguration",
-      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+      "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase. Omit to use the default engine connection."
     },
-    "apiConfigurationString": {
-      "$ref": "#/$defs/uuidSelector",
-      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+    "page": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Page number, starting at 1."
+    },
+    "itemsPerPage": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200,
+      "default": 30,
+      "description": "Page size (1 to 200)."
+    },
+    "sort": {
+      "type": "string",
+      "description": "Flowable sort field."
+    },
+    "order": {
+      "type": "string",
+      "enum": [
+        "asc",
+        "desc"
+      ],
+      "default": "desc",
+      "description": "Sort direction."
     }
   }
 }

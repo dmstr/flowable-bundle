@@ -11,6 +11,7 @@ use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Operation;
 use Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory;
 use Dmstr\Flowable\Schema\InputSchemaLoader;
+use Dmstr\Flowable\Schema\InputSchemaPath;
 
 /**
  * Serves the input schema of this bundle's MCP tools from the operation input
@@ -38,15 +39,14 @@ use Dmstr\Flowable\Schema\InputSchemaLoader;
  *    which several MCP clients cannot represent at the root. The tool
  *    description names the rule.
  *
- * This class only publishes the schema; it enforces nothing. Enforcement is
- * done by the tools' state classes, in one of two ways:
- *  - the write processors validate the tool arguments minus the URI variables
- *    against the full input file (Service\InputSchemaValidator), so a dropped
- *    root `allOf`/`anyOf`/`oneOf` is still checked;
- *  - the read tools' providers and flowable_dmn_deploy validate the tool
- *    arguments against exactly this published schema, URI variables included
- *    (State\McpToolInputValidator), and reject the call when it cannot be
- *    built.
+ * This class only publishes the schema; it enforces nothing. Enforcement:
+ *  - every tool call of the bundle's resources, read and write, is validated
+ *    against exactly this published schema, URI variables included, in one
+ *    place in front of the tool's provider (State\McpToolInputValidationProvider
+ *    with State\McpToolInputValidator), and rejected when it cannot be built;
+ *  - the write processors then validate the tool arguments minus the URI
+ *    variables against the full input file (Service\InputSchemaValidator), so
+ *    a dropped root `allOf`/`anyOf`/`oneOf` is still checked.
  *
  * Decorates api_platform.mcp.json_schema.schema_factory (registered only when
  * API Platform's MCP support is enabled). It acts only on this bundle's
@@ -133,7 +133,7 @@ final class McpToolInputSchemaFactory implements SchemaFactoryInterface
             throw new \RuntimeException(sprintf('MCP tool input schema path must not contain "..": %s', $input));
         }
 
-        return \dirname(__DIR__).'/ApiResource/'.ltrim($input, '/');
+        return InputSchemaPath::relative($input);
     }
 
     /** @return array<string,mixed> */
@@ -172,3 +172,5 @@ final class McpToolInputSchemaFactory implements SchemaFactoryInterface
 // - revised 2026-11-26 (schema loaded through InputSchemaLoader)
 // - revised 2026-11-26 (docblock: publishing is not enforcing, where the schemas are enforced)
 // - revised 2026-11-26 (namespace guard, `..` rejected in the input path)
+// - revised 2026-11-26 (schema path built by Schema\InputSchemaPath)
+// - revised 2026-11-26 (docblock: enforcement in one central place plus the write processors)

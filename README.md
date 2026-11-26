@@ -74,7 +74,7 @@ the ciphertext to the engine.
 
 ### Selecting a configuration
 
-Without a selector, the bundle uses the only active configuration of type `flowable`; with none or several it answers 400 and asks for a selector. An explicit selector (`apiConfiguration` as query parameter, body property or MCP argument, as a string or `{"uuid": "…"}`, and `--api-configuration` of the commands) is the first 8 characters or the full UUID, lowercase, of exactly one **active** configuration of type `flowable`, for example `0a1b2c3d`. Longer or shorter prefixes, uppercase, an unknown id, an inactive configuration, another type and a prefix shared by two configurations all get the same 400 (`apiConfiguration does not select an active Flowable API configuration. …`), which names no other configuration; where a JSON body or MCP arguments are validated against their schema first, a malformed selector gets the schema's 422. The selector is compared in PHP with the ids of the active configurations and never reaches a database query.
+Without a selector, the bundle uses the only active configuration of type `flowable`; with none or several it answers 400 and asks for a selector. An explicit selector (`apiConfiguration` as a string in the query string, as a string or `{"uuid": "…"}` as body property and MCP argument, and `--api-configuration` of the commands) is the first 8 characters or the full UUID, lowercase, of exactly one **active** configuration of type `flowable`, for example `0a1b2c3d`. Longer or shorter prefixes, uppercase, an unknown id, an inactive configuration, another type and a prefix shared by two configurations all get the same 400 (`apiConfiguration does not select an active Flowable API configuration. …`), which names no other configuration; where a JSON body or MCP arguments are validated against their schema first, a malformed selector gets the schema's 422. The `{"uuid": "…"}` form does not work in the query string: an array there (`?apiConfiguration[uuid]=…`) is answered with 400. The selector is compared in PHP with the ids of the active configurations and never reaches a database query.
 
 ### Bundle configuration
 
@@ -89,7 +89,9 @@ dmstr_flowable:
         deploy: false # the deploy tools, in addition to write
 ```
 
-A tool whose annotations declare `readOnlyHint: true` is kept only when `mcp.read` is on; every other tool counts as writing and is kept only when `mcp.write` is on. The deploy tools `flowable_deploy_bundle` and `flowable_dmn_deploy` need `mcp.deploy` on top of `mcp.write`: a deployed BPMN or DMN definition is code the engine runs (script, shell and HTTP tasks, expressions), so an agent that can deploy and start processes can execute code on the engine. A switched-off tool is removed from API Platform's resource metadata, so it is neither listed nor callable. API Platform caches that metadata, so run `bin/console cache:clear` after changing a switch.
+A tool whose annotations declare `readOnlyHint: true` is kept only when `mcp.read` is on; every other tool counts as writing and is kept only when `mcp.write` is on. The deploy tools `flowable_deploy_bundle` and `flowable_dmn_deploy` need `mcp.deploy` on top of `mcp.write`: a deployed BPMN or DMN definition is code the engine runs (script, shell and HTTP tasks, expressions), so an agent that can deploy and start processes can execute code on the engine. A switched-off tool is removed from API Platform's resource metadata, so it is neither listed nor callable. MCP resources (`McpResource` entries) of the bundle's API resources are read-only and follow `mcp.read`; the bundle declares none yet, so a future one stays hidden until `mcp.read` is on. Tools and resources of other bundles and of the application are not touched.
+
+**Literal booleans only.** API Platform caches its resource metadata, and the bundle filters the tools before that cache stores them, so the switches take effect when the cache is built: run `bin/console cache:clear` after changing a switch. For the same reason a switch must be `true` or `false` when the container is built. An environment variable placeholder such as `'%env(bool:FLOWABLE_MCP_READ)%'` would be frozen in the metadata cache at warmup, and changing the variable later would change nothing, so the container build fails with an error naming the switch, for a placeholder or any other non-boolean value (`'true'`, `'1'`), whether it comes from the `dmstr_flowable` configuration or from an application override of the parameter `dmstr_flowable.mcp.read` / `.write` / `.deploy`. To differ per environment, set literal values per environment, e.g. in `config/packages/prod/dmstr_flowable.yaml` or under `when@prod:`.
 
 ## API resources
 
@@ -115,7 +117,31 @@ All resources are served under `/api/flowable/*`:
 
 **Ids.** Every id that becomes a segment of an engine path must match `^[A-Za-z0-9][A-Za-z0-9:._-]*$`; any other id is answered with 400 before a request reaches the engine. The rule sits in `FlowableClient`, so it applies to HTTP, MCP, the CLI, the external worker and direct use of the client alike. It covers the id formats Flowable generates (UUID, numeric, `key:version:id`) but is not verified against a live engine; a process definition whose BPMN key starts with `_` or contains non-ASCII letters (id e.g. `_key:1:5`) cannot be addressed by id through the bundle. Deployment resource names (e.g. `<formKey>.schema.json`) only must not contain `.` or `..` segments.
 
-**Uploads.** The upload operations (`/deployments/upload`, `/dmn_deployments/upload`, `/event_deployments/upload`) and the deploy tools accept a plain file name only: at most 255 characters, no `/`, no `\`, no `..`, no leading `.`, no quotes and no control characters. The bundle sets no size limit for a multipart upload; it is bounded by the web server in front of the application (nginx `client_max_body_size`, default `1m`) and PHP's `upload_max_filesize` / `post_max_size`, so raise those for larger BPMN or DMN files. The limits of inline files over MCP are under [Tool arguments](#tool-arguments).
+**Uploads.** The upload operations (`/deployments/upload`, `/dmn_deployments/upload`, `/event_deployments/upload`), the deploy tools and the upload commands (`flowable:deployments:upload`, `flowable:dmn:deployments:upload`, `flowable:events:deployments:upload`, which take the base name of `--file`) accept a plain file name only: at most 255 characters, no `/`, no `\`, no `..`, no leading `.`, no quotes and no control characters. Each accepts only the extensions its repository deploys, and a command the same ones as its HTTP upload, with the same messages: the process upload `bpmn`, `xml`, `dmn`, `form`, `json`, `bar`, `zip`, the DMN upload `dmn`, `bar`, `zip`, the event upload `event`, `channel`, `flowable_dmn_deploy` `dmn` only, `flowable_deploy_bundle` `bpmn`, `xml`, `form`, `json`. The check uses the full suffix, in any case: where DMN or CMMN is not accepted, `.dmn.xml` and `.cmmn.xml` are refused like `.dmn` and `.cmmn`, so the process upload, its command and `flowable_deploy_bundle` refuse `.cmmn.xml`, and `flowable_deploy_bundle` also `.dmn.xml`; the DMN and event uploads refuse `.dmn.xml` or `.event.xml` as `.xml`. A refused file name or extension is rejected before anything is sent (over HTTP with 400). The bundle sets no size limit for a multipart upload; it is bounded by the web server in front of the application (nginx `client_max_body_size`, default `1m`) and PHP's `upload_max_filesize` / `post_max_size`, so raise those for larger BPMN or DMN files. The limits of inline files over MCP are under [Tool arguments](#tool-arguments).
+
+### Errors and correlation id
+
+The bundle maps the engine's answer to the status of its own response and passes on nothing of the engine's internals (host, URL, body, transport error):
+
+- an engine 404 is a 404 `Flowable resource not found.`;
+- an engine 400 is a 422 `Flowable rejected the request: <message>` with the first line of the engine's error message (`message`, else `exception` of its error JSON), at most 200 characters (`...` appended when cut), or `Flowable rejected the request.` when it has none; only an engine 400 becomes a 422;
+- every other engine status of 400 or above (401 and 403 included: the credentials are the bundle's, not the caller's) is a 502 `Flowable backend error (correlation id: <id>).`;
+- a timeout, a refused connection or a transport error while reading the body is a 504 `Flowable engine unreachable (correlation id: <id>).`.
+
+A 502 or 504 carries only that generic message with a random id of 16 hex characters. Over HTTP the id is also sent as the `X-Correlation-Id` response header; over MCP the message is the JSON-RPC error message, on the CLI the printed error. The details are logged once, by `FlowableClient`, on the `flowable` channel as `flowable.upstream_error` (level `error`) with the context `correlationId`, `status` (502 or 504) and, for a 502, `upstreamStatus`, `method`, `url`, `engineMessage` and `body` (excerpts of at most 2000 characters), for a 504 `method`, `url`, `exception` (the class) and `exceptionMessage`. Search the log for the id a user reports. A 404 or 422 hides nothing and is not logged. `FlowableClient::getHealthInfo()` and `flowable:health` report a failed check as `status: DOWN` with the generic message as `detail`; `reachable` is false only for a 504.
+
+### Audit
+
+Every write the bundle sends to the engine is logged on the `flowable` channel (`FlowableAuditLogger`): `flowable.<action>.attempt` (level `info`) right before the engine call, then `flowable.<action>` (level `info`) on success or `flowable.<action>.failure` (level `warning`) when the call throws; the exception is rethrown unchanged. The success message is the one the single audit entry had before the attempt and failure entries existed, so a consumer that matches it still sees exactly the successful writes. The context keys come in this order:
+
+1. `state`: `attempt`, `success` or `failure`;
+2. `via`: `http`, `mcp`, `cli` or `worker`, the transport the write came in over;
+3. `tool`: the MCP tool name, only for `via: mcp`;
+4. `actor`: for `http` and `mcp` the identifier of the authenticated user; for `cli` the `--acting-user` value, but the worker id for the job commands `flowable:external-worker:complete`, `:fail`, `:bpmn-error` and `:unacquire`; for `worker` (`ExternalWorkerRunner`, the loop of `flowable:external-worker:run`) the worker id; `null` when unknown;
+5. the context of the action (ids, file names, hashes), on success followed by the keys taken from the result (e.g. `deployment`, `instance`);
+6. on failure only: `status` (the HTTP status of the exception, `null` for another exception), `correlationId` (only for a 502 or 504: the id of its `flowable.upstream_error` entry) and `exception` (the class).
+
+Deployments record what was sent: `file` and `sha256` for a single file (the three upload operations, `flowable_dmn_deploy`, the upload commands), and for `flowable_deploy_bundle`, which packs its files into one `.bar`, `files`, `fileSha256` (file name → hash), `archive` and `archiveSha256`. A call the bundle rejects before the engine call (missing permission, invalid input or selector, a write command without its required `--acting-user`) writes no entry. Reads are not audited, and neither is the acquire call of `ExternalWorkerRunner`, as an idle worker polls every few seconds; `POST /external_worker_jobs/acquire` is a write over HTTP and is audited.
 
 ### External worker tasks
 
@@ -167,7 +193,12 @@ repository**, so a `.dmn` packaged inside a process (`.bar`) deployment is *not*
 registered as a decision — deploy decision tables via `POST /dmn_deployments/upload`.
 `POST /decisions/execute` evaluates a decision by key (`{ "decisionKey": "…",
 "inputVariables": {…}, "singleResult": false }`) and returns the matching rule
-outputs on the response's `result`.
+outputs on the response's `result`: a list of rows, one per matched rule, each
+the list of result variables `{"name", "type", "value"}` as the engine returns
+it, not a map of output name to value. With `"singleResult": true` the engine's
+single result is the only row; no matching rule gives an empty list. Every
+evaluation adds a row to the engine's decision history
+(`FlowHistoricDecisionExecution`), so it is not a read.
 
 > **Engine version:** the DMN resources require a Flowable engine **>= 8.0.0**
 > (the DMN repository resource is named `decisions`; earlier engines exposed
@@ -292,21 +323,25 @@ Nothing is exposed until the [switches](#bundle-configuration) `dmstr_flowable.m
 
 Every tool carries `annotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`), its `security` expression (`is_granted()` with the permission) and the `de.dmstr/tag` entry in `_meta`. Every tool that changes engine state in a way that cannot be undone (start, complete, trigger, send an event, deploy, execute a timer job) declares `destructiveHint: true`, so MCP clients ask before calling it; only `flowable_dmn_evaluate`, which adds no more than a history row, is a write tool with `destructiveHint: false`. Each description is one line that names the fields of the result, because some agent frameworks ignore `structuredContent`; the result is the serialised resource (or result object) in API Platform's MCP output format.
 
+**Results and errors.** A successful call returns a result whose text content is the serialised resource and whose `structuredContent` is the same data before encoding; the tools that return `null` (complete, trigger, send an event, execute a timer job) declare `structuredContent: false`, publish no `outputSchema` and return the text `null` without `structuredContent`. A failing call is answered with a JSON-RPC error (code `-32603`), not with a tool result carrying `isError`: API Platform's MCP handler turns the HTTP exception of a failed call (403, 404, 422, the 502/504 of [Errors and correlation id](#errors-and-correlation-id)) into a JSON-RPC error with the exception's message, and the MCP SDK answers any other exception with its own generic message. `structuredContent` and the published `outputSchema` are both built for the tool's output format, the first format of the application's API Platform configuration (`jsonld` with the defaults), but they do not name the same keys: for a tool that returns one API resource (`flowable_dmn_evaluate`, `flowable_start_process`, the two deploy tools) the schema is the JSON-LD schema with `@context`, `@id` and `@type`; for the list tools the collection schema names `totalItems`, `member`, `view` and `search`, but not the `@context`, `@id` (`null`) and `@type` (`Collection`) that `structuredContent` carries at the top; for a tool that returns a plain result class (`flowable_get_process_status`, `flowable_history_get`, `flowable_get_task_form`) the schema names only the fields of the class, while `structuredContent` also carries `@context`, `@id` and `@type`. No published `outputSchema` sets `additionalProperties: false`, so the extra keys pass a validator that follows the schema, but a client that compares `structuredContent` strictly with `outputSchema` sees these differences.
+
 Notes on individual tools:
 
 - `flowable_start_process` starts by `processDefinitionKey` (latest version) or `processDefinitionId`, so an agent needs no prior lookup of the definition id; it is backed by `POST /process_instances`, not by `POST /process_definitions/{id}/start`.
-- `flowable_dmn_evaluate` changes no engine state except a history row, but it is gated behind its own permission, `flowable:decision_evaluate`, like its HTTP operation, so it is declared a write tool (`readOnlyHint: false`, `idempotentHint: true`) and appears only with `mcp.write`.
-- `flowable_get_process_status` answers only for running instances; `flowable_history_get` covers ended ones. Both are composites: when one of their engine calls fails, the tool fails as a whole and never returns a partial result. Each list holds at most 200 rows; the `*Total` fields tell whether it was cut.
-- `flowable_system_execute_timer_job` moves the timer job to the executable jobs (`POST management/timer-jobs/{id}` with `{"action": "move"}`), where the async executor runs it at once. The remaining wait cannot be restored, hence `destructiveHint: true`.
-- `flowable_deploy_bundle` refuses `.dmn` files: a process deployment does not register decision tables in the DMN engine, so they go to `flowable_dmn_deploy`. Building the archive needs the PHP `zip` extension.
+- `flowable_dmn_evaluate` returns `result` as described under [DMN (decision) engine](#dmn-decision-engine): a list of rows, each the engine's list of result variables `{name, type, value}`, not a map. It changes no engine state except a history row, which every call adds, but it is gated behind its own permission, `flowable:decision_evaluate`, like its HTTP operation, so it is declared a write tool (`readOnlyHint: false`, `idempotentHint: true`) and appears only with `mcp.write`.
+- `flowable_get_process_status` answers only for running instances; `flowable_history_get` covers ended ones. Both are composites: when one of their engine calls fails, the tool fails as a whole and never returns a partial result. Each list holds at most 200 rows; the `*Total` fields tell whether it was cut. `flowable_get_process_status` has a total for the open tasks only (`openTasksTotal`): it reads at most 200 executions of the instance and has no total for them, so `activeExecutions` and `currentActivityIds` give no sign when an instance has more. Of the activities and failed decision executions of `flowable_history_get` the newest 200 are kept, oldest first.
+- `flowable_system_execute_timer_job` moves the timer job to the executable jobs (`POST management/timer-jobs/{id}` with `{"action": "move"}`); the bundle does not run the job itself. Precondition: the engine has an active async executor, which then runs the moved job; without one the call has no visible effect. The remaining wait cannot be restored, hence `destructiveHint: true`. The call is pinned against a simulated engine, not verified against a real one.
+- `flowable_deploy_bundle` refuses `.dmn` and `.dmn.xml` files (and `.cmmn`, `.cmmn.xml`), in any case: a process deployment does not register decision tables in the DMN engine, so they go to `flowable_dmn_deploy`. Building the archive needs the PHP `zip` extension.
 
 ### Tool arguments
 
 All arguments are top-level. Operations with a JSON body take the body properties plus the URI variable (`id`), which is not part of the body; `apiConfiguration` selects the engine connection (first 8 characters or full UUID, see [Selecting a configuration](#selecting-a-configuration)). List tools take `page`, `itemsPerPage` (at most 200), `sort`, `order` and the filters their input schema names, e.g. `processDefinition` (id or IRI) and `processInstanceId` on `flowable_list_tasks`. Variables are passed preferably as a map `{"name": value}`; the explicit list `[{"name", "value", "type"}]` is accepted too.
 
-The advertised input schema of a tool is the operation input file next to its resource class (e.g. `src/ApiResource/FlowTask/complete.input.json`; tool-only files are named `mcp<Verb>.input.json`), with the URI variables added as required properties. Top-level `allOf`/`anyOf` alternatives ("one of these keys is required") are left out of the advertised schema because several MCP clients cannot represent them; the tool description names the rule, and the processor validates the full file.
+The advertised input schema of a tool is the operation input file next to its resource class (e.g. `src/ApiResource/FlowTask/complete.input.json`; tool-only files are named `mcp<Verb>.input.json`), with the URI variables added as required properties. Top-level `allOf`/`anyOf`/`oneOf` alternatives ("one of these keys is required") are left out of the advertised schema because several MCP clients cannot represent them; the tool description names the rule, and the processor validates the full file.
 
-The arguments are validated before the tool runs. The write tools check them against the full input file; the six read tools and `flowable_dmn_deploy` check them against exactly the advertised schema, URI variables included. A violation is answered with 422 `Input validation failed: …`: unknown keys (e.g. `kind` on `flowable_system_list_deadletter_jobs`, `processInstance` on `flowable_list_tasks`), strings for numbers (`"page": "2"`) and values outside the bounds are rejected, not ignored. A tool whose input schema cannot be built (missing file, invalid JSON, `..` in the path) is removed from the metadata, so it is neither listed nor callable, and logged as `flowable.mcp.tool_hidden` (level `error`) on the `flowable` channel when the API Platform metadata cache is built. A provider of your own behind an `McpTool` that extends `AbstractFlowableProvider` calls `validateMcpInput()` to get the same check. The HTTP read operations and their query parameters are not affected.
+The arguments are validated before the tool runs: the arguments of every tool are checked against exactly the advertised schema, URI variables included, in one central place (see below), and the write tools' processors then check the body against the full input file. A violation is answered with 422 `Input validation failed: …`: unknown keys (e.g. `kind` on `flowable_system_list_deadletter_jobs`, `processInstance` on `flowable_list_tasks`), strings for numbers (`"page": "2"`) and values outside the bounds are rejected, not ignored. A tool whose input schema cannot be built (missing file, invalid JSON, `..` in the path) is removed from the metadata, so it is neither listed nor callable, and logged as `flowable.mcp.tool_hidden` (level `error`) on the `flowable` channel when the API Platform metadata cache is built. The HTTP read operations and their query parameters are not affected.
+
+**Central validation.** In front of every tool's provider, the bundle validates the arguments of each tool call of its own resources (classes under `Dmstr\Flowable\ApiResource\`) against the advertised schema, so a tool stays validated when your application replaces the bundle's provider with one of its own. The check is a decorator (`State\McpToolInputValidationProvider`) of the read step of API Platform's MCP provider chain: `api_platform.mcp.state_provider.read` with `use_symfony_listeners: true`, otherwise `api_platform.state_provider.read`. It runs after the `pre_read` security check and before the provider; a call without MCP arguments (every HTTP request) passes through unchanged. It is fail-closed: a bundle tool without a buildable input schema is rejected, and when API Platform's MCP support is on but neither chain exists, the container build fails with a `LogicException`; with MCP off nothing is registered. Write tools are checked here first and then against the full input file by their processor, so an invalid URI variable (e.g. a numeric `id`) is rejected before the processor runs. Tools of other bundles and of the application are not touched. Limitation: a tool whose `security` expression uses `object` is checked against the object only after reading, so its arguments are validated before that object-level check.
 
 Files are passed inline instead of as a multipart upload:
 
@@ -331,6 +366,59 @@ Files are passed inline instead of as a multipart upload:
 ```
 
 Limits, fixed and not configurable: at most 1 MiB per file after decoding, and for `flowable_deploy_bundle` at most 20 files and 4 MiB in total after decoding; file names and `deploymentName`, `deploymentSource`, `category`, `tenantId` at most 255 characters each. Two limits in front of the bundle apply first. The web server's request size limit (nginx `client_max_body_size`, default `1m`) already refuses a tool call carrying a 1 MiB file, so raise it on the MCP endpoint if agents deploy files of that size. The HTTP transport of `mcp/sdk` refuses request bodies above 4 MiB (4194304 bytes, `StreamableHttpTransport::DEFAULT_MAX_BODY_BYTES`); as the whole JSON-RPC request counts and base64 is a third larger than the decoded bytes, a bundle near the 4 MiB total is refused by the transport before the bundle's own check.
+
+### Rate limiting
+
+The bundle ships no rate limiter: how many tool calls a user or an agent may make is a decision of the application, and the MCP endpoint belongs to `symfony/mcp-bundle`, not to the bundle. To put one in front of it, install `symfony/rate-limiter`, define a limiter and consume it in a small `kernel.request` listener for the MCP path (`http.path` of the `symfony/mcp-bundle` server, `/mcp/<server name>` by default). The firewall's `login_throttling` is not the tool for this: it limits login attempts, not requests. The listener runs after the firewall (priority 8), so it can key the limiter by the authenticated user, with the client IP as fallback. Every JSON-RPC request counts, `initialize` and `tools/list` included. An example for Symfony 7.4, written against the documented API and not run in this bundle's suite:
+
+```yaml
+# config/packages/rate_limiter.yaml
+framework:
+    rate_limiter:
+        mcp:
+            policy: sliding_window
+            limit: 60
+            interval: '1 minute'
+```
+
+```php
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
+
+#[AsEventListener(event: KernelEvents::REQUEST, priority: 7)]
+final class McpRateLimitListener
+{
+    public function __construct(
+        private readonly RateLimiterFactoryInterface $mcpLimiter, // the "mcp" limiter above
+        private readonly Security $security,
+    ) {
+    }
+
+    public function __invoke(RequestEvent $event): void
+    {
+        $request = $event->getRequest();
+        if (!$event->isMainRequest() || $request->getPathInfo() !== '/mcp') { // your MCP path
+            return;
+        }
+
+        $key = $this->security->getUser()?->getUserIdentifier() ?? $request->getClientIp() ?? 'unknown';
+        $limit = $this->mcpLimiter->create($key)->consume();
+        if (!$limit->isAccepted()) {
+            $event->setResponse(new JsonResponse(
+                ['error' => 'Too many MCP requests.'],
+                429,
+                ['Retry-After' => (string) max(1, $limit->getRetryAfter()->getTimestamp() - time())],
+            ));
+        }
+    }
+}
+```
+
+The limit applies per HTTP request; a client gets a 429 with `Retry-After` instead of a JSON-RPC answer. The same listener can cover the HTTP operations under `/api/flowable/*` by matching that prefix.
 
 ## CLI
 
@@ -459,3 +547,8 @@ Without Docker, `composer install && vendor/bin/phpunit` works on any PHP 8.5 se
 <!-- - revised 2026-10-09 (MCP tools admin-only, mcp.deploy, destructiveHint, changelog) -->
 <!-- - revised 2026-10-28 (permissions, migration from 0.10, tests) -->
 <!-- - revised 2026-11-26 (0.13.0: configuration selector, id rule, upload rules and limits, MCP argument validation, tests) -->
+<!-- - revised 2026-11-26 (MCP switches: literal booleans only, McpResource follows mcp.read) -->
+<!-- - revised 2026-11-26 (central validation of the MCP tool arguments) -->
+<!-- - revised 2026-11-26 (MCP tool arguments validated only centrally, no per-provider check) -->
+<!-- - revised 2026-11-26 (flowable_history_get keeps the newest 200 rows) -->
+<!-- - revised 2026-11-26 (errors and correlation id, audit, rate limiting, MCP results and errors, DMN result shape, timer precondition, upload suffix rule, selector in the query string) -->

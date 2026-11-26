@@ -6,6 +6,7 @@ declare(strict_types=1);
 namespace Dmstr\Flowable\Tests\Http;
 
 use Dmstr\ApiConfiguration\Entity\ApiConfiguration;
+use Dmstr\Flowable\Tests\Kernel\RecordingLogger;
 use Dmstr\Flowable\Tests\Kernel\TestFlowableEngine;
 use Dmstr\Flowable\Tests\Kernel\TestHeaderAuthenticator;
 use Dmstr\Flowable\Tests\Kernel\TestKernel;
@@ -14,6 +15,7 @@ use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -23,7 +25,15 @@ use Symfony\Component\Uid\Uuid;
  * and are answered by {@see TestFlowableEngine}.
  *
  * Override {@see self::kernelEnvironment()} to run a test class against
- * another kernel variant, e.g. {@see TestKernel::ENV_NO_VOTER}.
+ * another kernel variant, e.g. {@see TestKernel::ENV_NO_VOTER}, and
+ * {@see self::kernelOptions()} for the options of {@see TestKernel} (MCP
+ * switches, extra parameters, `use_symfony_listeners`); a single test
+ * switches with {@see self::useKernelVariant()}, which can also boot a
+ * non-debug kernel (the default is debug).
+ *
+ * Nothing leaks between tests: every test boots a new kernel and so gets new
+ * instances of {@see TestFlowableEngine} (failures, recorded requests) and
+ * of the {@see RecordingLogger} (records).
  */
 abstract class ApiTestCase extends WebTestCase
 {
@@ -41,11 +51,65 @@ abstract class ApiTestCase extends WebTestCase
         return TestKernel::ENV_WITH_VOTER;
     }
 
+    /**
+     * Options for the {@see TestKernel} of every test of the class, see its
+     * class docblock; [] is the plain kernel.
+     *
+     * @return array<string, mixed>
+     */
+    protected static function kernelOptions(): array
+    {
+        return [];
+    }
+
+    /**
+     * Like the parent, plus the {@see TestKernel} options under the
+     * `kernel_options` key of the createClient()/bootKernel() options.
+     *
+     * @param array<string, mixed> $options
+     */
+    protected static function createKernel(array $options = []): KernelInterface
+    {
+        return new TestKernel(
+            $options['environment'] ?? static::kernelEnvironment(),
+            (bool) ($options['debug'] ?? $_ENV['APP_DEBUG'] ?? $_SERVER['APP_DEBUG'] ?? true),
+            $options['kernel_options'] ?? static::kernelOptions(),
+        );
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->client = static::createClient(['environment' => static::kernelEnvironment()]);
+        $this->bootClient(static::kernelEnvironment(), static::kernelOptions());
+    }
+
+    /**
+     * Replaces the kernel of the running test by one with the given options
+     * (and environment), with a fresh schema and `flowable` configuration as
+     * in {@see self::setUp()}. Each distinct configuration compiles its own
+     * container, so use it sparingly.
+     *
+     * @param array<string, mixed> $kernelOptions see {@see TestKernel}
+     * @param bool|null $debug false for a kernel without debug (as in
+     *        production), null for the default
+     */
+    protected function useKernelVariant(array $kernelOptions, ?string $environment = null, ?bool $debug = null): void
+    {
+        self::ensureKernelShutdown();
+        $this->bootClient($environment ?? static::kernelEnvironment(), $kernelOptions, $debug);
+    }
+
+    /**
+     * @param array<string, mixed> $kernelOptions
+     */
+    private function bootClient(string $environment, array $kernelOptions, ?bool $debug = null): void
+    {
+        $options = ['environment' => $environment, 'kernel_options' => $kernelOptions];
+        if ($debug !== null) {
+            $options['debug'] = $debug;
+        }
+        $this->client = static::createClient($options);
         // A reboot would drop the in-memory database between requests
         $this->client->disableReboot();
 
@@ -307,6 +371,15 @@ abstract class ApiTestCase extends WebTestCase
     }
 
     /**
+     * The bundle's `flowable` logger channel: audit entries of write
+     * operations and error-log entries.
+     */
+    protected function flowableLog(): RecordingLogger
+    {
+        return static::getContainer()->get(TestKernel::FLOWABLE_LOGGER);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected static function json(Response $response): array
@@ -320,3 +393,5 @@ abstract class ApiTestCase extends WebTestCase
     }
 }
 // - revised 2026-11-26 (helper for additional ApiConfigurations)
+// - revised 2026-11-26 (kernel options, useKernelVariant(), flowableLog())
+// - revised 2026-11-26 (useKernelVariant() with a non-debug kernel)

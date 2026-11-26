@@ -22,9 +22,11 @@ use Dmstr\Flowable\ApiResource\FlowDecision;
  */
 final class DecisionExecuteProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowDecision/execute.input.json';
+
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): FlowDecision
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowDecision', 'execute'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $decisionKey = (string) ($body['decisionKey'] ?? '');
@@ -35,15 +37,19 @@ final class DecisionExecuteProcessor extends AbstractFlowableProcessor implement
             'inputVariables' => $this->variableMapper->toFlowable($body['inputVariables'] ?? null),
         ];
 
-        $response = $singleResult
-            ? $client->executeDecisionSingleResult($payload)
-            : $client->executeDecision($payload);
+        $response = $this->audited(
+            'decision.execute',
+            $context,
+            ['decision' => $decisionKey, 'singleResult' => $singleResult],
+            static fn (): array => $singleResult
+                ? $client->executeDecisionSingleResult($payload)
+                : $client->executeDecision($payload),
+        );
 
         $result = new FlowDecision();
         $result->id = $decisionKey;
         $result->key = $decisionKey;
         $result->result = $this->normalizeResult($response['resultVariables'] ?? [], $singleResult);
-        $this->audit('decision.execute', ['decision' => $decisionKey, 'singleResult' => $singleResult]);
 
         return $result;
     }
@@ -68,3 +74,5 @@ final class DecisionExecuteProcessor extends AbstractFlowableProcessor implement
         return array_values(array_filter($resultVariables, 'is_array'));
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody() and the MCP tool)

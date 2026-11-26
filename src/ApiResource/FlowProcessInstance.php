@@ -16,6 +16,7 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
 use Dmstr\Flowable\ApiResource\Output\FlowProcessStatus;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\FlowProcessInstanceProvider;
 use Dmstr\Flowable\State\FlowProcessStatusProvider;
@@ -46,7 +47,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'processDefinitionId' => new QueryParameter(description: 'Filter by process definition id'),
                 'processDefinition' => new QueryParameter(description: 'Filter by process definition (IRI or id) — relation filter'),
                 'businessKey' => new QueryParameter(description: 'Filter by business key'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -77,7 +78,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
     mcp: [
         'flowable_get_process_status' => new McpTool(
             name: 'flowable_get_process_status',
-            description: 'Get the current state of a running process instance in one call. Returns processInstance (id, processDefinitionId, processDefinitionKey, businessKey, startUserId, startTime, suspended, ended, tenantId), openTasks (each with id, name, assignee, taskDefinitionKey, createTime, dueDate), openTasksTotal, currentActivityIds (BPMN element ids it waits at) and activeExecutions (each with id and activityId); ended instances fail, use flowable_history_get for them.',
+            description: 'Get the current state of a running process instance in one call. Returns processInstance (id, processDefinitionId, processDefinitionKey, businessKey, startUserId, startTime, suspended, ended, tenantId), openTasks (each with id, name, assignee, taskDefinitionKey, createTime, dueDate), openTasksTotal, currentActivityIds (BPMN element ids it waits at) and activeExecutions (each with id and activityId; no total, taken from at most 200 executions); ended instances fail, use flowable_history_get for them.',
             annotations: ['readOnlyHint' => true, 'destructiveHint' => false, 'idempotentHint' => true],
             meta: ['de.dmstr/tag' => 'Flowable'],
             security: "is_granted('flowable:mcp_read')",
@@ -95,7 +96,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             security: "is_granted('flowable:process_start')",
             processor: ProcessInstanceCreateProcessor::class,
             read: false,
-            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowProcessInstance/create.input.json']],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => ProcessInstanceCreateProcessor::INPUT_SCHEMA]],
         ),
     ],
     security: "is_granted('flowable:read')",
@@ -177,3 +178,6 @@ final class FlowProcessInstance
 }
 // - revised 2026-10-08 (MCP tools flowable_get_process_status, flowable_start_process)
 // - revised 2026-10-09 (MCP: admin-only, destructiveHint)
+// - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
+// - revised 2026-11-26 (tool description: executions have no total)
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

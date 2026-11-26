@@ -21,9 +21,11 @@ use ApiPlatform\State\ProcessorInterface;
  */
 final class ExternalWorkerJobFailProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowExternalWorkerJob/fail.input.json';
+
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): null
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowExternalWorkerJob', 'fail'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $jobId = (string) ($uriVariables['id'] ?? '');
@@ -39,13 +41,15 @@ final class ExternalWorkerJobFailProcessor extends AbstractFlowableProcessor imp
             $payload['retries'] = (int) $body['retries'];
         }
 
-        $client->failExternalWorkerJob($jobId, $payload);
-        $this->audit('external_worker.fail', [
-            'job' => $jobId,
-            'worker' => $workerId,
-            'error' => $payload['errorMessage'] ?? null,
-        ]);
+        $this->audited(
+            'external_worker.fail',
+            $context,
+            ['job' => $jobId, 'worker' => $workerId, 'error' => $payload['errorMessage'] ?? null],
+            static fn () => $client->failExternalWorkerJob($jobId, $payload),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody())

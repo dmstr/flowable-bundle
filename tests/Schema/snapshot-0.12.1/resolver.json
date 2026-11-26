@@ -58,7 +58,7 @@
                 ]
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -125,7 +125,7 @@
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 255,
-                            "description": "Plain file name with extension .bpmn, .bpmn20.xml, .form or .json (no path)."
+                            "description": "Plain file name (no path) ending in .bpmn, .bpmn20.xml, .xml, .form or .json, in any letter case; .dmn.xml and .cmmn.xml are refused."
                         },
                         "content": {
                             "type": "string",
@@ -166,7 +166,7 @@
                 "description": "Optional tenant id."
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection.",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase. Omit to use the default engine connection.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -236,9 +236,26 @@
                 "description": "Optional tenant id."
             },
             "apiConfiguration": {
-                "type": "string",
-                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase. Omit to use the default engine connection.",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
             }
         },
         "additionalProperties": false
@@ -311,7 +328,7 @@
                 "description": "The event body as a JSON object, matching the event definition's payload contract. Must be an object — the engine rejects an array."
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -380,7 +397,7 @@
                 ]
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -459,7 +476,7 @@
                 "description": "Restrict acquisition to jobs of one engine (BPMN processes or CMMN cases). Omit to acquire regardless of scope."
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -544,7 +561,7 @@
                 ]
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -622,7 +639,7 @@
                 ]
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -686,7 +703,7 @@
                 "description": "Long-form detail (e.g. a stacktrace), retrievable via GET /jobs/{id}/stacktrace."
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -727,7 +744,7 @@
                 "description": "Identity of the worker holding the lock — the engine rejects a report from anyone else."
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -759,9 +776,26 @@
         "type": "object",
         "properties": {
             "apiConfiguration": {
-                "type": "string",
-                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase. Omit to use the default engine connection.",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
             }
         },
         "additionalProperties": false
@@ -828,9 +862,26 @@
                 "description": "Filter by tenant id."
             },
             "apiConfiguration": {
-                "type": "string",
-                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase. Omit to use the default engine connection.",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
             }
         },
         "additionalProperties": false
@@ -843,7 +894,7 @@
         "type": "object",
         "properties": {
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection.",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase. Omit to use the default engine connection.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -917,9 +968,26 @@
                 "description": "Filter by deployment (id or IRI)."
             },
             "apiConfiguration": {
-                "type": "string",
-                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase. Omit to use the default engine connection.",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
             }
         },
         "additionalProperties": false
@@ -973,7 +1041,7 @@
                 ]
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -1066,7 +1134,7 @@
                 ]
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -1098,9 +1166,26 @@
         "type": "object",
         "properties": {
             "apiConfiguration": {
-                "type": "string",
-                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase. Omit to use the default engine connection.",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
             }
         },
         "additionalProperties": false
@@ -1150,7 +1235,7 @@
                 ]
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -1182,9 +1267,26 @@
         "type": "object",
         "properties": {
             "apiConfiguration": {
-                "type": "string",
-                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase. Omit to use the default engine connection.",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
             }
         },
         "additionalProperties": false
@@ -1239,9 +1341,26 @@
                 "description": "Filter by task definition key (the BPMN userTask id)."
             },
             "apiConfiguration": {
-                "type": "string",
-                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase. Omit to use the default engine connection.",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
             }
         },
         "additionalProperties": false

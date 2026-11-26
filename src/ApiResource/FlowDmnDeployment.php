@@ -15,6 +15,7 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\RequestBody;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory;
 use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\DmnDeploymentDeleteProcessor;
@@ -45,7 +46,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'name' => new QueryParameter(description: 'Filter by deployment name'),
                 'category' => new QueryParameter(description: 'Filter by category'),
                 'tenantId' => new QueryParameter(description: 'Filter by tenant id'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -91,7 +92,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                                     ],
                                     'apiConfiguration' => [
                                         'type' => 'string',
-                                        'description' => 'Flowable ApiConfiguration UUID (full or partial)',
+                                        'description' => FlowableClientLocator::SELECTOR_DESCRIPTION,
                                     ],
                                 ],
                             ],
@@ -187,3 +188,4 @@ final class FlowDmnDeployment
 // - revised 2026-10-08 (MCP tool flowable_dmn_deploy)
 // - revised 2026-10-09 (MCP: destructiveHint)
 // - revised 2026-11-26 (flowable_dmn_deploy: only .dmn, size limit in the tool description)
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable\Command;
 
+use Dmstr\Flowable\State\DeploymentUploadProcessor;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -40,10 +41,10 @@ final class DeploymentUploadCommand extends AbstractFlowableCommand
             if ($path === null || !is_file((string) $path)) {
                 throw new \RuntimeException(sprintf('Resource file not found: %s', $path ?? '(none)'));
             }
-            $this->requireActingUser($input);
+            $filename = $this->uploadFileName((string) $path, DeploymentUploadProcessor::ALLOWED_EXTENSIONS);
+            $actor = $this->requireActingUser($input);
             $client = $this->client($input);
 
-            $filename = basename((string) $path);
             $fields = ['deployment-name' => (string) ($input->getOption('name') ?? $filename)];
             foreach (['source' => 'deployment-source', 'category' => 'category', 'tenant' => 'tenantId'] as $opt => $field) {
                 $value = $input->getOption($opt);
@@ -54,7 +55,13 @@ final class DeploymentUploadCommand extends AbstractFlowableCommand
 
             $content = (string) file_get_contents((string) $path);
 
-            return $this->renderItem($io, $client->createDeployment($filename, $content, $fields));
+            return $this->renderItem($io, $this->audited(
+                'deployment.upload',
+                $actor,
+                ['file' => $filename, 'sha256' => hash('sha256', $content)],
+                static fn (): array => $client->createDeployment($filename, $content, $fields),
+                static fn (array $deployment): array => ['deployment' => $deployment['id'] ?? null],
+            ));
         } catch (\Throwable $e) {
             $io->error($e->getMessage());
 
@@ -62,3 +69,5 @@ final class DeploymentUploadCommand extends AbstractFlowableCommand
         }
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): audit entries via cli)
+// - revised 2026-11-26 (file name and suffix rule of the HTTP upload)

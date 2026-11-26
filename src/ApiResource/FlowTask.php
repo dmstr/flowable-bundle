@@ -16,6 +16,7 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
 use Dmstr\Flowable\ApiResource\Output\FlowTaskForm;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Controller\TaskInputSchemaController;
 use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\FlowTaskFormProvider;
@@ -42,7 +43,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'processDefinition' => new QueryParameter(description: 'Filter by process definition (IRI or id) — relation filter'),
                 'assignee' => new QueryParameter(description: 'Filter by assignee'),
                 'taskDefinitionKey' => new QueryParameter(description: 'Filter by task definition key'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -104,7 +105,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         ),
         'flowable_complete_task' => new McpTool(
             name: 'flowable_complete_task',
-            description: 'Complete an open user task with its form values as variables, preferably as a map {name: value} (flowable_get_task_form lists the fields). Returns null on success; failures are tool errors.',
+            description: 'Complete an open user task with its form values as variables, preferably as a map {name: value} (flowable_get_task_form lists the fields). Returns null on success; a failure is answered as a JSON-RPC error.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable'],
             security: "is_granted('flowable:task_complete')",
@@ -112,7 +113,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             read: false,
             structuredContent: false,
             uriVariables: ['id' => new Link(fromClass: FlowTask::class, identifiers: ['id'])],
-            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowTask/complete.input.json', 'uriVariables' => ['id' => 'Id of the open user task to complete.']]],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => TaskCompleteProcessor::INPUT_SCHEMA, 'uriVariables' => ['id' => 'Id of the open user task to complete.']]],
         ),
     ],
     security: "is_granted('flowable:read')",
@@ -209,3 +210,6 @@ final class FlowTask
 }
 // - revised 2026-10-08 (MCP tools flowable_list_tasks, flowable_get_task_form, flowable_complete_task)
 // - revised 2026-10-09 (MCP: admin-only, destructiveHint)
+// - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
+// - revised 2026-11-26 (tool description: failures are JSON-RPC errors)
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

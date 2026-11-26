@@ -20,9 +20,11 @@ use ApiPlatform\State\ProcessorInterface;
  */
 final class ExecutionTriggerProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowExecution/trigger.input.json';
+
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): null
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowExecution', 'trigger'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $payload = ['action' => 'trigger'];
@@ -32,9 +34,15 @@ final class ExecutionTriggerProcessor extends AbstractFlowableProcessor implemen
         }
 
         $executionId = (string) ($uriVariables['id'] ?? '');
-        $client->triggerExecution($executionId, $payload);
-        $this->audit('execution.trigger', ['execution' => $executionId]);
+        $this->audited(
+            'execution.trigger',
+            $context,
+            ['execution' => $executionId],
+            static fn () => $client->triggerExecution($executionId, $payload),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody() and the MCP tool)

@@ -21,26 +21,31 @@ use ApiPlatform\State\ProcessorInterface;
  */
 final class ExternalWorkerJobBpmnErrorProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowExternalWorkerJob/bpmnError.input.json';
+
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): null
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowExternalWorkerJob', 'bpmnError'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $jobId = (string) ($uriVariables['id'] ?? '');
         $workerId = (string) ($body['workerId'] ?? '');
         $errorCode = (string) ($body['errorCode'] ?? '');
 
-        $client->bpmnErrorExternalWorkerJob($jobId, [
+        $payload = [
             'workerId' => $workerId,
             'errorCode' => $errorCode,
             'variables' => $this->variableMapper->toFlowable($body['variables'] ?? null),
-        ]);
-        $this->audit('external_worker.bpmn_error', [
-            'job' => $jobId,
-            'worker' => $workerId,
-            'errorCode' => $errorCode,
-        ]);
+        ];
+        $this->audited(
+            'external_worker.bpmn_error',
+            $context,
+            ['job' => $jobId, 'worker' => $workerId, 'errorCode' => $errorCode],
+            static fn () => $client->bpmnErrorExternalWorkerJob($jobId, $payload),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody())

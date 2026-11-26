@@ -15,6 +15,7 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\RequestBody;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory;
 use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\DeploymentBundleProcessor;
@@ -45,7 +46,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'name' => new QueryParameter(description: 'Filter by deployment name'),
                 'category' => new QueryParameter(description: 'Filter by category'),
                 'tenantId' => new QueryParameter(description: 'Filter by tenant id'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -95,7 +96,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                                     ],
                                     'apiConfiguration' => [
                                         'type' => 'string',
-                                        'description' => 'Flowable ApiConfiguration UUID (full or partial)',
+                                        'description' => FlowableClientLocator::SELECTOR_DESCRIPTION,
                                     ],
                                 ],
                             ],
@@ -125,7 +126,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             security: "is_granted('flowable:deploy')",
             processor: DeploymentBundleProcessor::class,
             read: false,
-            extraProperties: [McpToolSwitchResourceMetadataCollectionFactory::SWITCH_KEY => 'deploy', McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowDeployment/mcpBundle.input.json']],
+            extraProperties: [McpToolSwitchResourceMetadataCollectionFactory::SWITCH_KEY => 'deploy', McpToolInputSchemaFactory::EXTRA_KEY => ['input' => DeploymentBundleProcessor::INPUT_SCHEMA]],
         ),
     ],
     security: "is_granted('flowable:read')",
@@ -202,3 +203,5 @@ final class FlowDeployment
 // - revised 2026-10-08 (MCP tool flowable_deploy_bundle)
 // - revised 2026-10-09 (MCP: destructiveHint)
 // - revised 2026-11-26 (flowable_deploy_bundle: limits in the tool description)
+// - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

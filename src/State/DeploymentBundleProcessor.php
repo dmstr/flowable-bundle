@@ -26,18 +26,23 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
  * after decoding; file names follow the shared upload file name rule.
  *
  * Decision tables (.dmn) are refused: a process deployment does not register
- * them in the DMN engine; flowable_dmn_deploy deploys them.
+ * them in the DMN engine; flowable_dmn_deploy deploys them. The full suffix
+ * counts (UploadRule::rejectedSuffix()): ".dmn.xml" and ".cmmn.xml", which
+ * Flowable reads as DMN and CMMN resources, are refused like ".dmn" and
+ * ".cmmn", while ".bpmn20.xml" and a plain ".xml" pass.
  *
  * @implements ProcessorInterface<mixed, FlowDeployment>
  */
 final class DeploymentBundleProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowDeployment/mcpBundle.input.json';
+
     /** Extensions accepted for files inside the bundle. */
     public const ENTRY_EXTENSIONS = ['bpmn', 'xml', 'form', 'json'];
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): FlowDeployment
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowDeployment', 'mcpBundle'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $files = self::files(\is_array($body['files'] ?? null) ? $body['files'] : []);
@@ -51,16 +56,28 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
             }
         }
 
-        $deployment = FlowDeployment::fromApi($client->createDeployment($archiveName, self::zip($files), $fields));
-        $this->audit('deployment.bundle', ['deployment' => $deployment->id, 'files' => array_keys($files)]);
+        // Hash exactly the bytes that are sent to the engine.
+        $archive = self::zip($files);
 
-        return $deployment;
+        return $this->audited(
+            'deployment.bundle',
+            $context,
+            [
+                'files' => array_keys($files),
+                'fileSha256' => array_map(static fn (string $content): string => hash('sha256', $content), $files),
+                'archive' => $archiveName,
+                'archiveSha256' => hash('sha256', $archive),
+            ],
+            static fn (): FlowDeployment => FlowDeployment::fromApi($client->createDeployment($archiveName, $archive, $fields)),
+            static fn (FlowDeployment $deployment): array => ['deployment' => $deployment->id],
+        );
     }
 
     /**
      * Validate and decode the file list: at most UploadRule::MAX_BUNDLE_FILES
      * files, each name a plain file name (UploadRule::assertFileName()) with
-     * one of ENTRY_EXTENSIONS, each decoded content within
+     * a suffix of ENTRY_EXTENSIONS (UploadRule::rejectedSuffix(), full
+     * suffix), each decoded content within
      * UploadRule::assertInlineSize(), all together within
      * UploadRule::MAX_BUNDLE_BYTES.
      *
@@ -81,12 +98,12 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
         foreach ($files as $index => $file) {
             $name = \is_array($file) && \is_string($file['name'] ?? null) ? $file['name'] : '';
             UploadRule::assertFileName($name, sprintf('files[%d].name', $index));
-            $extension = strtolower(pathinfo($name, \PATHINFO_EXTENSION));
-            if (!\in_array($extension, self::ENTRY_EXTENSIONS, true)) {
+            $suffix = UploadRule::rejectedSuffix($name, self::ENTRY_EXTENSIONS);
+            if (null !== $suffix) {
                 throw new BadRequestHttpException(sprintf(
-                    'files[%d]: unsupported extension ".%s". Allowed: %s (deploy .dmn with flowable_dmn_deploy).',
+                    'files[%d]: unsupported extension "%s". Allowed: %s (deploy .dmn with flowable_dmn_deploy).',
                     $index,
-                    $extension,
+                    $suffix,
                     implode(', ', self::ENTRY_EXTENSIONS),
                 ));
             }
@@ -94,20 +111,14 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
                 throw new BadRequestHttpException(sprintf('files[%d]: duplicate file name "%s".', $index, $name));
             }
 
-            $content = $file['content'] ?? null;
-            if (!\is_string($content) || '' === $content) {
-                throw new BadRequestHttpException(sprintf('files[%d].content must be a non-empty string.', $index));
-            }
-            $encoding = $file['contentEncoding'] ?? null;
-            if ('base64' === $encoding) {
-                $content = base64_decode($content, true);
-                if (false === $content) {
-                    throw new BadRequestHttpException(sprintf('files[%d].content is not valid base64.', $index));
-                }
-            } elseif (null !== $encoding && '' !== $encoding) {
-                throw new BadRequestHttpException(sprintf('files[%d]: unsupported contentEncoding; only "base64" is accepted.', $index));
-            }
-            UploadRule::assertInlineSize($content, sprintf('files[%d].content', $index));
+            $content = UploadRule::decodeInlineContent(
+                $file['content'] ?? null,
+                $file['contentEncoding'] ?? null,
+                sprintf('files[%d].content', $index),
+                sprintf('files[%d].content must be a non-empty string.', $index),
+                sprintf('files[%d].content is not valid base64.', $index),
+                sprintf('files[%d]: unsupported contentEncoding; only "base64" is accepted.', $index),
+            );
             $total += \strlen($content);
             if ($total > UploadRule::MAX_BUNDLE_BYTES) {
                 throw new BadRequestHttpException(sprintf(
@@ -165,3 +176,7 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
     }
 }
 // - revised 2026-11-26 (shared upload file name rule, file count and size limits)
+// - revised 2026-11-26 (inline content decoding moved to UploadRule::decodeInlineContent)
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody() and the MCP tool)
+// - revised 2026-11-26 (full suffix checked: .dmn.xml and .cmmn.xml refused)

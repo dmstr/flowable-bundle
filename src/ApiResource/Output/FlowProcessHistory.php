@@ -12,7 +12,9 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * instance (running or ended). Rows are plain arrays with the fields of the
  * matching HTTP resources (FlowHistoricActivity, FlowHistoricVariable,
  * FlowHistoricDecisionExecution), without links and raw payloads. Each list
- * holds at most one page; the *Total fields tell whether it was cut.
+ * holds at most one page; the *Total fields tell whether it was cut. Of
+ * activities and failed decision executions the newest 200 are kept, oldest
+ * first.
  */
 final class FlowProcessHistory
 {
@@ -40,3 +42,4 @@ final class FlowProcessHistory
     #[Groups(['flow_mcp:read'])]
     public int $failedDecisionExecutionsTotal = 0;
 }
+// - revised 2026-11-26 (which rows are kept when a list is cut)

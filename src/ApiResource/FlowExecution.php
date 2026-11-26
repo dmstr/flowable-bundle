@@ -14,6 +14,7 @@ use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\ExecutionTriggerProcessor;
 use Dmstr\Flowable\State\FlowExecutionProvider;
@@ -42,7 +43,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'processInstance' => new QueryParameter(description: 'Filter by process instance (IRI or id) — relation filter'),
                 'activityId' => new QueryParameter(description: 'Filter by the BPMN activity id the execution waits at'),
                 'parentId' => new QueryParameter(description: 'Filter by parent execution id'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -64,7 +65,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
     mcp: [
         'flowable_system_trigger_execution' => new McpTool(
             name: 'flowable_system_trigger_execution',
-            description: 'Trigger a waiting execution (e.g. a receive task) by execution id, taken from activeExecutions of flowable_get_process_status (not the process instance id), optionally with variables as a map {name: value}. Returns null on success; failures are tool errors.',
+            description: 'Trigger a waiting execution (e.g. a receive task) by execution id, taken from activeExecutions of flowable_get_process_status (not the process instance id), optionally with variables as a map {name: value}. Returns null on success; a failure is answered as a JSON-RPC error.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable/System'],
             security: "is_granted('flowable:execution_trigger')",
@@ -72,7 +73,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             read: false,
             structuredContent: false,
             uriVariables: ['id' => new Link(fromClass: FlowExecution::class, identifiers: ['id'])],
-            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowExecution/trigger.input.json', 'uriVariables' => ['id' => 'Id of the waiting execution (not the process instance id).']]],
+            extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => ExecutionTriggerProcessor::INPUT_SCHEMA, 'uriVariables' => ['id' => 'Id of the waiting execution (not the process instance id).']]],
         ),
     ],
     security: "is_granted('flowable:read')",
@@ -147,3 +148,6 @@ final class FlowExecution
 }
 // - revised 2026-10-08 (MCP tool flowable_system_trigger_execution)
 // - revised 2026-10-09 (MCP: destructiveHint)
+// - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
+// - revised 2026-11-26 (tool description: failures are JSON-RPC errors)
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

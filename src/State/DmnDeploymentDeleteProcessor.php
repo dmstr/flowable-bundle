@@ -21,9 +21,15 @@ final class DmnDeploymentDeleteProcessor extends AbstractFlowableProcessor imple
     {
         $id = (string) ($uriVariables['id'] ?? '');
 
-        $this->client(context: $context)->deleteDmnDeployment($id);
-        $this->audit('dmn.deployment.delete', ['deployment' => $id]);
+        $client = $this->client(context: $context);
+        $this->audited(
+            'dmn.deployment.delete',
+            $context,
+            ['deployment' => $id],
+            static fn () => $client->deleteDmnDeployment($id),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

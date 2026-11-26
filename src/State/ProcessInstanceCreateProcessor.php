@@ -16,9 +16,11 @@ use Dmstr\Flowable\ApiResource\FlowProcessInstance;
  */
 final class ProcessInstanceCreateProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowProcessInstance/create.input.json';
+
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): FlowProcessInstance
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowProcessInstance', 'create'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $payload = [];
@@ -38,9 +40,17 @@ final class ProcessInstanceCreateProcessor extends AbstractFlowableProcessor imp
             $payload['startUserId'] = $actor;
         }
 
-        $instance = FlowProcessInstance::fromApi($client->startProcessInstance($payload));
-        $this->audit('process_instance.create', ['instance' => $instance->id]);
-
-        return $instance;
+        return $this->audited(
+            'process_instance.create',
+            $context,
+            [
+                'definition' => $payload['processDefinitionId'] ?? null,
+                'definitionKey' => $payload['processDefinitionKey'] ?? null,
+            ],
+            static fn (): FlowProcessInstance => FlowProcessInstance::fromApi($client->startProcessInstance($payload)),
+            static fn (FlowProcessInstance $instance): array => ['instance' => $instance->id],
+        );
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody() and the MCP tool)

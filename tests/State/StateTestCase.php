@@ -6,7 +6,6 @@ declare(strict_types=1);
 namespace Dmstr\Flowable\Tests\State;
 
 use ApiPlatform\Metadata\McpTool;
-use ApiPlatform\Metadata\Resource\Factory\AttributesResourceMetadataCollectionFactory;
 use Dmstr\ApiConfiguration\Entity\ApiConfiguration;
 use Dmstr\ApiConfiguration\Security\ConfigSecrets;
 use Dmstr\ApiConfiguration\Security\SecretSchemaResolver;
@@ -17,6 +16,7 @@ use Dmstr\Flowable\Service\ActingUserResolver;
 use Dmstr\Flowable\Service\FlowableVariableMapper;
 use Dmstr\Flowable\Service\InputSchemaValidator;
 use Dmstr\Flowable\State\AbstractFlowableProcessor;
+use Dmstr\Flowable\Tests\Mcp\BundleMcpTools;
 use Dmstr\OpenApiJsonSchema\Service\SchemaRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
@@ -139,27 +139,14 @@ abstract class StateTestCase extends TestCase
 
     /**
      * All McpTool operations of the bundle's resources, read from the real
-     * attribute metadata of src/ApiResource, by tool name (sorted).
+     * attribute metadata of src/ApiResource, by tool name (sorted), see
+     * {@see BundleMcpTools::all()}.
      *
      * @return array<string, McpTool>
      */
     protected static function mcpTools(): array
     {
-        $factory = new AttributesResourceMetadataCollectionFactory();
-        $tools = [];
-        foreach (glob(\dirname(__DIR__, 2).'/src/ApiResource/*.php') ?: [] as $file) {
-            $class = 'Dmstr\\Flowable\\ApiResource\\'.basename($file, '.php');
-            foreach ($factory->create($class) as $resource) {
-                foreach ($resource->getMcp() ?? [] as $name => $tool) {
-                    if ($tool instanceof McpTool) {
-                        $tools[(string) ($tool->getName() ?? $name)] = $tool;
-                    }
-                }
-            }
-        }
-        ksort($tools);
-
-        return $tools;
+        return BundleMcpTools::all();
     }
 
     /**
@@ -192,3 +179,4 @@ abstract class StateTestCase extends TestCase
 }
 // - revised 2026-11-26 (locator without UuidResolver, explicit selection through a decoy configuration)
 // - revised 2026-11-26 (real McpTool operations for MCP provider tests)
+// - revised 2026-11-26 (tool discovery moved to Tests\Mcp\BundleMcpTools)

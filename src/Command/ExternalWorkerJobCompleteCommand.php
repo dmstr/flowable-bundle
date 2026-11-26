@@ -31,10 +31,18 @@ final class ExternalWorkerJobCompleteCommand extends AbstractExternalWorkerJobCo
             $body = $this->readReportInput($input, 'complete');
             $client = $this->client($input);
 
-            $client->completeExternalWorkerJob((string) $input->getArgument('id'), [
-                'workerId' => (string) $body['workerId'],
+            $jobId = (string) $input->getArgument('id');
+            $workerId = (string) $body['workerId'];
+            $payload = [
+                'workerId' => $workerId,
                 'variables' => $this->variableMapper->toFlowable($body['variables'] ?? null),
-            ]);
+            ];
+            $this->audited(
+                'external_worker.complete',
+                $workerId,
+                ['job' => $jobId, 'worker' => $workerId],
+                static fn () => $client->completeExternalWorkerJob($jobId, $payload),
+            );
             $io->success('External worker job completed.');
 
             return self::SUCCESS;
@@ -45,3 +53,4 @@ final class ExternalWorkerJobCompleteCommand extends AbstractExternalWorkerJobCo
         }
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): audit entries via cli)

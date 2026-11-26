@@ -5,31 +5,25 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable\Tests\Mcp;
 
-use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\McpToolCollection;
-use ApiPlatform\State\ProviderInterface;
 use Dmstr\Flowable\ApiResource\FlowDeployment;
 use Dmstr\Flowable\ApiResource\Output\FlowProcessHistory;
 use Dmstr\Flowable\ApiResource\Output\FlowProcessStatus;
 use Dmstr\Flowable\ApiResource\Output\FlowTaskForm;
 use Dmstr\Flowable\Client\FlowableClientInterface;
 use Dmstr\Flowable\Exception\FlowableApiException;
-use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\Service\TaskInputSchema;
 use Dmstr\Flowable\State\DeploymentBundleProcessor;
 use Dmstr\Flowable\State\FlowExternalWorkerJobProvider;
 use Dmstr\Flowable\State\FlowJobProvider;
-use Dmstr\Flowable\State\FlowProcessDefinitionProvider;
 use Dmstr\Flowable\State\FlowProcessHistoryProvider;
 use Dmstr\Flowable\State\FlowProcessStatusProvider;
 use Dmstr\Flowable\State\FlowTaskFormProvider;
-use Dmstr\Flowable\State\FlowTaskProvider;
 use Dmstr\Flowable\State\TimerJobExecuteProcessor;
 use Dmstr\Flowable\Tests\State\StateTestCase;
 use Dmstr\OpenApiJsonSchema\Interface\InputSchemaResolverInterface;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -38,9 +32,11 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 /**
  * Providers and processors behind the new MCP tools, against a client double.
  *
- * Providers get the real McpTool of their tool (StateTestCase::mcpTool()),
- * because they validate the arguments against its published input schema
- * and reject a call without one.
+ * Providers get the real McpTool of their tool (StateTestCase::mcpTool())
+ * with arguments its published input schema declares. Over the MCP transport
+ * the arguments are validated before the provider runs
+ * (State\McpToolInputValidationProvider); rejected arguments are tested there
+ * (Tests\Http\UploadAndReadToolInputTest), not here.
  */
 final class McpToolStateTest extends StateTestCase
 {
@@ -99,13 +95,13 @@ final class McpToolStateTest extends StateTestCase
         $client = $this->createMock(FlowableClientInterface::class);
         $client->method('findHistoricProcessInstance')->with('pi-1')->willReturn(['id' => 'pi-1']);
         $client->expects($this->once())->method('listHistoricActivities')
-            ->with(['processInstanceId' => 'pi-1', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'asc'])
+            ->with(['processInstanceId' => 'pi-1', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'desc'])
             ->willReturn(['data' => [['id' => 'a-1', 'activityId' => 'start', 'activityType' => 'startEvent']], 'total' => 1]);
         $client->expects($this->once())->method('listHistoricVariables')
             ->with(['processInstanceId' => 'pi-1', 'start' => 0, 'size' => 200])
             ->willReturn(['data' => [['id' => 'v-1', 'variable' => ['name' => 'amount', 'type' => 'integer', 'value' => 5]]], 'total' => 1]);
         $client->expects($this->once())->method('listHistoricDecisionExecutions')
-            ->with(['instanceId' => 'pi-1', 'failed' => 'true', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'asc'])
+            ->with(['instanceId' => 'pi-1', 'failed' => 'true', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'desc'])
             ->willReturn(['data' => [['id' => 'd-1', 'decisionKey' => 'rate', 'failed' => true], ['id' => 'd-2', 'decisionKey' => 'rate', 'failed' => false]], 'total' => 2]);
 
         $history = $this->historyProvider($client)->provide(self::mcpTool('flowable_history_get'), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
@@ -119,6 +115,75 @@ final class McpToolStateTest extends StateTestCase
         // An engine that ignores the failed filter cannot leak successful runs.
         self::assertSame(['d-1'], array_column($history->failedDecisionExecutions, 'id'));
         self::assertSame(1, $history->failedDecisionExecutionsTotal);
+    }
+
+    /**
+     * The cap cuts off the oldest rows: the provider asks for the newest page
+     * and returns it oldest first, with the engine's total.
+     */
+    public function testHistoryReturnsTheNewestActivitiesAndFailedDecisionsOldestFirst(): void
+    {
+        $client = $this->createMock(FlowableClientInterface::class);
+        $client->method('findHistoricProcessInstance')->willReturn(['id' => 'pi-1']);
+        $client->expects($this->once())->method('listHistoricActivities')
+            ->with(['processInstanceId' => 'pi-1', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'desc'])
+            ->willReturn(['data' => [
+                ['id' => 'a-450', 'startTime' => '2026-01-01T00:07:30Z'],
+                ['id' => 'a-449', 'startTime' => '2026-01-01T00:07:29Z'],
+                ['id' => 'a-448', 'startTime' => '2026-01-01T00:07:28Z'],
+            ], 'total' => 450]);
+        $client->method('listHistoricVariables')->willReturn(self::EMPTY_LIST);
+        $client->expects($this->once())->method('listHistoricDecisionExecutions')
+            ->with(['instanceId' => 'pi-1', 'failed' => 'true', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'desc'])
+            ->willReturn(['data' => [
+                ['id' => 'd-9', 'failed' => true, 'startTime' => '2026-01-01T00:09:00Z'],
+                ['id' => 'd-8', 'failed' => true, 'startTime' => '2026-01-01T00:08:00Z'],
+            ], 'total' => 2]);
+
+        $history = $this->history($client);
+
+        self::assertSame(['a-448', 'a-449', 'a-450'], array_column($history->activities, 'id'));
+        self::assertSame(450, $history->activitiesTotal);
+        self::assertSame(['d-8', 'd-9'], array_column($history->failedDecisionExecutions, 'id'));
+    }
+
+    /**
+     * failedDecisionExecutionsTotal, case (a): the engine honours the
+     * failed=true filter (only failed rows), so its total is passed through,
+     * also when it is larger than the page.
+     */
+    public function testHistoryDecisionTotalIsTheEngineTotalWhenTheFilterIsHonoured(): void
+    {
+        $client = $this->historyClient(['data' => [
+            ['id' => 'd-2', 'failed' => true],
+            ['id' => 'd-1', 'failed' => true],
+        ], 'total' => 350]);
+
+        $history = $this->history($client);
+
+        self::assertSame(['d-1', 'd-2'], array_column($history->failedDecisionExecutions, 'id'));
+        self::assertSame(350, $history->failedDecisionExecutionsTotal);
+    }
+
+    /**
+     * failedDecisionExecutionsTotal, case (b): the engine ignores the filter
+     * and returns successful executions too; they are dropped and the total
+     * is the number of failed rows within the fetched page, not the engine's
+     * total.
+     */
+    public function testHistoryDecisionTotalCountsFailedRowsOfThePageWhenTheFilterIsIgnored(): void
+    {
+        $client = $this->historyClient(['data' => [
+            ['id' => 'd-4', 'failed' => false],
+            ['id' => 'd-3', 'failed' => true],
+            ['id' => 'd-2', 'failed' => false],
+            ['id' => 'd-1', 'failed' => true],
+        ], 'total' => 999]);
+
+        $history = $this->history($client);
+
+        self::assertSame(['d-1', 'd-3'], array_column($history->failedDecisionExecutions, 'id'));
+        self::assertSame(2, $history->failedDecisionExecutionsTotal);
     }
 
     public function testHistoryFailsWhenASubCallFails(): void
@@ -278,8 +343,8 @@ final class McpToolStateTest extends StateTestCase
         $client->expects($this->once())->method('listDeadLetterJobs')->willReturn(self::EMPTY_LIST);
 
         // A kind argument cannot reach the provider over MCP any more (see
-        // testDeadletterToolRejectsAKindArgument); the pinned kind still wins
-        // over a `kind` query parameter.
+        // Tests\Http\UploadAndReadToolInputTest::invalidReadArguments); the
+        // pinned kind still wins over a `kind` query parameter.
         $tool = new McpToolCollection(extraProperties: [FlowJobProvider::FIXED_KIND => 'deadletter']);
         (new FlowJobProvider($this->locator($client), $this->requestStack(Request::create('/', 'GET', ['kind' => 'async']))))
             ->provide($tool, [], []);
@@ -295,99 +360,35 @@ final class McpToolStateTest extends StateTestCase
             ->provide(self::mcpTool('flowable_system_list_deadletter_jobs'), [], self::mcpContext([]));
     }
 
-    public function testDeadletterToolRejectsAKindArgument(): void
-    {
-        $client = $this->createMock(FlowableClientInterface::class);
-        $client->expects($this->never())->method($this->anything());
-
-        $this->expectException(UnprocessableEntityHttpException::class);
-        (new FlowJobProvider($this->locator($client), $this->requestStack()))
-            ->provide(self::mcpTool('flowable_system_list_deadletter_jobs'), [], self::mcpContext(['kind' => 'async']));
-    }
-
-    // --- (g) read tools validate their arguments, fail-closed ------------------
-
-    /**
-     * The six read tools with a provider factory and valid arguments.
-     *
-     * @return iterable<string, array{string, \Closure(self, FlowableClientInterface): ProviderInterface<object>, array<string, mixed>}>
-     */
-    public static function readTools(): iterable
-    {
-        $id = ['id' => 'x1'];
-        yield 'flowable_list_process_definitions' => ['flowable_list_process_definitions', static fn (self $t, FlowableClientInterface $c) => new FlowProcessDefinitionProvider($t->locator($c), $t->requestStack()), []];
-        yield 'flowable_list_tasks' => ['flowable_list_tasks', static fn (self $t, FlowableClientInterface $c) => new FlowTaskProvider($t->locator($c), $t->requestStack()), []];
-        yield 'flowable_get_task_form' => ['flowable_get_task_form', static fn (self $t, FlowableClientInterface $c) => $t->formProvider($c, $t->createStub(InputSchemaResolverInterface::class)), $id];
-        yield 'flowable_get_process_status' => ['flowable_get_process_status', static fn (self $t, FlowableClientInterface $c) => $t->statusProvider($c), $id];
-        yield 'flowable_history_get' => ['flowable_history_get', static fn (self $t, FlowableClientInterface $c) => $t->historyProvider($c), $id];
-        yield 'flowable_system_list_deadletter_jobs' => ['flowable_system_list_deadletter_jobs', static fn (self $t, FlowableClientInterface $c) => new FlowJobProvider($t->locator($c), $t->requestStack()), []];
-    }
-
-    /**
-     * @param \Closure(self, FlowableClientInterface): ProviderInterface<object> $provider
-     * @param array<string, mixed> $arguments
-     */
-    #[DataProvider('readTools')]
-    public function testReadToolRejectsAnUnknownArgument(string $name, \Closure $provider, array $arguments): void
-    {
-        $client = $this->createMock(FlowableClientInterface::class);
-        $client->expects($this->never())->method($this->anything());
-
-        $this->expectException(UnprocessableEntityHttpException::class);
-        $provider($this, $client)->provide(self::mcpTool($name), $arguments, self::mcpContext($arguments + ['unknown' => 'x'], array_keys($arguments)));
-    }
-
-    /**
-     * A tool without an input schema (here: a bare McpTool, as API Platform
-     * would build it for a tool that declares none) is rejected, not run
-     * unvalidated.
-     *
-     * @param \Closure(self, FlowableClientInterface): ProviderInterface<object> $provider
-     * @param array<string, mixed> $arguments
-     */
-    #[DataProvider('readTools')]
-    public function testReadProviderRejectsAToolWithoutInputSchema(string $name, \Closure $provider, array $arguments): void
-    {
-        $client = $this->createMock(FlowableClientInterface::class);
-        $client->expects($this->never())->method($this->anything());
-
-        $bare = $arguments === [] ? new McpToolCollection(name: $name) : self::tool();
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('MCP call rejected');
-        $provider($this, $client)->provide($bare, $arguments, self::mcpContext($arguments, array_keys($arguments)));
-    }
-
-    /**
-     * @param \Closure(self, FlowableClientInterface): ProviderInterface<object> $provider
-     * @param array<string, mixed> $arguments
-     */
-    #[DataProvider('readTools')]
-    public function testReadProviderRejectsMcpDataOnANonToolOperation(string $name, \Closure $provider, array $arguments): void
-    {
-        $client = $this->createMock(FlowableClientInterface::class);
-        $client->expects($this->never())->method($this->anything());
-
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('MCP call rejected');
-        $provider($this, $client)->provide(new GetCollection(), $arguments, self::mcpContext($arguments, array_keys($arguments)));
-    }
-
-    public function testReadToolWithAnUnbuildableSchemaIsRejected(): void
-    {
-        $client = $this->createMock(FlowableClientInterface::class);
-        $client->expects($this->never())->method($this->anything());
-        $tool = new McpToolCollection(name: 'broken', extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowTask/missing.input.json']]);
-
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('MCP call rejected: the input schema of tool "broken" cannot be built.');
-        (new FlowTaskProvider($this->locator($client), $this->requestStack()))->provide($tool, [], self::mcpContext([]));
-    }
-
     public function statusProvider(FlowableClientInterface $client): FlowProcessStatusProvider
     {
         return new FlowProcessStatusProvider($this->locator($client), $this->requestStack());
     }
 
+
+    /**
+     * A client whose history is empty except for the given decision executions.
+     *
+     * @param array<string,mixed> $decisions Flowable list envelope
+     */
+    private function historyClient(array $decisions): FlowableClientInterface
+    {
+        $client = $this->createStub(FlowableClientInterface::class);
+        $client->method('findHistoricProcessInstance')->willReturn(['id' => 'pi-1']);
+        $client->method('listHistoricActivities')->willReturn(self::EMPTY_LIST);
+        $client->method('listHistoricVariables')->willReturn(self::EMPTY_LIST);
+        $client->method('listHistoricDecisionExecutions')->willReturn($decisions);
+
+        return $client;
+    }
+
+    private function history(FlowableClientInterface $client): FlowProcessHistory
+    {
+        $history = $this->historyProvider($client)->provide(self::mcpTool('flowable_history_get'), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
+        self::assertInstanceOf(FlowProcessHistory::class, $history);
+
+        return $history;
+    }
     public function historyProvider(FlowableClientInterface $client): FlowProcessHistoryProvider
     {
         return new FlowProcessHistoryProvider($this->locator($client), $this->requestStack());
@@ -428,3 +429,5 @@ final class McpToolStateTest extends StateTestCase
     }
 }
 // - revised 2026-11-26 (providers called with the real McpTool, read tools validate their arguments)
+// - revised 2026-11-26 (argument validation moved to the transport-level and decorator tests)
+// - revised 2026-11-26 (history: newest 200 rows oldest first, how the failed decision total comes about)

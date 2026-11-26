@@ -20,20 +20,29 @@ use ApiPlatform\State\ProcessorInterface;
  */
 final class ExternalWorkerJobCompleteProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
+    public const string INPUT_SCHEMA = 'FlowExternalWorkerJob/complete.input.json';
+
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): null
     {
-        $body = $this->validator->validateRaw($this->rawBody($context), $this->schemaPath('FlowExternalWorkerJob', 'complete'));
+        $body = $this->validatedBody($context);
         $client = $this->client($body, $context);
 
         $jobId = (string) ($uriVariables['id'] ?? '');
         $workerId = (string) ($body['workerId'] ?? '');
 
-        $client->completeExternalWorkerJob($jobId, [
+        $payload = [
             'workerId' => $workerId,
             'variables' => $this->variableMapper->toFlowable($body['variables'] ?? null),
-        ]);
-        $this->audit('external_worker.complete', ['job' => $jobId, 'worker' => $workerId]);
+        ];
+        $this->audited(
+            'external_worker.complete',
+            $context,
+            ['job' => $jobId, 'worker' => $workerId],
+            static fn () => $client->completeExternalWorkerJob($jobId, $payload),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody())
