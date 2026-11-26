@@ -14,6 +14,7 @@ use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\McpToolCollection;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Controller\JobStacktraceController;
 use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\FlowJobProvider;
@@ -89,7 +90,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'withoutScopeId' => new QueryParameter(description: 'Only jobs without a scope id'),
                 'withoutScopeType' => new QueryParameter(description: 'Only jobs without a scope type'),
                 'withoutTenantId' => new QueryParameter(description: 'Only jobs without a tenant id'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -104,7 +105,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                     ],
                     description: 'Which engine job collection the id lives in — ids do not resolve across kinds',
                 ),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -293,3 +294,4 @@ final class FlowJob
 // - revised 2026-10-09 (MCP: admin-only)
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
 // - revised 2026-11-26 (tool descriptions: JSON-RPC errors, active async executor for the timer tool)
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

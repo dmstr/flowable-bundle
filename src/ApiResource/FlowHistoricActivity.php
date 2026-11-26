@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\State\FlowHistoricActivityProvider;
 use Symfony\Component\Serializer\Annotation\Groups;
 
@@ -33,7 +34,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'activityId' => new QueryParameter(description: 'Filter by BPMN activity id'),
                 'activityType' => new QueryParameter(description: 'Filter by activity type (userTask, startEvent, ...)'),
                 'finished' => new QueryParameter(description: 'Only finished (true) or unfinished (false) activities'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
     ],
@@ -125,3 +126,4 @@ final class FlowHistoricActivity
         return $self;
     }
 }
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

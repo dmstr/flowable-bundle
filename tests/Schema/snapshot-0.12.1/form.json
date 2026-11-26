@@ -18,7 +18,7 @@
                 ]
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",
@@ -68,7 +68,7 @@
                 ]
             },
             "apiConfiguration": {
-                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                 "oneOf": [
                     {
                         "type": "string",

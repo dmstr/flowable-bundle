@@ -50,6 +50,14 @@ final class FlowableClientLocator
     public const string INVALID_SELECTION = 'apiConfiguration does not select an active Flowable API configuration. '
         .'Pass the first 8 characters or the full UUID (lowercase) of exactly one active Flowable configuration.';
 
+    /**
+     * The one description of the selector where it is a plain string: the
+     * `apiConfiguration` query parameter and multipart field of the
+     * resources. The schema definitions in src/Schema/api-configuration.json
+     * say the same with "Optional" in front.
+     */
+    public const string SELECTOR_DESCRIPTION = 'Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase';
+
     /** @var array<string, FlowableClientInterface> */
     private array $cache = [];
 
@@ -166,3 +174,4 @@ final class FlowableClientLocator
 }
 // - revised 2026-11-26 (strict explicit selector, lookup without UuidResolver)
 // - revised 2026-11-26 (flowable logger passed to the clients)
+// - revised 2026-11-26 (SELECTOR_DESCRIPTION shared by the resource attributes)

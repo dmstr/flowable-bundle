@@ -11,6 +11,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\State\FlowChannelDefinitionProvider;
 use Symfony\Component\Serializer\Annotation\Groups;
 
@@ -57,7 +58,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'createTimeAfter' => new QueryParameter(description: 'Keep only channels created after this ISO-8601 timestamp'),
                 'createTimeBefore' => new QueryParameter(description: 'Keep only channels created before this ISO-8601 timestamp'),
                 'tenantId' => new QueryParameter(description: 'Filter by tenant id'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -166,3 +167,4 @@ final class FlowChannelDefinition
         return $self;
     }
 }
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

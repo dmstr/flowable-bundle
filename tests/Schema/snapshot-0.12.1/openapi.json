@@ -89,7 +89,7 @@
                                 ]
                             },
                             "apiConfiguration": {
-                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                                 "oneOf": [
                                     {
                                         "type": "string",
@@ -191,7 +191,7 @@
                                 "description": "The event body as a JSON object, matching the event definition's payload contract. Must be an object — the engine rejects an array."
                             },
                             "apiConfiguration": {
-                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                                 "oneOf": [
                                     {
                                         "type": "string",
@@ -270,7 +270,7 @@
                                 ]
                             },
                             "apiConfiguration": {
-                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                                 "oneOf": [
                                     {
                                         "type": "string",
@@ -369,7 +369,7 @@
                                 "description": "Restrict acquisition to jobs of one engine (BPMN processes or CMMN cases). Omit to acquire regardless of scope."
                             },
                             "apiConfiguration": {
-                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                                 "oneOf": [
                                     {
                                         "type": "string",
@@ -464,7 +464,7 @@
                                 ]
                             },
                             "apiConfiguration": {
-                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                                 "oneOf": [
                                     {
                                         "type": "string",
@@ -562,7 +562,7 @@
                                 ]
                             },
                             "apiConfiguration": {
-                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                                 "oneOf": [
                                     {
                                         "type": "string",
@@ -646,7 +646,7 @@
                                 "description": "Long-form detail (e.g. a stacktrace), retrievable via GET /jobs/{id}/stacktrace."
                             },
                             "apiConfiguration": {
-                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                                 "oneOf": [
                                     {
                                         "type": "string",
@@ -707,7 +707,7 @@
                                 "description": "Identity of the worker holding the lock — the engine rejects a report from anyone else."
                             },
                             "apiConfiguration": {
-                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                                 "oneOf": [
                                     {
                                         "type": "string",
@@ -800,7 +800,7 @@
                                 ]
                             },
                             "apiConfiguration": {
-                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                                 "oneOf": [
                                     {
                                         "type": "string",
@@ -913,7 +913,7 @@
                                 ]
                             },
                             "apiConfiguration": {
-                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                                 "oneOf": [
                                     {
                                         "type": "string",
@@ -992,7 +992,7 @@
                                 ]
                             },
                             "apiConfiguration": {
-                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "description": "Optional Flowable ApiConfiguration selector: the first 8 characters of its UUID or the full UUID, lowercase.",
                                 "oneOf": [
                                     {
                                         "type": "string",

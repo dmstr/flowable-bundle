@@ -11,6 +11,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\State\FlowHistoricTaskProvider;
 use Symfony\Component\Serializer\Annotation\Groups;
 
@@ -34,7 +35,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'taskAssignee' => new QueryParameter(description: 'Filter by assignee'),
                 'processDefinitionKey' => new QueryParameter(description: 'Filter by process definition key'),
                 'processDefinition' => new QueryParameter(description: 'Filter by process definition (IRI or id) — relation filter'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -175,3 +176,4 @@ final class FlowHistoricTask
         return $self;
     }
 }
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

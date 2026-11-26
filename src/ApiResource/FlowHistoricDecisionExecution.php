@@ -11,6 +11,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\State\FlowHistoricDecisionExecutionProvider;
 use Symfony\Component\Serializer\Annotation\Groups;
 
@@ -33,7 +34,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'decisionDefinitionId' => new QueryParameter(description: 'Filter by decision definition id'),
                 'instanceId' => new QueryParameter(description: 'Filter by process/scope instance id'),
                 'executionId' => new QueryParameter(description: 'Filter by execution id'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -130,3 +131,4 @@ final class FlowHistoricDecisionExecution
         return $self;
     }
 }
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

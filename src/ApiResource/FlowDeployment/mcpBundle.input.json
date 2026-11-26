@@ -25,7 +25,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 255,
-            "description": "Plain file name with extension .bpmn, .bpmn20.xml, .form or .json (no path)."
+            "description": "Plain file name (no path) ending in .bpmn, .bpmn20.xml, .xml, .form or .json, in any letter case; .dmn.xml and .cmmn.xml are refused."
           },
           "content": {
             "type": "string",

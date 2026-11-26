@@ -14,6 +14,7 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\OpenApi\Model\RequestBody;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\State\EventDeploymentDeleteProcessor;
 use Dmstr\Flowable\State\EventDeploymentUploadProcessor;
 use Dmstr\Flowable\State\FlowEventDeploymentProvider;
@@ -52,7 +53,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'tenantId' => new QueryParameter(description: 'Filter by tenant id'),
                 'tenantIdLike' => new QueryParameter(description: 'Filter by tenant id (SQL LIKE pattern)'),
                 'withoutTenantId' => new QueryParameter(description: 'Keep only deployments without a tenant'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -98,7 +99,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                                     ],
                                     'apiConfiguration' => [
                                         'type' => 'string',
-                                        'description' => 'Flowable ApiConfiguration UUID (full or partial)',
+                                        'description' => FlowableClientLocator::SELECTOR_DESCRIPTION,
                                     ],
                                 ],
                             ],
@@ -179,3 +180,4 @@ final class FlowEventDeployment
         return $self;
     }
 }
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

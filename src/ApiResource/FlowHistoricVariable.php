@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\State\FlowHistoricVariableProvider;
 use Symfony\Component\Serializer\Annotation\Groups;
 
@@ -33,7 +34,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'taskId' => new QueryParameter(description: 'Filter by task id'),
                 'historicTask' => new QueryParameter(description: 'Filter by historic task (IRI or id) — relation filter'),
                 'variableName' => new QueryParameter(description: 'Filter by variable name'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
     ],
@@ -111,3 +112,4 @@ final class FlowHistoricVariable
         return $self;
     }
 }
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

@@ -14,6 +14,7 @@ use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\ExecutionTriggerProcessor;
 use Dmstr\Flowable\State\FlowExecutionProvider;
@@ -42,7 +43,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'processInstance' => new QueryParameter(description: 'Filter by process instance (IRI or id) — relation filter'),
                 'activityId' => new QueryParameter(description: 'Filter by the BPMN activity id the execution waits at'),
                 'parentId' => new QueryParameter(description: 'Filter by parent execution id'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -149,3 +150,4 @@ final class FlowExecution
 // - revised 2026-10-09 (MCP: destructiveHint)
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
 // - revised 2026-11-26 (tool description: failures are JSON-RPC errors)
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

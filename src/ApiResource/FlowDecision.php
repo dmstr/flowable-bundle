@@ -13,6 +13,7 @@ use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\State\DecisionExecuteProcessor;
 use Dmstr\Flowable\State\FlowDecisionProvider;
@@ -44,7 +45,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'deploymentId' => new QueryParameter(description: 'Filter by DMN deployment id'),
                 'dmnDeployment' => new QueryParameter(description: 'Filter by DMN deployment (IRI or id) — relation filter'),
                 'latest' => new QueryParameter(description: 'Keep only the latest version per key'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -170,3 +171,4 @@ final class FlowDecision
 // - revised 2026-10-08 (MCP tool flowable_dmn_evaluate)
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
 // - revised 2026-11-26 (tool description: result rows as the engine returns them, history row per call)
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)

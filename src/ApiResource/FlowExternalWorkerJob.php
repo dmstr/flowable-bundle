@@ -12,6 +12,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
 use ApiPlatform\OpenApi\Model\Operation;
+use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\State\ExternalWorkerJobAcquireProcessor;
 use Dmstr\Flowable\State\ExternalWorkerJobBpmnErrorProcessor;
 use Dmstr\Flowable\State\ExternalWorkerJobCompleteProcessor;
@@ -73,7 +74,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
                 'withoutScopeId' => new QueryParameter(description: 'Only jobs without a scope id'),
                 'withoutScopeType' => new QueryParameter(description: 'Only jobs without a scope type'),
                 'withoutTenantId' => new QueryParameter(description: 'Only jobs without a tenant id'),
-                'apiConfiguration' => new QueryParameter(description: 'Flowable ApiConfiguration UUID (full or partial)'),
+                'apiConfiguration' => new QueryParameter(description: FlowableClientLocator::SELECTOR_DESCRIPTION),
             ],
         ),
         new Get(
@@ -281,3 +282,4 @@ final class FlowExternalWorkerJob
     }
 }
 // - revised 2026-10-08 (processDefinition relation filter)
+// - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)
