@@ -31,6 +31,32 @@
     "apiConfigurationString": {
       "$ref": "#/$defs/uuidSelector",
       "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+    },
+    "page": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Page number, starting at 1."
+    },
+    "itemsPerPage": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200,
+      "default": 30,
+      "description": "Page size (1 to 200)."
+    },
+    "sort": {
+      "type": "string",
+      "description": "Flowable sort field."
+    },
+    "order": {
+      "type": "string",
+      "enum": [
+        "asc",
+        "desc"
+      ],
+      "default": "desc",
+      "description": "Sort direction."
     }
   }
 }
