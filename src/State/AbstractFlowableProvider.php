@@ -35,11 +35,27 @@ abstract class AbstractFlowableProvider
     }
 
     /**
+     * The client of the selected engine connection: `apiConfiguration` as a
+     * selector string or `{uuid}` (MCP), or the query-string value (HTTP).
+     * The raw value goes through {@see OperationInputTrait::configurationId()},
+     * so a value that is neither is rejected with a 400 instead of falling
+     * back to the default connection.
+     *
      * @param array<string,mixed> $context operation context (MCP arguments)
      */
     protected function client(array $context = []): FlowableClientInterface
     {
-        return $this->locator->resolve($this->queryParam('apiConfiguration', $context));
+        return $this->locator->resolve($this->configurationSelector($context));
+    }
+
+    /**
+     * The `apiConfiguration` selector as id string, or null for none.
+     *
+     * @param array<string,mixed> $context operation context (MCP arguments)
+     */
+    protected function configurationSelector(array $context = []): ?string
+    {
+        return self::configurationId($this->inputParam('apiConfiguration', $context));
     }
 
     /**
@@ -149,3 +165,4 @@ abstract class AbstractFlowableProvider
 }
 // - revised 2026-11-26 (MCP tool arguments validated against the published input schema)
 // - revised 2026-11-26 (per-provider MCP input validation removed, done centrally)
+// - revised 2026-11-26 (apiConfiguration resolved with configurationId(), {uuid} accepted, no silent fallback)

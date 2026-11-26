@@ -39,7 +39,7 @@ final class FlowTaskFormProvider extends AbstractFlowableProvider implements Pro
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): FlowTaskForm
     {
         $taskId = self::requiredId($uriVariables, 'user task id');
-        $apiConfiguration = $this->queryParam('apiConfiguration', $context);
+        $apiConfiguration = $this->configurationSelector($context);
 
         $schema = $this->taskInputSchema->resolve($taskId, $apiConfiguration);
         if (null === $schema) {
@@ -54,3 +54,4 @@ final class FlowTaskFormProvider extends AbstractFlowableProvider implements Pro
 }
 // - revised 2026-11-26 (MCP tool arguments validated against the published input schema)
 // - revised 2026-11-26 (per-provider MCP input validation removed, done centrally)
+// - revised 2026-11-26 (apiConfiguration resolved with configurationId(), {uuid} accepted, no silent fallback)

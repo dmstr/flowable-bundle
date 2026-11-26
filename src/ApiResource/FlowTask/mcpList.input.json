@@ -35,7 +35,7 @@
       "description": "Filter by task definition key (the BPMN userTask id)."
     },
     "apiConfiguration": {
-      "$ref": "../../Schema/api-configuration.json#/$defs/apiConfigurationString"
+      "$ref": "../../Schema/api-configuration.json#/$defs/apiConfigurationOrDefault"
     }
   },
   "additionalProperties": false

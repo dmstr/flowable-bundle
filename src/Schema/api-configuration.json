@@ -28,10 +28,6 @@
       "$ref": "#/$defs/apiConfiguration",
       "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
     },
-    "apiConfigurationString": {
-      "$ref": "#/$defs/uuidSelector",
-      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
-    },
     "page": {
       "type": "integer",
       "minimum": 1,

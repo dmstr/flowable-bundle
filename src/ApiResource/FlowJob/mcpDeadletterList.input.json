@@ -47,7 +47,7 @@
       "description": "Filter by tenant id."
     },
     "apiConfiguration": {
-      "$ref": "../../Schema/api-configuration.json#/$defs/apiConfigurationString"
+      "$ref": "../../Schema/api-configuration.json#/$defs/apiConfigurationOrDefault"
     }
   },
   "additionalProperties": false

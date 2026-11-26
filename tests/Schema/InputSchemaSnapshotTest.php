@@ -37,7 +37,11 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
  *    byte limit is enforced by State\UploadRule), `maxItems` 20 on the bundle
  *    files, and the descriptions name the limits;
  *  - the `name` pattern of FlowDmnDeployment/mcpDeploy accepts `.dmn` only
- *    (archives stay with the HTTP upload), its descriptions say so.
+ *    (archives stay with the HTTP upload), its descriptions say so;
+ *  - deliberate deviation in the release after 0.13.0: the six read tools
+ *    and FlowDmnDeployment/mcpDeploy take `apiConfiguration` as a selector
+ *    string or `{uuid}` (`oneOf`, the definition `apiConfigurationOrDefault`)
+ *    instead of the string only; nothing else of these schemas changed.
  * Each test rebuilds one delivery path
  * and compares its JSON encoding byte for byte, so key order and the {} / []
  * distinction are part of the contract:
@@ -280,3 +284,4 @@ final class InputSchemaSnapshotTest extends StateTestCase
 }
 // - revised 2026-11-26 (fixtures carry the selector pattern in the {uuid} branch)
 // - revised 2026-11-26 (upload limits and .dmn-only pattern in the fixtures, tools from StateTestCase)
+// - revised 2026-11-26 (read tools and flowable_dmn_deploy take apiConfiguration as {uuid} too)
