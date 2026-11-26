@@ -132,20 +132,14 @@ abstract class AbstractFlowableProcessor
                 throw new BadRequestHttpException('Missing "name" argument (file name including extension).');
             }
             UploadRule::assertFileName($filename, '"name"');
-            if (!\is_string($mcp['content'] ?? null) || $mcp['content'] === '') {
-                throw new BadRequestHttpException('Missing "content" argument (file content).');
-            }
-            $content = $mcp['content'];
-            $encoding = $mcp['contentEncoding'] ?? null;
-            if ($encoding === 'base64') {
-                $content = base64_decode($content, true);
-                if ($content === false) {
-                    throw new BadRequestHttpException('"content" is not valid base64.');
-                }
-            } elseif ($encoding !== null && $encoding !== '') {
-                throw new BadRequestHttpException('Unsupported "contentEncoding"; only "base64" is accepted.');
-            }
-            UploadRule::assertInlineSize($content, '"content"');
+            $content = UploadRule::decodeInlineContent(
+                $mcp['content'] ?? null,
+                $mcp['contentEncoding'] ?? null,
+                '"content"',
+                'Missing "content" argument (file content).',
+                '"content" is not valid base64.',
+                'Unsupported "contentEncoding"; only "base64" is accepted.',
+            );
         } else {
             $file = $this->requestStack->getCurrentRequest()?->files->get('file');
             if (!$file instanceof UploadedFile) {
@@ -255,3 +249,4 @@ abstract class AbstractFlowableProcessor
 // - revised 2026-10-09 (nested {} in MCP arguments)
 // - revised 2026-11-26 (upload file name rule and inline size limit, strict apiConfiguration value, MCP input validator)
 // - revised 2026-11-26 (schema path built by Schema\InputSchemaPath)
+// - revised 2026-11-26 (inline content decoding moved to UploadRule::decodeInlineContent)

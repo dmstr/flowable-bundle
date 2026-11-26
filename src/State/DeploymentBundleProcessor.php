@@ -94,20 +94,14 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
                 throw new BadRequestHttpException(sprintf('files[%d]: duplicate file name "%s".', $index, $name));
             }
 
-            $content = $file['content'] ?? null;
-            if (!\is_string($content) || '' === $content) {
-                throw new BadRequestHttpException(sprintf('files[%d].content must be a non-empty string.', $index));
-            }
-            $encoding = $file['contentEncoding'] ?? null;
-            if ('base64' === $encoding) {
-                $content = base64_decode($content, true);
-                if (false === $content) {
-                    throw new BadRequestHttpException(sprintf('files[%d].content is not valid base64.', $index));
-                }
-            } elseif (null !== $encoding && '' !== $encoding) {
-                throw new BadRequestHttpException(sprintf('files[%d]: unsupported contentEncoding; only "base64" is accepted.', $index));
-            }
-            UploadRule::assertInlineSize($content, sprintf('files[%d].content', $index));
+            $content = UploadRule::decodeInlineContent(
+                $file['content'] ?? null,
+                $file['contentEncoding'] ?? null,
+                sprintf('files[%d].content', $index),
+                sprintf('files[%d].content must be a non-empty string.', $index),
+                sprintf('files[%d].content is not valid base64.', $index),
+                sprintf('files[%d]: unsupported contentEncoding; only "base64" is accepted.', $index),
+            );
             $total += \strlen($content);
             if ($total > UploadRule::MAX_BUNDLE_BYTES) {
                 throw new BadRequestHttpException(sprintf(
@@ -165,3 +159,4 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
     }
 }
 // - revised 2026-11-26 (shared upload file name rule, file count and size limits)
+// - revised 2026-11-26 (inline content decoding moved to UploadRule::decodeInlineContent)
