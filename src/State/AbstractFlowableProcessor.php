@@ -162,8 +162,9 @@ abstract class AbstractFlowableProcessor
     /**
      * The deployable resource of an upload operation: the multipart "file"
      * part over HTTP, the inline name/content arguments for an MCP tool call.
-     * The file name must follow {@see UploadRule::assertFileName()} and carry
-     * one of $allowedExtensions; decoded inline content is limited by
+     * The file name must follow {@see UploadRule::assertFileName()} and
+     * {@see UploadRule::assertResourceSuffix()} with $allowedExtensions;
+     * decoded inline content is limited by
      * {@see UploadRule::assertInlineSize()}.
      *
      * @param array<string,mixed> $context operation context (MCP arguments)
@@ -205,15 +206,7 @@ abstract class AbstractFlowableProcessor
             $content = null;
         }
 
-        $extension = strtolower(pathinfo($filename, \PATHINFO_EXTENSION));
-        if (!\in_array($extension, $allowedExtensions, true)) {
-            throw new BadRequestHttpException(sprintf(
-                'Unsupported resource extension ".%s". Allowed: %s%s.',
-                $extension,
-                implode(', ', $allowedExtensions),
-                $extensionHint,
-            ));
-        }
+        UploadRule::assertResourceSuffix($filename, $allowedExtensions, $extensionHint);
 
         // Read the upload only once the name has been accepted (as before).
         $content ??= (string) file_get_contents($file->getPathname());
@@ -303,3 +296,4 @@ abstract class AbstractFlowableProcessor
 // - revised 2026-11-26 (audited(): attempt, success and failure entries with origin and MCP tool name)
 // - revised 2026-11-26 (per-provider MCP input validation removed, done centrally)
 // - revised 2026-11-26 (INPUT_SCHEMA, inputSchemaPath() and validatedBody() replace schemaPath(): one source for the published and the enforced input file)
+// - revised 2026-11-26 (resource suffix checked by UploadRule::assertResourceSuffix, full suffix)

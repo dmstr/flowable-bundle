@@ -28,8 +28,14 @@ use Dmstr\Flowable\ApiResource\FlowEventDeployment;
  */
 final class EventDeploymentUploadProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
-    /** Extensions the event registry interprets as deployable resources. */
-    private const ALLOWED_EXTENSIONS = ['event', 'channel'];
+    /**
+     * Extensions the event registry interprets as deployable resources; also
+     * read by flowable:events:deployments:upload.
+     */
+    public const array ALLOWED_EXTENSIONS = ['event', 'channel'];
+
+    /** Appended to the unsupported-extension error. */
+    public const string EXTENSION_HINT = ' (the event registry accepts no .bar/.zip bundles)';
 
     /** Multipart field name => engine query-string key. */
     private const FIELD_MAP = [
@@ -43,7 +49,7 @@ final class EventDeploymentUploadProcessor extends AbstractFlowableProcessor imp
         $resource = $this->uploadedResource(
             $context,
             self::ALLOWED_EXTENSIONS,
-            ' (the event registry accepts no .bar/.zip bundles)',
+            self::EXTENSION_HINT,
         );
         $filename = $resource['name'];
 
@@ -65,3 +71,4 @@ final class EventDeploymentUploadProcessor extends AbstractFlowableProcessor imp
     }
 }
 // - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (ALLOWED_EXTENSIONS and EXTENSION_HINT public, shared with the CLI upload command)

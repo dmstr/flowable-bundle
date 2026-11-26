@@ -11,6 +11,7 @@ use Dmstr\Flowable\Schema\InputSchemaPath;
 use Dmstr\Flowable\Service\FlowableAuditLogger;
 use Dmstr\Flowable\Service\FlowableVariableMapper;
 use Dmstr\Flowable\Service\InputSchemaValidator;
+use Dmstr\Flowable\State\UploadRule;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -124,6 +125,26 @@ abstract class AbstractFlowableCommand extends Command
     }
 
     /**
+     * The file name an upload command sends to the engine, the base name of
+     * $path, checked by the same rules as the HTTP and MCP upload: the file
+     * name rule ({@see UploadRule::assertFileName()}) and the resource suffix
+     * ({@see UploadRule::assertResourceSuffix()}) with the extensions of the
+     * matching upload processor. Call it before anything is sent or audited.
+     *
+     * @param list<string> $allowedExtensions
+     * @param string $extensionHint appended to the unsupported-extension error
+     * @throws \Symfony\Component\HttpKernel\Exception\BadRequestHttpException
+     */
+    protected function uploadFileName(string $path, array $allowedExtensions, string $extensionHint = ''): string
+    {
+        $filename = basename($path);
+        UploadRule::assertFileName($filename, 'The file name');
+        UploadRule::assertResourceSuffix($filename, $allowedExtensions, $extensionHint);
+
+        return $filename;
+    }
+
+    /**
      * @return array<string,mixed>
      */
     protected function readInput(InputInterface $input, string $schemaPath): array
@@ -227,3 +248,4 @@ abstract class AbstractFlowableCommand extends Command
 // - revised 2026-11-26 (strict --api-configuration format)
 // - revised 2026-11-26 (schema path built by Schema\InputSchemaPath)
 // - revised 2026-11-26 (audit entries of write commands, via cli)
+// - revised 2026-11-26 (uploadFileName(): file name and suffix rule of the upload commands)

@@ -25,8 +25,12 @@ use Dmstr\Flowable\ApiResource\FlowDeployment;
  */
 final class DeploymentUploadProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
-    /** Extensions Flowable interprets as deployable resources. */
-    private const ALLOWED_EXTENSIONS = ['bpmn', 'xml', 'dmn', 'form', 'json', 'bar', 'zip'];
+    /**
+     * Extensions Flowable interprets as deployable resources; also read by
+     * flowable:deployments:upload. ".cmmn.xml" is refused like ".cmmn"
+     * (UploadRule::rejectedSuffix()).
+     */
+    public const array ALLOWED_EXTENSIONS = ['bpmn', 'xml', 'dmn', 'form', 'json', 'bar', 'zip'];
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): FlowDeployment
     {
@@ -48,3 +52,4 @@ final class DeploymentUploadProcessor extends AbstractFlowableProcessor implemen
     }
 }
 // - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
+// - revised 2026-11-26 (ALLOWED_EXTENSIONS public, shared with the CLI upload command)

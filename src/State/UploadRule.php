@@ -9,13 +9,19 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 /**
  * The rules every uploaded resource follows, shared by the single upload
- * (HTTP multipart and MCP inline, see AbstractFlowableProcessor) and the
- * files of flowable_deploy_bundle (DeploymentBundleProcessor).
+ * (HTTP multipart and MCP inline, see AbstractFlowableProcessor), the
+ * files of flowable_deploy_bundle (DeploymentBundleProcessor) and the CLI
+ * upload commands (AbstractFlowableCommand::uploadFileName()).
  *
  * File name: a plain name the engine stores as the resource name and that
  * ends up in the Content-Disposition header of the multipart request to the
  * engine: at most 255 characters, no path ("/", "\"), no "..", no leading
  * ".", no quotes and no control characters (CR/LF among them).
+ *
+ * File suffix: the extension must be one the upload accepts, and a name
+ * that Flowable reads as a resource of another kind through a double suffix
+ * (".dmn.xml", ".cmmn.xml") is refused when that kind's own extension is
+ * not accepted either, so "rates.dmn.xml" does not pass as ".xml".
  *
  * Inline content: at most 1 MiB per file after decoding. The schemas' maxLength
  * counts characters of the (possibly base64) string, so it is only a
@@ -28,6 +34,12 @@ final class UploadRule
 
     /** Decoded bytes of one inline file (1 MiB). */
     public const int MAX_INLINE_BYTES = 1024 * 1024;
+
+    /**
+     * Resource kinds Flowable also recognises by the double suffix
+     * ".<kind>.xml" (e.g. "rates.dmn.xml" is a DMN resource).
+     */
+    public const array XML_DOUBLE_SUFFIX_KINDS = ['dmn', 'cmmn'];
 
     /** Files of one flowable_deploy_bundle call. */
     public const int MAX_BUNDLE_FILES = 20;
@@ -55,6 +67,50 @@ final class UploadRule
                 '%s must be a plain file name: at most %d characters, no path, no "..", not starting with ".", no quotes or control characters.',
                 $field,
                 self::MAX_FILE_NAME_LENGTH,
+            ));
+        }
+    }
+
+    /**
+     * The suffix that excludes $name from an upload accepting
+     * $allowedExtensions, compared case-insensitively, or null when the name
+     * is accepted: ".<kind>.xml" when the name ends with the double suffix of
+     * a kind in {@see self::XML_DOUBLE_SUFFIX_KINDS} whose extension is not
+     * allowed, else ".<extension>" when the extension is not allowed ("."
+     * for a name without one).
+     *
+     * @param list<string> $allowedExtensions lower-case, without the dot
+     */
+    public static function rejectedSuffix(string $name, array $allowedExtensions): ?string
+    {
+        $lower = strtolower($name);
+        foreach (self::XML_DOUBLE_SUFFIX_KINDS as $kind) {
+            if (!\in_array($kind, $allowedExtensions, true) && str_ends_with($lower, '.'.$kind.'.xml')) {
+                return '.'.$kind.'.xml';
+            }
+        }
+        $extension = strtolower(pathinfo($name, \PATHINFO_EXTENSION));
+
+        return \in_array($extension, $allowedExtensions, true) ? null : '.'.$extension;
+    }
+
+    /**
+     * Rejects a resource name whose suffix the upload does not accept
+     * ({@see self::rejectedSuffix()}); the error names the suffix.
+     *
+     * @param list<string> $allowedExtensions lower-case, without the dot
+     * @param string $hint appended to the list of allowed extensions
+     * @throws BadRequestHttpException
+     */
+    public static function assertResourceSuffix(string $name, array $allowedExtensions, string $hint = ''): void
+    {
+        $suffix = self::rejectedSuffix($name, $allowedExtensions);
+        if (null !== $suffix) {
+            throw new BadRequestHttpException(sprintf(
+                'Unsupported resource extension "%s". Allowed: %s%s.',
+                $suffix,
+                implode(', ', $allowedExtensions),
+                $hint,
             ));
         }
     }
@@ -116,3 +172,4 @@ final class UploadRule
     }
 }
 // - revised 2026-11-26 (inline content decoding shared by single upload and bundle)
+// - revised 2026-11-26 (full-suffix rule for resource names, shared with the CLI upload commands)

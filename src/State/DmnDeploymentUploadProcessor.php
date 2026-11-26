@@ -32,8 +32,11 @@ use Dmstr\Flowable\ApiResource\FlowDmnDeployment;
  */
 final class DmnDeploymentUploadProcessor extends AbstractFlowableProcessor implements ProcessorInterface
 {
-    /** Extensions the DMN repository interprets as deployable resources. */
-    private const ALLOWED_EXTENSIONS = ['dmn', 'bar', 'zip'];
+    /**
+     * Extensions the DMN repository interprets as deployable resources; also
+     * read by flowable:dmn:deployments:upload.
+     */
+    public const array ALLOWED_EXTENSIONS = ['dmn', 'bar', 'zip'];
 
     /** Extensions accepted over MCP: a single decision table, no archives. */
     private const MCP_EXTENSIONS = ['dmn'];
@@ -62,3 +65,4 @@ final class DmnDeploymentUploadProcessor extends AbstractFlowableProcessor imple
 // - revised 2026-11-26 (only .dmn over MCP, arguments validated against the published schema)
 // - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
 // - revised 2026-11-26 (per-provider MCP input validation removed, done centrally)
+// - revised 2026-11-26 (ALLOWED_EXTENSIONS public, shared with the CLI upload command)

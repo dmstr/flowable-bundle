@@ -26,7 +26,10 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
  * after decoding; file names follow the shared upload file name rule.
  *
  * Decision tables (.dmn) are refused: a process deployment does not register
- * them in the DMN engine; flowable_dmn_deploy deploys them.
+ * them in the DMN engine; flowable_dmn_deploy deploys them. The full suffix
+ * counts (UploadRule::rejectedSuffix()): ".dmn.xml" and ".cmmn.xml", which
+ * Flowable reads as DMN and CMMN resources, are refused like ".dmn" and
+ * ".cmmn", while ".bpmn20.xml" and a plain ".xml" pass.
  *
  * @implements ProcessorInterface<mixed, FlowDeployment>
  */
@@ -73,7 +76,8 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
     /**
      * Validate and decode the file list: at most UploadRule::MAX_BUNDLE_FILES
      * files, each name a plain file name (UploadRule::assertFileName()) with
-     * one of ENTRY_EXTENSIONS, each decoded content within
+     * a suffix of ENTRY_EXTENSIONS (UploadRule::rejectedSuffix(), full
+     * suffix), each decoded content within
      * UploadRule::assertInlineSize(), all together within
      * UploadRule::MAX_BUNDLE_BYTES.
      *
@@ -94,12 +98,12 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
         foreach ($files as $index => $file) {
             $name = \is_array($file) && \is_string($file['name'] ?? null) ? $file['name'] : '';
             UploadRule::assertFileName($name, sprintf('files[%d].name', $index));
-            $extension = strtolower(pathinfo($name, \PATHINFO_EXTENSION));
-            if (!\in_array($extension, self::ENTRY_EXTENSIONS, true)) {
+            $suffix = UploadRule::rejectedSuffix($name, self::ENTRY_EXTENSIONS);
+            if (null !== $suffix) {
                 throw new BadRequestHttpException(sprintf(
-                    'files[%d]: unsupported extension ".%s". Allowed: %s (deploy .dmn with flowable_dmn_deploy).',
+                    'files[%d]: unsupported extension "%s". Allowed: %s (deploy .dmn with flowable_dmn_deploy).',
                     $index,
-                    $extension,
+                    $suffix,
                     implode(', ', self::ENTRY_EXTENSIONS),
                 ));
             }
@@ -175,3 +179,4 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
 // - revised 2026-11-26 (inline content decoding moved to UploadRule::decodeInlineContent)
 // - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
 // - revised 2026-11-26 (input file declared once in INPUT_SCHEMA, read by validatedBody() and the MCP tool)
+// - revised 2026-11-26 (full suffix checked: .dmn.xml and .cmmn.xml refused)
