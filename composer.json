@@ -22,7 +22,7 @@
         "api-platform/core": "^4.3.18",
         "dmstr/api-configuration-bundle": "^0.7",
         "dmstr/api-platform-utils-bundle": "^0.6.0",
-        "dmstr/openapi-json-schema-bundle": "^0.5.0",
+        "dmstr/openapi-json-schema-bundle": "^0.5.0 || ^0.6.0",
         "doctrine/orm": "^3.0",
         "opis/json-schema": "^2.0",
         "psr/log": "^3.0",
