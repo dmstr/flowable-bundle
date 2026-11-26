@@ -63,8 +63,9 @@ final class McpToolSwitchResourceMetadataCollectionFactoryTest extends TestCase
             $write ? ['flow_task_get', 'flow_task_hidden_tool_as_operation'] : ['flow_task_get'],
             array_keys(iterator_to_array($resource->getOperations())),
         );
-        // McpResource entries are not governed by the tool switches.
-        self::assertArrayHasKey('flow_task_resource', $resource->getMcp());
+        // McpResource entries of the bundle follow the read switch.
+        $resources = array_keys(array_filter($resource->getMcp() ?? [], static fn (object $op): bool => $op instanceof McpResource));
+        self::assertSame($read ? ['flow_task_resource'] : [], $resources);
     }
 
     #[DataProvider('switchCombinations')]
@@ -80,6 +81,31 @@ final class McpToolSwitchResourceMetadataCollectionFactoryTest extends TestCase
             array_keys(self::tools($resource)),
         );
         self::assertSame($inner->create(self::OTHER_RESOURCE)[0]->getMcp(), $resource->getMcp());
+        // An McpResource of another bundle or the application is never
+        // governed by the bundle's read switch.
+        self::assertInstanceOf(McpResource::class, $resource->getMcp()['doc_resource'] ?? null);
+    }
+
+    public function testBundleMcpResourceAmongTheHttpOperationsFollowsTheReadSwitch(): void
+    {
+        $inner = new class implements ResourceMetadataCollectionFactoryInterface {
+            public function create(string $resourceClass): ResourceMetadataCollection
+            {
+                return new ResourceMetadataCollection($resourceClass, [new ApiResource(
+                    class: $resourceClass,
+                    operations: [
+                        'get' => new Get(name: 'get'),
+                        'misplaced_resource' => new McpResource(uri: 'resource://flowable/misplaced', name: 'misplaced_resource'),
+                    ],
+                )]);
+            }
+        };
+
+        foreach ([[true, ['get', 'misplaced_resource']], [false, ['get']]] as [$read, $expected]) {
+            $resource = (new McpToolSwitchResourceMetadataCollectionFactory($inner, $read, true, true))->create(self::FLOWABLE_RESOURCE)[0];
+
+            self::assertSame($expected, array_keys(iterator_to_array($resource->getOperations())), $read ? 'read on' : 'read off');
+        }
     }
 
     public function testOnlyLiteralTrueReadOnlyHintCountsAsRead(): void
@@ -133,6 +159,7 @@ final class McpToolSwitchResourceMetadataCollectionFactoryTest extends TestCase
             mcp: [
                 'doc_search' => new McpTool(name: 'doc_search', annotations: ['readOnlyHint' => true]),
                 'doc_delete' => new McpTool(name: 'doc_delete'),
+                'doc_resource' => new McpResource(uri: 'resource://app/documents', name: 'doc_resource'),
             ],
         );
 
@@ -150,3 +177,4 @@ final class McpToolSwitchResourceMetadataCollectionFactoryTest extends TestCase
     }
 }
 // - revised 2026-10-09 (mcp.deploy switch)
+// - revised 2026-11-26 (McpResource entries follow mcp.read)

@@ -89,7 +89,9 @@ dmstr_flowable:
         deploy: false # the deploy tools, in addition to write
 ```
 
-A tool whose annotations declare `readOnlyHint: true` is kept only when `mcp.read` is on; every other tool counts as writing and is kept only when `mcp.write` is on. The deploy tools `flowable_deploy_bundle` and `flowable_dmn_deploy` need `mcp.deploy` on top of `mcp.write`: a deployed BPMN or DMN definition is code the engine runs (script, shell and HTTP tasks, expressions), so an agent that can deploy and start processes can execute code on the engine. A switched-off tool is removed from API Platform's resource metadata, so it is neither listed nor callable. API Platform caches that metadata, so run `bin/console cache:clear` after changing a switch.
+A tool whose annotations declare `readOnlyHint: true` is kept only when `mcp.read` is on; every other tool counts as writing and is kept only when `mcp.write` is on. The deploy tools `flowable_deploy_bundle` and `flowable_dmn_deploy` need `mcp.deploy` on top of `mcp.write`: a deployed BPMN or DMN definition is code the engine runs (script, shell and HTTP tasks, expressions), so an agent that can deploy and start processes can execute code on the engine. A switched-off tool is removed from API Platform's resource metadata, so it is neither listed nor callable. MCP resources (`McpResource` entries) of the bundle's API resources are read-only and follow `mcp.read`; the bundle declares none yet, so a future one stays hidden until `mcp.read` is on. Tools and resources of other bundles and of the application are not touched.
+
+**Literal booleans only.** API Platform caches its resource metadata, and the bundle filters the tools before that cache stores them, so the switches take effect when the cache is built: run `bin/console cache:clear` after changing a switch. For the same reason a switch must be `true` or `false` when the container is built. An environment variable placeholder such as `'%env(bool:FLOWABLE_MCP_READ)%'` would be frozen in the metadata cache at warmup, and changing the variable later would change nothing, so the container build fails with an error naming the switch, for a placeholder or any other non-boolean value (`'true'`, `'1'`), whether it comes from the `dmstr_flowable` configuration or from an application override of the parameter `dmstr_flowable.mcp.read` / `.write` / `.deploy`. To differ per environment, set literal values per environment, e.g. in `config/packages/prod/dmstr_flowable.yaml` or under `when@prod:`.
 
 ## API resources
 
@@ -459,3 +461,4 @@ Without Docker, `composer install && vendor/bin/phpunit` works on any PHP 8.5 se
 <!-- - revised 2026-10-09 (MCP tools admin-only, mcp.deploy, destructiveHint, changelog) -->
 <!-- - revised 2026-10-28 (permissions, migration from 0.10, tests) -->
 <!-- - revised 2026-11-26 (0.13.0: configuration selector, id rule, upload rules and limits, MCP argument validation, tests) -->
+<!-- - revised 2026-11-26 (MCP switches: literal booleans only, McpResource follows mcp.read) -->

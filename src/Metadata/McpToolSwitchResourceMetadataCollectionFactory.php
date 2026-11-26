@@ -6,6 +6,7 @@ declare(strict_types=1);
 namespace Dmstr\Flowable\Metadata;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\McpResource;
 use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Operations;
 use ApiPlatform\Metadata\Resource\Factory\ResourceMetadataCollectionFactoryInterface;
@@ -16,7 +17,7 @@ use Psr\Log\NullLogger;
 
 /**
  * Applies the dmstr_flowable.mcp.read / mcp.write / mcp.deploy switches to
- * the bundle's own McpTool operations.
+ * the bundle's own McpTool and McpResource entries.
  *
  * API Platform registers every McpTool it finds in the resource metadata as
  * an MCP tool, and resolves a tool call by looking the name up in the same
@@ -30,7 +31,10 @@ use Psr\Log\NullLogger;
  *    mcp.write is on;
  *  - a tool marked with SWITCH_KEY => 'deploy' (it deploys process or
  *    decision definitions, i.e. code the engine runs) additionally needs
- *    mcp.deploy.
+ *    mcp.deploy;
+ *  - an McpResource is read-only by nature and kept only when mcp.read is
+ *    on. The bundle declares none today; the rule keeps a future one
+ *    closed until mcp.read is switched on.
  *
  * Independently of the switches, a tool whose input schema cannot be built
  * ({@see McpToolInputSchemaFactory::inputSchema()} throws: missing file,
@@ -40,8 +44,14 @@ use Psr\Log\NullLogger;
  *
  * Only resources under Dmstr\Flowable\ApiResource\ are touched
  * ({@see self::isBundleResource()}); other bundles' and the application's
- * resources pass through unchanged, as do McpResource entries and all HTTP
- * operations.
+ * resources pass through unchanged, including their McpTool and McpResource
+ * entries, and so do all HTTP operations.
+ *
+ * This factory sits inside API Platform's metadata cache (see
+ * config/services.yaml), so the filtered metadata is what gets cached: the
+ * switches take effect at cache warmup, a changed switch needs cache:clear,
+ * and DependencyInjection\LiteralMcpSwitchesPass therefore accepts only
+ * literal booleans.
  */
 final class McpToolSwitchResourceMetadataCollectionFactory implements ResourceMetadataCollectionFactoryInterface
 {
@@ -113,9 +123,9 @@ final class McpToolSwitchResourceMetadataCollectionFactory implements ResourceMe
             $resource = $resource->withMcp(array_filter($mcp, $this->keep(...)));
         }
 
-        // McpTool operations live in the resource's mcp list; strip any that
-        // ended up among the HTTP operations as well, so a disabled tool is
-        // no operation at all.
+        // McpTool and McpResource entries live in the resource's mcp list;
+        // strip any that ended up among the HTTP operations as well, so a
+        // disabled entry is no operation at all.
         $operations = $resource->getOperations();
         if ($operations !== null) {
             $kept = [];
@@ -137,6 +147,9 @@ final class McpToolSwitchResourceMetadataCollectionFactory implements ResourceMe
 
     private function keep(object $operation): bool
     {
+        if ($operation instanceof McpResource) {
+            return $this->readEnabled;
+        }
         if (!$operation instanceof McpTool) {
             return true;
         }
@@ -182,3 +195,4 @@ final class McpToolSwitchResourceMetadataCollectionFactory implements ResourceMe
 }
 // - revised 2026-10-09 (mcp.deploy switch)
 // - revised 2026-11-26 (hide tools whose input schema cannot be built)
+// - revised 2026-11-26 (McpResource entries follow mcp.read)

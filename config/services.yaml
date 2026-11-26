@@ -140,8 +140,13 @@ services:
 
     # MCP tool switches (dmstr_flowable.mcp.read / mcp.write / mcp.deploy, all
     # off by default): removes this bundle's McpTool operations from the resource
-    # metadata unless their switch is on. Decorates inside API Platform's
-    # metadata cache (priority -10), so the cached metadata is the filtered one.
+    # metadata unless their switch is on; its McpResource entries follow
+    # mcp.read. Order: this decorator has priority 0, API Platform's
+    # CachedResourceMetadataCollectionFactory decorates the same service with
+    # priority -10, i.e. outside of this one. The cache therefore wraps and
+    # stores the filtered result, so a changed switch takes effect only after
+    # cache:clear, and LiteralMcpSwitchesPass fails the build when a switch is
+    # not a literal boolean (an env placeholder would be frozen in the cache).
     # A tool whose input schema cannot be built is removed in every switch
     # configuration and logged (error, flowable.mcp.tool_hidden) on the
     # bundle's channel, once per metadata cache warmup.
@@ -170,3 +175,4 @@ services:
 # - revised 2026-11-26 (input schemas loaded through InputSchemaLoader)
 # - revised 2026-11-26 (locator without UuidResolver)
 # - revised 2026-11-26 (logger for hidden MCP tools)
+# - revised 2026-11-26 (switch order and cache comment, McpResource follows mcp.read)

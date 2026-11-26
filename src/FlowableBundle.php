@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable;
 
+use Dmstr\Flowable\DependencyInjection\LiteralMcpSwitchesPass;
 use Dmstr\Flowable\Worker\ExternalWorkerHandlerInterface;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -14,8 +15,9 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 /**
  * Reusable Flowable BPMN engine pass-through bundle.
  *
- * Self-wiring: ships its own DI service definitions (loadExtension) and needs
- * no entry in the consuming application's services.yaml and no compiler pass.
+ * Self-wiring: ships its own DI service definitions (loadExtension) and its
+ * own compiler passes (build), and needs no entry in the consuming
+ * application's services.yaml.
  *
  * The bundle exposes Doctrine-less API Platform pass-through resources under
  * /api/flowable/*, an HTTP FlowableClient resolved per request from an
@@ -36,7 +38,9 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
  *
  * All switches default to off, so installing symfony/mcp-bundle in the
  * application exposes no Flowable tool until it is enabled explicitly (see
- * Metadata\McpToolSwitchResourceMetadataCollectionFactory).
+ * Metadata\McpToolSwitchResourceMetadataCollectionFactory). Each switch must
+ * be a literal boolean when the container is built; an env placeholder or a
+ * string fails the build (see DependencyInjection\LiteralMcpSwitchesPass).
  */
 final class FlowableBundle extends AbstractBundle
 {
@@ -93,6 +97,20 @@ final class FlowableBundle extends AbstractBundle
             ->addTag('flowable.external_worker_handler');
     }
 
+    public function build(ContainerBuilder $container): void
+    {
+        parent::build($container);
+
+        // Checks the final switch values, after the application's
+        // configuration and parameters are merged (loadExtension() sees only
+        // the bundle's own configuration).
+        $container->addCompilerPass(
+            new LiteralMcpSwitchesPass(),
+            LiteralMcpSwitchesPass::TYPE,
+            LiteralMcpSwitchesPass::PRIORITY,
+        );
+    }
+
     public function prependExtension(
         ContainerConfigurator $container,
         ContainerBuilder $builder,
@@ -105,3 +123,4 @@ final class FlowableBundle extends AbstractBundle
     }
 }
 // - revised 2026-10-09 (mcp.deploy switch)
+// - revised 2026-11-26 (compiler pass rejecting non-boolean MCP switches)
