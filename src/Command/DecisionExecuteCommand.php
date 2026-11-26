@@ -36,9 +36,15 @@ final class DecisionExecuteCommand extends AbstractFlowableCommand
                 'inputVariables' => $this->variableMapper->toFlowable($body['inputVariables'] ?? null),
             ];
 
-            $response = ((bool) ($body['singleResult'] ?? false))
-                ? $client->executeDecisionSingleResult($payload)
-                : $client->executeDecision($payload);
+            $singleResult = (bool) ($body['singleResult'] ?? false);
+            $response = $this->audited(
+                'decision.execute',
+                $this->actingUser($input),
+                ['decision' => $payload['decisionKey'], 'singleResult' => $singleResult],
+                static fn (): array => $singleResult
+                    ? $client->executeDecisionSingleResult($payload)
+                    : $client->executeDecision($payload),
+            );
 
             return $this->renderItem($io, $response);
         } catch (\Throwable $e) {
@@ -48,3 +54,4 @@ final class DecisionExecuteCommand extends AbstractFlowableCommand
         }
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): audit entries via cli)

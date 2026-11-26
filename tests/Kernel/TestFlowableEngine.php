@@ -23,7 +23,10 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * - `POST` and `PUT` return `{id: 'stub'}` with 201 / 200.
  *
  * Every request is recorded in {@see self::$requests}, so a test can assert
- * that an allowed operation reached the engine and a denied one did not.
+ * that an allowed operation reached the engine and a denied one did not; the
+ * string body of each request is kept at the same index in
+ * {@see self::$bodies} (null when the body is not a string), e.g. for the
+ * multipart body of a deployment.
  *
  * By default no status above 399 is ever produced. A test makes the engine
  * fail with {@see self::failWith()} (an HTTP error status and body) or
@@ -57,6 +60,9 @@ final class TestFlowableEngine
 
     /** @var list<array{method: string, path: string}> */
     public array $requests = [];
+
+    /** @var list<?string> the string body of the request at the same index of $requests */
+    public array $bodies = [];
 
     /**
      * @var list<array{status: ?int, body: string, error: ?string, path: ?string, method: ?string, times: ?int}>
@@ -114,6 +120,7 @@ final class TestFlowableEngine
     {
         $this->failures = [];
         $this->requests = [];
+        $this->bodies = [];
     }
 
     /**
@@ -138,6 +145,7 @@ final class TestFlowableEngine
     {
         $path = (string) parse_url($url, PHP_URL_PATH);
         $this->requests[] = ['method' => $method, 'path' => $path];
+        $this->bodies[] = \is_string($options['body'] ?? null) ? $options['body'] : null;
 
         $failure = $this->takeFailure($method, $path);
         if ($failure !== null) {
@@ -246,3 +254,4 @@ final class TestFlowableEngine
     }
 }
 // - revised 2026-11-26 (failure mode: HTTP error status and transport errors)
+// - revised 2026-11-26 (request bodies recorded)

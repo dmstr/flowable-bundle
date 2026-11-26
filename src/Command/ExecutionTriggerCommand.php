@@ -39,7 +39,13 @@ final class ExecutionTriggerCommand extends AbstractFlowableCommand
             $variables[] = ['name' => 'triggeredBy', 'value' => $actor, 'type' => 'string'];
             $payload['variables'] = $variables;
 
-            $client->triggerExecution((string) $input->getArgument('id'), $payload);
+            $executionId = (string) $input->getArgument('id');
+            $this->audited(
+                'execution.trigger',
+                $actor,
+                ['execution' => $executionId],
+                static fn () => $client->triggerExecution($executionId, $payload),
+            );
             $io->success('Execution triggered.');
 
             return self::SUCCESS;
@@ -50,3 +56,4 @@ final class ExecutionTriggerCommand extends AbstractFlowableCommand
         }
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): audit entries via cli)

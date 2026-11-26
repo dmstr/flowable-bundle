@@ -38,9 +38,13 @@ final class DeploymentUploadProcessor extends AbstractFlowableProcessor implemen
         $fields = $this->uploadFields($context, ['deployment-name', 'deployment-source', 'category', 'tenantId']);
         $fields['deployment-name'] ??= $filename;
 
-        $deployment = FlowDeployment::fromApi($client->createDeployment($filename, $resource['content'], $fields));
-        $this->audit('deployment.upload', ['deployment' => $deployment->id, 'file' => $filename]);
-
-        return $deployment;
+        return $this->audited(
+            'deployment.upload',
+            $context,
+            ['file' => $filename, 'sha256' => hash('sha256', $resource['content'])],
+            static fn (): FlowDeployment => FlowDeployment::fromApi($client->createDeployment($filename, $resource['content'], $fields)),
+            static fn (FlowDeployment $deployment): array => ['deployment' => $deployment->id],
+        );
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

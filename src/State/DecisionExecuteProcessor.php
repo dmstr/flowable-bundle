@@ -35,15 +35,19 @@ final class DecisionExecuteProcessor extends AbstractFlowableProcessor implement
             'inputVariables' => $this->variableMapper->toFlowable($body['inputVariables'] ?? null),
         ];
 
-        $response = $singleResult
-            ? $client->executeDecisionSingleResult($payload)
-            : $client->executeDecision($payload);
+        $response = $this->audited(
+            'decision.execute',
+            $context,
+            ['decision' => $decisionKey, 'singleResult' => $singleResult],
+            static fn (): array => $singleResult
+                ? $client->executeDecisionSingleResult($payload)
+                : $client->executeDecision($payload),
+        );
 
         $result = new FlowDecision();
         $result->id = $decisionKey;
         $result->key = $decisionKey;
         $result->result = $this->normalizeResult($response['resultVariables'] ?? [], $singleResult);
-        $this->audit('decision.execute', ['decision' => $decisionKey, 'singleResult' => $singleResult]);
 
         return $result;
     }
@@ -68,3 +72,4 @@ final class DecisionExecuteProcessor extends AbstractFlowableProcessor implement
         return array_values(array_filter($resultVariables, 'is_array'));
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

@@ -30,9 +30,14 @@ final class TimerJobExecuteProcessor extends AbstractFlowableProcessor implement
             throw new BadRequestHttpException('Missing "id" argument (timer job id).');
         }
 
-        $client->executeTimerJob($jobId);
-        $this->audit('timer_job.execute', ['job' => $jobId]);
+        $this->audited(
+            'timer_job.execute',
+            $context,
+            ['job' => $jobId],
+            static fn () => $client->executeTimerJob($jobId),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

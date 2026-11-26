@@ -24,9 +24,15 @@ final class DeploymentDeleteProcessor extends AbstractFlowableProcessor implemen
             \FILTER_VALIDATE_BOOL,
         );
 
-        $this->client(context: $context)->deleteDeployment($id, $cascade);
-        $this->audit('deployment.delete', ['deployment' => $id, 'cascade' => $cascade]);
+        $client = $this->client(context: $context);
+        $this->audited(
+            'deployment.delete',
+            $context,
+            ['deployment' => $id, 'cascade' => $cascade],
+            static fn () => $client->deleteDeployment($id, $cascade),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

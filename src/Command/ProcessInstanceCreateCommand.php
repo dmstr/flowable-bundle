@@ -42,7 +42,16 @@ final class ProcessInstanceCreateCommand extends AbstractFlowableCommand
             $payload['variables'] = $variables;
             $payload['startUserId'] = $actor;
 
-            return $this->renderItem($io, $client->startProcessInstance($payload));
+            return $this->renderItem($io, $this->audited(
+                'process_instance.create',
+                $actor,
+                [
+                    'definition' => $payload['processDefinitionId'] ?? null,
+                    'definitionKey' => $payload['processDefinitionKey'] ?? null,
+                ],
+                static fn (): array => $client->startProcessInstance($payload),
+                static fn (array $instance): array => ['instance' => $instance['id'] ?? null],
+            ));
         } catch (\Throwable $e) {
             $io->error($e->getMessage());
 
@@ -50,3 +59,4 @@ final class ProcessInstanceCreateCommand extends AbstractFlowableCommand
         }
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): audit entries via cli)

@@ -173,6 +173,9 @@ final class TestInfrastructureTest extends ApiTestCase
         self::assertCount(1, $records, implode(', ', $this->flowableLog()->messages()));
         self::assertSame('info', $records[0]['level']);
         self::assertSame('alice', $records[0]['context']['actor'] ?? null);
+        self::assertSame('success', $records[0]['context']['state'] ?? null);
+        self::assertSame('http', $records[0]['context']['via'] ?? null);
+        self::assertCount(1, $this->flowableLog()->recordsWithMessage('flowable.process_definition.start.attempt'));
     }
 
     public function testRecordsDoNotLeakIntoTheNextTest(): void
@@ -182,3 +185,4 @@ final class TestInfrastructureTest extends ApiTestCase
         self::assertSame([], $this->engine()->requests);
     }
 }
+// - revised 2026-11-26 (audit entry with state and origin, attempt entry)

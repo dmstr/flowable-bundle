@@ -34,16 +34,24 @@ final class ExternalWorkerJobBpmnErrorCommand extends AbstractExternalWorkerJobC
         $io = new SymfonyStyle($input, $output);
         try {
             $errorCode = $input->getOption('error-code');
-            $body = $this->readReportInput($input, 'bpmn_error', $errorCode !== null && $errorCode !== ''
+            $body = $this->readReportInput($input, 'bpmnError', $errorCode !== null && $errorCode !== ''
                 ? ['errorCode' => (string) $errorCode]
                 : []);
             $client = $this->client($input);
 
-            $client->bpmnErrorExternalWorkerJob((string) $input->getArgument('id'), [
-                'workerId' => (string) $body['workerId'],
+            $jobId = (string) $input->getArgument('id');
+            $workerId = (string) $body['workerId'];
+            $payload = [
+                'workerId' => $workerId,
                 'errorCode' => (string) $body['errorCode'],
                 'variables' => $this->variableMapper->toFlowable($body['variables'] ?? null),
-            ]);
+            ];
+            $this->audited(
+                'external_worker.bpmn_error',
+                $workerId,
+                ['job' => $jobId, 'worker' => $workerId, 'errorCode' => $payload['errorCode']],
+                static fn () => $client->bpmnErrorExternalWorkerJob($jobId, $payload),
+            );
             $io->success(sprintf('BPMN error "%s" raised.', $body['errorCode']));
 
             return self::SUCCESS;
@@ -54,3 +62,5 @@ final class ExternalWorkerJobBpmnErrorCommand extends AbstractExternalWorkerJobC
         }
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): audit entries via cli)
+// - revised 2026-11-26 (schema verb bpmnError: the command could not find its input schema)

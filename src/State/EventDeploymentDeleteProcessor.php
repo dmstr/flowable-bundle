@@ -21,9 +21,15 @@ final class EventDeploymentDeleteProcessor extends AbstractFlowableProcessor imp
     {
         $id = (string) ($uriVariables['id'] ?? '');
 
-        $this->client(context: $context)->deleteEventDeployment($id);
-        $this->audit('event_deployment.delete', ['deployment' => $id]);
+        $client = $this->client(context: $context);
+        $this->audited(
+            'event_deployment.delete',
+            $context,
+            ['deployment' => $id],
+            static fn () => $client->deleteEventDeployment($id),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

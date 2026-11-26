@@ -53,7 +53,7 @@ final class EventDeploymentUploadCommand extends AbstractFlowableCommand
                     implode(', ', self::ALLOWED_EXTENSIONS),
                 ));
             }
-            $this->requireActingUser($input);
+            $actor = $this->requireActingUser($input);
             $client = $this->client($input);
 
             // Engine spelling: deploymentName (camelCase), read off the query string.
@@ -67,7 +67,13 @@ final class EventDeploymentUploadCommand extends AbstractFlowableCommand
 
             $content = (string) file_get_contents((string) $path);
 
-            return $this->renderItem($io, $client->createEventDeployment($filename, $content, $query));
+            return $this->renderItem($io, $this->audited(
+                'event_deployment.upload',
+                $actor,
+                ['file' => $filename, 'sha256' => hash('sha256', $content)],
+                static fn (): array => $client->createEventDeployment($filename, $content, $query),
+                static fn (array $deployment): array => ['deployment' => $deployment['id'] ?? null],
+            ));
         } catch (\Throwable $e) {
             $io->error($e->getMessage());
 
@@ -75,3 +81,4 @@ final class EventDeploymentUploadCommand extends AbstractFlowableCommand
         }
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): audit entries via cli)

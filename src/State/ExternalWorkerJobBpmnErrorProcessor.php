@@ -30,17 +30,19 @@ final class ExternalWorkerJobBpmnErrorProcessor extends AbstractFlowableProcesso
         $workerId = (string) ($body['workerId'] ?? '');
         $errorCode = (string) ($body['errorCode'] ?? '');
 
-        $client->bpmnErrorExternalWorkerJob($jobId, [
+        $payload = [
             'workerId' => $workerId,
             'errorCode' => $errorCode,
             'variables' => $this->variableMapper->toFlowable($body['variables'] ?? null),
-        ]);
-        $this->audit('external_worker.bpmn_error', [
-            'job' => $jobId,
-            'worker' => $workerId,
-            'errorCode' => $errorCode,
-        ]);
+        ];
+        $this->audited(
+            'external_worker.bpmn_error',
+            $context,
+            ['job' => $jobId, 'worker' => $workerId, 'errorCode' => $errorCode],
+            static fn () => $client->bpmnErrorExternalWorkerJob($jobId, $payload),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

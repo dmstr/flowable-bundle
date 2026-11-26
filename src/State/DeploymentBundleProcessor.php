@@ -51,10 +51,21 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
             }
         }
 
-        $deployment = FlowDeployment::fromApi($client->createDeployment($archiveName, self::zip($files), $fields));
-        $this->audit('deployment.bundle', ['deployment' => $deployment->id, 'files' => array_keys($files)]);
+        // Hash exactly the bytes that are sent to the engine.
+        $archive = self::zip($files);
 
-        return $deployment;
+        return $this->audited(
+            'deployment.bundle',
+            $context,
+            [
+                'files' => array_keys($files),
+                'fileSha256' => array_map(static fn (string $content): string => hash('sha256', $content), $files),
+                'archive' => $archiveName,
+                'archiveSha256' => hash('sha256', $archive),
+            ],
+            static fn (): FlowDeployment => FlowDeployment::fromApi($client->createDeployment($archiveName, $archive, $fields)),
+            static fn (FlowDeployment $deployment): array => ['deployment' => $deployment->id],
+        );
     }
 
     /**
@@ -160,3 +171,4 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
 }
 // - revised 2026-11-26 (shared upload file name rule, file count and size limits)
 // - revised 2026-11-26 (inline content decoding moved to UploadRule::decodeInlineContent)
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

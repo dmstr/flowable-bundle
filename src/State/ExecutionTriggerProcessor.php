@@ -32,9 +32,14 @@ final class ExecutionTriggerProcessor extends AbstractFlowableProcessor implemen
         }
 
         $executionId = (string) ($uriVariables['id'] ?? '');
-        $client->triggerExecution($executionId, $payload);
-        $this->audit('execution.trigger', ['execution' => $executionId]);
+        $this->audited(
+            'execution.trigger',
+            $context,
+            ['execution' => $executionId],
+            static fn () => $client->triggerExecution($executionId, $payload),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

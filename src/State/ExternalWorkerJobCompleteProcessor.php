@@ -28,12 +28,18 @@ final class ExternalWorkerJobCompleteProcessor extends AbstractFlowableProcessor
         $jobId = (string) ($uriVariables['id'] ?? '');
         $workerId = (string) ($body['workerId'] ?? '');
 
-        $client->completeExternalWorkerJob($jobId, [
+        $payload = [
             'workerId' => $workerId,
             'variables' => $this->variableMapper->toFlowable($body['variables'] ?? null),
-        ]);
-        $this->audit('external_worker.complete', ['job' => $jobId, 'worker' => $workerId]);
+        ];
+        $this->audited(
+            'external_worker.complete',
+            $context,
+            ['job' => $jobId, 'worker' => $workerId],
+            static fn () => $client->completeExternalWorkerJob($jobId, $payload),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

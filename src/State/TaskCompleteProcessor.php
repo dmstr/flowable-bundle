@@ -28,9 +28,14 @@ final class TaskCompleteProcessor extends AbstractFlowableProcessor implements P
         }
 
         $taskId = (string) ($uriVariables['id'] ?? '');
-        $client->completeTask($taskId, $payload);
-        $this->audit('task.complete', ['task' => $taskId]);
+        $this->audited(
+            'task.complete',
+            $context,
+            ['task' => $taskId],
+            static fn () => $client->completeTask($taskId, $payload),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

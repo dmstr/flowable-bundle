@@ -6,6 +6,7 @@ declare(strict_types=1);
 namespace Dmstr\Flowable\Command;
 
 use Dmstr\Flowable\Client\FlowableClientLocator;
+use Dmstr\Flowable\Service\FlowableAuditLogger;
 use Dmstr\Flowable\Service\FlowableVariableMapper;
 use Dmstr\Flowable\Service\InputSchemaValidator;
 use Dmstr\Flowable\Worker\ExternalWorkerHandlerRegistry;
@@ -43,10 +44,11 @@ final class ExternalWorkerRunCommand extends AbstractFlowableCommand implements 
         FlowableClientLocator $locator,
         InputSchemaValidator $validator,
         FlowableVariableMapper $variableMapper,
+        FlowableAuditLogger $auditLogger,
         private readonly ExternalWorkerRunner $runner,
         private readonly ExternalWorkerHandlerRegistry $registry,
     ) {
-        parent::__construct($locator, $validator, $variableMapper);
+        parent::__construct($locator, $validator, $variableMapper, $auditLogger);
     }
 
     protected function configure(): void
@@ -145,3 +147,4 @@ final class ExternalWorkerRunCommand extends AbstractFlowableCommand implements 
         return $value !== null && $value !== '' ? (string) $value : null;
     }
 }
+// - revised 2026-11-26 (audit logger passed to the base command)

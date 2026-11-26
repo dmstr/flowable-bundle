@@ -42,7 +42,7 @@ final class EventInstanceCreateCommand extends AbstractFlowableCommand
         $io = new SymfonyStyle($input, $output);
         try {
             $body = $this->readInput($input, $this->schemaPath('FlowEventInstance', 'create'));
-            $this->requireActingUser($input);
+            $actor = $this->requireActingUser($input);
             $client = $this->client($input);
 
             $payload = [];
@@ -57,7 +57,15 @@ final class EventInstanceCreateCommand extends AbstractFlowableCommand
                 $payload['eventPayload'] = new \stdClass();
             }
 
-            $client->createEventInstance($payload);
+            $this->audited(
+                'event_instance.create',
+                $actor,
+                [
+                    'eventDefinition' => $body['eventDefinitionKey'] ?? $body['eventDefinitionId'] ?? null,
+                    'channelDefinition' => $body['channelDefinitionKey'] ?? $body['channelDefinitionId'] ?? null,
+                ],
+                static fn () => $client->createEventInstance($payload),
+            );
             $io->success('Event instance sent.');
 
             return self::SUCCESS;
@@ -68,3 +76,4 @@ final class EventInstanceCreateCommand extends AbstractFlowableCommand
         }
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): audit entries via cli)

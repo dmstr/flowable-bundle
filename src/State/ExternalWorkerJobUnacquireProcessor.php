@@ -29,9 +29,14 @@ final class ExternalWorkerJobUnacquireProcessor extends AbstractFlowableProcesso
         $jobId = (string) ($uriVariables['id'] ?? '');
         $workerId = (string) ($body['workerId'] ?? '');
 
-        $client->unacquireExternalWorkerJob($jobId, ['workerId' => $workerId]);
-        $this->audit('external_worker.unacquire', ['job' => $jobId, 'worker' => $workerId]);
+        $this->audited(
+            'external_worker.unacquire',
+            $context,
+            ['job' => $jobId, 'worker' => $workerId],
+            static fn () => $client->unacquireExternalWorkerJob($jobId, ['workerId' => $workerId]),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

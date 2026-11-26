@@ -7,6 +7,7 @@ namespace Dmstr\Flowable\Worker;
 
 use Dmstr\Flowable\Client\FlowableClientInterface;
 use Dmstr\Flowable\Client\FlowableClientLocator;
+use Dmstr\Flowable\Service\FlowableAuditLogger;
 use Dmstr\Flowable\Service\FlowableVariableMapper;
 use Psr\Log\LoggerInterface;
 
@@ -34,7 +35,17 @@ use Psr\Log\LoggerInterface;
  *    that happens to share the worker id.
  *
  * Everything is logged through the dedicated `flowable` Monolog channel, so a
- * worker's decisions land next to the pass-through audit entries.
+ * worker's decisions land next to the pass-through audit entries. The writes
+ * it performs at the engine (complete, fail, bpmn error, unacquire) write the
+ * same audit entries as the REST, MCP and CLI operations (attempt, then
+ * success or failure; see {@see FlowableAuditLogger}) with via "worker" and
+ * the worker id as actor. The success entry of a reported outcome
+ * (flowable.external_worker.complete / .fail / .bpmn_error) and of a release
+ * at shutdown (flowable.external_worker.unacquire, reason "shutdown") are the
+ * operational lines with those messages as well; the other operational lines
+ * (start, stop, no_topics, unhandled_topic, handler_threw, unacquire_failed)
+ * are written next to them. Acquiring is not audited: an idle worker polls
+ * every few seconds.
  */
 class ExternalWorkerRunner
 {
@@ -51,6 +62,9 @@ class ExternalWorkerRunner
     private array $heldJobIds = [];
 
     private bool $stopRequested = false;
+
+    /** Built on first use from $flowableLogger, so the constructor stays as it is. */
+    private ?FlowableAuditLogger $auditLogger = null;
 
     public function __construct(
         private readonly FlowableClientLocator $locator,
@@ -210,7 +224,12 @@ class ExternalWorkerRunner
                 if ($handler === null) {
                     // Our deployment is incomplete, not the job's fault — give
                     // the lock back without spending a retry.
-                    $client->unacquireExternalWorkerJob($job->id, ['workerId' => $workerId]);
+                    $this->audited(
+                        'external_worker.unacquire',
+                        $workerId,
+                        ['topic' => $topic, 'job' => $job->id, 'worker' => $workerId, 'reason' => 'unhandled_topic'],
+                        static fn () => $client->unacquireExternalWorkerJob($job->id, ['workerId' => $workerId]),
+                    );
                     $this->flowableLogger->warning('flowable.external_worker.unhandled_topic', [
                         'topic' => $topic,
                         'job' => $job->id,
@@ -253,25 +272,53 @@ class ExternalWorkerRunner
         string $workerId,
         ExternalWorkerOutcome $outcome,
     ): void {
-        match ($outcome->kind) {
-            ExternalWorkerOutcome::KIND_COMPLETE => $client->completeExternalWorkerJob($job->id, [
-                'workerId' => $workerId,
-                'variables' => $this->variableMapper->toFlowable($outcome->variables),
-            ]),
-            ExternalWorkerOutcome::KIND_BPMN_ERROR => $client->bpmnErrorExternalWorkerJob($job->id, [
-                'workerId' => $workerId,
-                'errorCode' => (string) $outcome->errorCode,
-                'variables' => $this->variableMapper->toFlowable($outcome->variables),
-            ]),
-            default => $client->failExternalWorkerJob($job->id, $this->failPayload($workerId, $outcome)),
-        };
-
-        $this->flowableLogger->info('flowable.external_worker.'.$outcome->kind, [
+        $context = [
             'topic' => $job->topic,
             'job' => $job->id,
             'worker' => $workerId,
             'processInstance' => $job->processInstanceId,
-        ]);
+        ];
+
+        match ($outcome->kind) {
+            ExternalWorkerOutcome::KIND_COMPLETE => $this->audited(
+                'external_worker.complete',
+                $workerId,
+                $context,
+                fn () => $client->completeExternalWorkerJob($job->id, [
+                    'workerId' => $workerId,
+                    'variables' => $this->variableMapper->toFlowable($outcome->variables),
+                ]),
+            ),
+            ExternalWorkerOutcome::KIND_BPMN_ERROR => $this->audited(
+                'external_worker.bpmn_error',
+                $workerId,
+                $context + ['errorCode' => (string) $outcome->errorCode],
+                fn () => $client->bpmnErrorExternalWorkerJob($job->id, [
+                    'workerId' => $workerId,
+                    'errorCode' => (string) $outcome->errorCode,
+                    'variables' => $this->variableMapper->toFlowable($outcome->variables),
+                ]),
+            ),
+            default => $this->audited(
+                'external_worker.fail',
+                $workerId,
+                $context + ['error' => $outcome->message],
+                fn () => $client->failExternalWorkerJob($job->id, $this->failPayload($workerId, $outcome)),
+            ),
+        };
+    }
+
+    /**
+     * Run one engine write with its audit entries, via "worker" with the
+     * worker id as actor (see {@see FlowableAuditLogger::audited()}).
+     *
+     * @param array<string,mixed> $context
+     * @param \Closure(): mixed $call
+     */
+    private function audited(string $action, string $workerId, array $context, \Closure $call): void
+    {
+        $this->auditLogger ??= new FlowableAuditLogger($this->flowableLogger);
+        $this->auditLogger->audited($action, FlowableAuditLogger::VIA_WORKER, $workerId, null, $context, $call);
     }
 
     /**
@@ -307,12 +354,12 @@ class ExternalWorkerRunner
     {
         foreach ($this->heldJobIds() as $jobId) {
             try {
-                $client->unacquireExternalWorkerJob($jobId, ['workerId' => $workerId]);
-                $this->flowableLogger->info('flowable.external_worker.unacquire', [
-                    'job' => $jobId,
-                    'worker' => $workerId,
-                    'reason' => 'shutdown',
-                ]);
+                $this->audited(
+                    'external_worker.unacquire',
+                    $workerId,
+                    ['job' => $jobId, 'worker' => $workerId, 'reason' => 'shutdown'],
+                    static fn () => $client->unacquireExternalWorkerJob($jobId, ['workerId' => $workerId]),
+                );
             } catch (\Throwable $e) {
                 $this->flowableLogger->warning('flowable.external_worker.unacquire_failed', [
                     'job' => $jobId,
@@ -331,3 +378,4 @@ class ExternalWorkerRunner
             : $details;
     }
 }
+// - revised 2026-11-26 (audit entries of the engine writes, via worker)

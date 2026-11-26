@@ -48,10 +48,13 @@ final class DmnDeploymentUploadProcessor extends AbstractFlowableProcessor imple
         $fields = $this->uploadFields($context, ['deployment-name', 'category', 'tenantId']);
         $fields['deployment-name'] ??= $filename;
 
-        $deployment = FlowDmnDeployment::fromApi($client->createDmnDeployment($filename, $resource['content'], $fields));
-        $this->audit('dmn.deployment.upload', ['deployment' => $deployment->id, 'file' => $filename]);
-
-        return $deployment;
+        return $this->audited(
+            'dmn.deployment.upload',
+            $context,
+            ['file' => $filename, 'sha256' => hash('sha256', $resource['content'])],
+            static fn (): FlowDmnDeployment => FlowDmnDeployment::fromApi($client->createDmnDeployment($filename, $resource['content'], $fields)),
+            static fn (FlowDmnDeployment $deployment): array => ['deployment' => $deployment->id],
+        );
     }
 
     /**
@@ -66,3 +69,4 @@ final class DmnDeploymentUploadProcessor extends AbstractFlowableProcessor imple
     }
 }
 // - revised 2026-11-26 (only .dmn over MCP, arguments validated against the published schema)
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

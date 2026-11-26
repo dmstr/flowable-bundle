@@ -12,6 +12,7 @@ use Dmstr\Flowable\Service\ActingUserResolver;
 use Dmstr\Flowable\Service\FlowableAuditLogger;
 use Dmstr\Flowable\Service\FlowableVariableMapper;
 use Dmstr\Flowable\Service\InputSchemaValidator;
+use Mcp\Schema\Request\CallToolRequest;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -65,15 +66,42 @@ abstract class AbstractFlowableProcessor
     }
 
     /**
-     * Audit entry of this write, attributed to the authenticated user; the
-     * entry shape lives in {@see FlowableAuditLogger}.
+     * Run the engine call of this write with its audit entries (attempt, then
+     * success or failure; see {@see FlowableAuditLogger::audited()}),
+     * attributed to the authenticated user. Call it after permission checks
+     * and input validation, with only the engine call (and the mapping of its
+     * answer) in $call: an exception thrown before writes no entry, one
+     * thrown by $call a failure entry, and is rethrown unchanged.
      *
-     * @param array<string,mixed> $context
+     * The origin comes from the operation context: API Platform's MCP handler
+     * (ApiPlatform\Mcp\Server\Handler) puts the JSON-RPC request under
+     * "mcp_request" — besides "request", which then is the transport request
+     * to the MCP endpoint — so "mcp_request" is checked first; for a tool
+     * call it is a CallToolRequest whose name is the tool name. Without it
+     * the write came in over HTTP.
+     *
+     * @template T
+     * @param array<string,mixed> $context operation context
+     * @param array<string,mixed> $auditContext what is known before the call
+     * @param \Closure(): T $call the engine call
+     * @param (\Closure(T): array<string,mixed>)|null $successContext keys derived from the result
+     * @return T
      */
-    protected function audit(string $action, array $context = []): void
+    protected function audited(string $action, array $context, array $auditContext, \Closure $call, ?\Closure $successContext = null): mixed
     {
+        $mcpRequest = $context['mcp_request'] ?? null;
+
         $this->auditLogger ??= new FlowableAuditLogger($this->flowableLogger);
-        $this->auditLogger->record($action, $this->actingUser->currentUserId(), $context);
+
+        return $this->auditLogger->audited(
+            $action,
+            $mcpRequest !== null ? FlowableAuditLogger::VIA_MCP : FlowableAuditLogger::VIA_HTTP,
+            $this->actingUser->currentUserId(),
+            $mcpRequest instanceof CallToolRequest ? $mcpRequest->name : null,
+            $auditContext,
+            $call,
+            $successContext,
+        );
     }
 
     /**
@@ -241,3 +269,4 @@ abstract class AbstractFlowableProcessor
 // - revised 2026-11-26 (inline content decoding moved to UploadRule::decodeInlineContent)
 // - revised 2026-11-26 (configurationId() moved to OperationInputTrait)
 // - revised 2026-11-26 (audit entry written by Service\FlowableAuditLogger)
+// - revised 2026-11-26 (audited(): attempt, success and failure entries with origin and MCP tool name)

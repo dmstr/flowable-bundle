@@ -8,6 +8,7 @@ namespace Dmstr\Flowable\Command;
 use Dmstr\Flowable\Client\FlowableClientInterface;
 use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Schema\InputSchemaPath;
+use Dmstr\Flowable\Service\FlowableAuditLogger;
 use Dmstr\Flowable\Service\FlowableVariableMapper;
 use Dmstr\Flowable\Service\InputSchemaValidator;
 use Symfony\Component\Console\Command\Command;
@@ -23,6 +24,10 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * commands --acting-user (mandatory, propagated as startUserId — decision
  * 2026-06-16), --input / --input-file (validated against the same bundle-local
  * JSON schemas as the REST endpoints).
+ *
+ * Write commands run their engine call through {@see self::audited()}, which
+ * writes the same audit entries as the REST and MCP operations (attempt, then
+ * success or failure; see {@see FlowableAuditLogger}) with via "cli".
  */
 abstract class AbstractFlowableCommand extends Command
 {
@@ -30,6 +35,7 @@ abstract class AbstractFlowableCommand extends Command
         protected readonly FlowableClientLocator $locator,
         protected readonly InputSchemaValidator $validator,
         protected readonly FlowableVariableMapper $variableMapper,
+        protected readonly FlowableAuditLogger $auditLogger,
     ) {
         parent::__construct();
     }
@@ -76,6 +82,45 @@ abstract class AbstractFlowableCommand extends Command
         }
 
         return (string) $actor;
+    }
+
+    /**
+     * The --acting-user value of a write command that does not require it
+     * (null when not given), for the audit entry only.
+     */
+    protected function actingUser(InputInterface $input): ?string
+    {
+        $actor = $input->getOption('acting-user');
+
+        return $actor === null || $actor === '' ? null : (string) $actor;
+    }
+
+    /**
+     * Run the engine call of a write command with its audit entries (via
+     * "cli"; see {@see FlowableAuditLogger::audited()}). Call it after the
+     * input is read and validated and the client is resolved, with only the
+     * engine call in $call: an exception thrown before writes no entry, one
+     * thrown by $call a failure entry, and is rethrown unchanged.
+     *
+     * @template T
+     * @param ?string $actor the --acting-user value; the worker id for the
+     *   external worker job commands
+     * @param array<string,mixed> $auditContext what is known before the call
+     * @param \Closure(): T $call the engine call
+     * @param (\Closure(T): array<string,mixed>)|null $successContext keys derived from the result
+     * @return T
+     */
+    protected function audited(string $action, ?string $actor, array $auditContext, \Closure $call, ?\Closure $successContext = null): mixed
+    {
+        return $this->auditLogger->audited(
+            $action,
+            FlowableAuditLogger::VIA_CLI,
+            $actor,
+            null,
+            $auditContext,
+            $call,
+            $successContext,
+        );
     }
 
     /**
@@ -181,3 +226,4 @@ abstract class AbstractFlowableCommand extends Command
 }
 // - revised 2026-11-26 (strict --api-configuration format)
 // - revised 2026-11-26 (schema path built by Schema\InputSchemaPath)
+// - revised 2026-11-26 (audit entries of write commands, via cli)

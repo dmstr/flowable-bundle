@@ -37,9 +37,13 @@ final class ProcessDefinitionStartProcessor extends AbstractFlowableProcessor im
             $payload['startUserId'] = $actor;
         }
 
-        $instance = FlowProcessInstance::fromApi($client->startProcessInstance($payload));
-        $this->audit('process_definition.start', ['definition' => $payload['processDefinitionId'], 'instance' => $instance->id]);
-
-        return $instance;
+        return $this->audited(
+            'process_definition.start',
+            $context,
+            ['definition' => $payload['processDefinitionId']],
+            static fn (): FlowProcessInstance => FlowProcessInstance::fromApi($client->startProcessInstance($payload)),
+            static fn (FlowProcessInstance $instance): array => ['instance' => $instance->id],
+        );
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

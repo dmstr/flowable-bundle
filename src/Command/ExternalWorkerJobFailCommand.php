@@ -46,7 +46,13 @@ final class ExternalWorkerJobFailCommand extends AbstractExternalWorkerJobComman
                 $payload['retries'] = (int) $body['retries'];
             }
 
-            $client->failExternalWorkerJob((string) $input->getArgument('id'), $payload);
+            $jobId = (string) $input->getArgument('id');
+            $this->audited(
+                'external_worker.fail',
+                $payload['workerId'],
+                ['job' => $jobId, 'worker' => $payload['workerId'], 'error' => $payload['errorMessage'] ?? null],
+                static fn () => $client->failExternalWorkerJob($jobId, $payload),
+            );
             $io->success('External worker job reported as failed.');
 
             return self::SUCCESS;
@@ -57,3 +63,4 @@ final class ExternalWorkerJobFailCommand extends AbstractExternalWorkerJobComman
         }
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): audit entries via cli)

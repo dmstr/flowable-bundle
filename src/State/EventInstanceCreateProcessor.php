@@ -54,12 +54,17 @@ final class EventInstanceCreateProcessor extends AbstractFlowableProcessor imple
             $payload['eventPayload'] = new \stdClass();
         }
 
-        $client->createEventInstance($payload);
-        $this->audit('event_instance.create', [
-            'eventDefinition' => $body['eventDefinitionKey'] ?? $body['eventDefinitionId'] ?? null,
-            'channelDefinition' => $body['channelDefinitionKey'] ?? $body['channelDefinitionId'] ?? null,
-        ]);
+        $this->audited(
+            'event_instance.create',
+            $context,
+            [
+                'eventDefinition' => $body['eventDefinitionKey'] ?? $body['eventDefinitionId'] ?? null,
+                'channelDefinition' => $body['channelDefinitionKey'] ?? $body['channelDefinitionId'] ?? null,
+            ],
+            static fn () => $client->createEventInstance($payload),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

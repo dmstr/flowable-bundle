@@ -51,18 +51,20 @@ final class ExternalWorkerJobAcquireProcessor extends AbstractFlowableProcessor 
             $payload['scopeType'] = (string) $body['scopeType'];
         }
 
-        $jobs = $client->acquireExternalWorkerJobs($payload);
+        $jobs = $this->audited(
+            'external_worker.acquire',
+            $context,
+            ['topic' => $topic, 'worker' => $workerId],
+            static fn (): array => $client->acquireExternalWorkerJobs($payload),
+            static fn (array $jobs): array => ['acquired' => \count($jobs)],
+        );
 
         $result = new FlowExternalWorkerJob();
         $result->id = $workerId;
         $result->lockOwner = $workerId;
         $result->acquired = $jobs;
-        $this->audit('external_worker.acquire', [
-            'topic' => $topic,
-            'worker' => $workerId,
-            'acquired' => \count($jobs),
-        ]);
 
         return $result;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

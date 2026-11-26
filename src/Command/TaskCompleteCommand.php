@@ -36,7 +36,13 @@ final class TaskCompleteCommand extends AbstractFlowableCommand
             $variables[] = ['name' => 'triggeredBy', 'value' => $actor, 'type' => 'string'];
             $payload['variables'] = $variables;
 
-            $client->completeTask((string) $input->getArgument('id'), $payload);
+            $taskId = (string) $input->getArgument('id');
+            $this->audited(
+                'task.complete',
+                $actor,
+                ['task' => $taskId],
+                static fn () => $client->completeTask($taskId, $payload),
+            );
             $io->success('Task completed.');
 
             return self::SUCCESS;
@@ -47,3 +53,4 @@ final class TaskCompleteCommand extends AbstractFlowableCommand
         }
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): audit entries via cli)

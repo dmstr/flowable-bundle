@@ -55,9 +55,13 @@ final class EventDeploymentUploadProcessor extends AbstractFlowableProcessor imp
         }
         $query['deploymentName'] ??= $filename;
 
-        $deployment = FlowEventDeployment::fromApi($client->createEventDeployment($filename, $resource['content'], $query));
-        $this->audit('event_deployment.upload', ['deployment' => $deployment->id, 'file' => $filename]);
-
-        return $deployment;
+        return $this->audited(
+            'event_deployment.upload',
+            $context,
+            ['file' => $filename, 'sha256' => hash('sha256', $resource['content'])],
+            static fn (): FlowEventDeployment => FlowEventDeployment::fromApi($client->createEventDeployment($filename, $resource['content'], $query)),
+            static fn (FlowEventDeployment $deployment): array => ['deployment' => $deployment->id],
+        );
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)

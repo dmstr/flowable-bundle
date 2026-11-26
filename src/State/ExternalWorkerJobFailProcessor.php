@@ -39,13 +39,14 @@ final class ExternalWorkerJobFailProcessor extends AbstractFlowableProcessor imp
             $payload['retries'] = (int) $body['retries'];
         }
 
-        $client->failExternalWorkerJob($jobId, $payload);
-        $this->audit('external_worker.fail', [
-            'job' => $jobId,
-            'worker' => $workerId,
-            'error' => $payload['errorMessage'] ?? null,
-        ]);
+        $this->audited(
+            'external_worker.fail',
+            $context,
+            ['job' => $jobId, 'worker' => $workerId, 'error' => $payload['errorMessage'] ?? null],
+            static fn () => $client->failExternalWorkerJob($jobId, $payload),
+        );
 
         return null;
     }
 }
+// - revised 2026-11-26 (engine call wrapped in audited(): attempt, success and failure entries)
