@@ -12,9 +12,9 @@ use ApiPlatform\Metadata\Resource\Factory\ResourceMetadataCollectionFactoryInter
 use ApiPlatform\Metadata\Resource\ResourceMetadataCollection;
 use Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory;
 use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
+use Dmstr\Flowable\Tests\Kernel\RecordingLogger;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\AbstractLogger;
 
 /**
  * A tool whose input schema cannot be built is removed from the resource
@@ -65,8 +65,8 @@ final class McpToolBrokenInputSchemaTest extends TestCase
         self::assertSame($expected, array_keys($resource->getMcp() ?? []));
         self::assertSame(['flow_task_get'], array_keys(iterator_to_array($resource->getOperations())));
 
-        self::assertCount(1, $logger->records);
-        [$level, $message, $context] = $logger->records[0];
+        self::assertCount(1, $logger->records());
+        ['level' => $level, 'message' => $message, 'context' => $context] = $logger->records()[0];
         self::assertSame('error', $level);
         self::assertSame('flowable.mcp.tool_hidden', $message);
         self::assertSame('flow_task_broken', $context['tool']);
@@ -83,7 +83,7 @@ final class McpToolBrokenInputSchemaTest extends TestCase
         // The broken tool is a write tool and mcp.write is off: removed by
         // its switch, so there is nothing to report.
         self::assertSame(['flow_task_list'], array_keys($resource->getMcp() ?? []));
-        self::assertSame([], $logger->records);
+        self::assertSame([], $logger->records());
     }
 
     #[DataProvider('brokenInputs')]
@@ -96,7 +96,7 @@ final class McpToolBrokenInputSchemaTest extends TestCase
         $resource = $factory->create(self::OTHER_RESOURCE)[0];
 
         self::assertSame($inner->create(self::OTHER_RESOURCE)[0]->getMcp(), $resource->getMcp());
-        self::assertSame([], $logger->records);
+        self::assertSame([], $logger->records());
     }
 
     public function testBundleResourceGuard(): void
@@ -108,20 +108,9 @@ final class McpToolBrokenInputSchemaTest extends TestCase
         self::assertFalse(McpToolSwitchResourceMetadataCollectionFactory::isBundleResource('App\\Dmstr\\Flowable\\ApiResource\\FlowTask'));
     }
 
-    /**
-     * @return AbstractLogger&object{records: list<array{string, string, array<string, mixed>}>}
-     */
-    private static function logger(): AbstractLogger
+    private static function logger(): RecordingLogger
     {
-        return new class extends AbstractLogger {
-            /** @var list<array{string, string, array<string, mixed>}> */
-            public array $records = [];
-
-            public function log($level, string|\Stringable $message, array $context = []): void
-            {
-                $this->records[] = [(string) $level, (string) $message, $context];
-            }
-        };
+        return new RecordingLogger();
     }
 
     private static function inner(string $brokenInput, bool $brokenReadOnly = true): ResourceMetadataCollectionFactoryInterface
@@ -169,3 +158,4 @@ final class McpToolBrokenInputSchemaTest extends TestCase
         };
     }
 }
+// - revised 2026-11-26 (recording logger shared with the test kernel)

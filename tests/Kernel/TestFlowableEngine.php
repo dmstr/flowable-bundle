@@ -24,7 +24,20 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  *
  * Every request is recorded in {@see self::$requests}, so a test can assert
  * that an allowed operation reached the engine and a denied one did not.
- * No status above 399 is ever produced.
+ *
+ * By default no status above 399 is ever produced. A test makes the engine
+ * fail with {@see self::failWith()} (an HTTP error status and body) or
+ * {@see self::failWithTransportError()} (the response errors before it has a
+ * status, as a timeout or a refused connection does, so FlowableClient ends
+ * in its TransportExceptionInterface catch blocks). Each failure applies to
+ * every request or to those whose path contains a string and/or have a
+ * method, for a number of requests or until {@see self::reset()}; the first
+ * matching failure wins, requests matching none get the default answer.
+ * `{url}` in a body or message is replaced by the requested URL.
+ *
+ * State lives in the instance: every test gets a fresh container and so a
+ * fresh stub. It is deliberately not a ResetInterface service, because the
+ * kernel resets those between two requests of one test.
  */
 final class TestFlowableEngine
 {
@@ -35,8 +48,88 @@ final class TestFlowableEngine
         . '|historic-[a-z-]+|decisions|event-definitions|channel-definitions|jobs|timer-jobs|suspended-jobs'
         . '|deadletter-jobs|history-jobs)$#';
 
+    /** A curl-like message for an idle timeout, see {@see self::failWithTimeout()} */
+    public const string TIMEOUT_MESSAGE = 'Idle timeout reached for "{url}".';
+
+    /** A curl-like message for a refused connection, see {@see self::failWithConnectionRefused()} */
+    public const string CONNECTION_REFUSED_MESSAGE = 'Failed to connect to flowable.invalid port 80 after 0 ms: '
+        . 'Could not connect to server for "{url}".';
+
     /** @var list<array{method: string, path: string}> */
     public array $requests = [];
+
+    /**
+     * @var list<array{status: ?int, body: string, error: ?string, path: ?string, method: ?string, times: ?int}>
+     */
+    private array $failures = [];
+
+    /**
+     * Answers matching requests with the given status and body (Content-Type
+     * `application/json` when the body is JSON, `text/plain` otherwise).
+     *
+     * @param string|null $pathContains only requests whose path contains it
+     * @param string|null $method only requests with this method, e.g. 'POST'
+     * @param int|null $times for this many matching requests, null: until reset()
+     */
+    public function failWith(
+        int $status,
+        string $body,
+        ?string $pathContains = null,
+        ?string $method = null,
+        ?int $times = null,
+    ): self {
+        return $this->addFailure($status, $body, null, $pathContains, $method, $times);
+    }
+
+    /**
+     * Matching requests fail at the transport level with the given message:
+     * reading their status throws a TransportException.
+     */
+    public function failWithTransportError(
+        string $message,
+        ?string $pathContains = null,
+        ?string $method = null,
+        ?int $times = null,
+    ): self {
+        return $this->addFailure(null, '', $message, $pathContains, $method, $times);
+    }
+
+    public function failWithTimeout(?string $pathContains = null, ?string $method = null, ?int $times = null): self
+    {
+        return $this->failWithTransportError(self::TIMEOUT_MESSAGE, $pathContains, $method, $times);
+    }
+
+    public function failWithConnectionRefused(
+        ?string $pathContains = null,
+        ?string $method = null,
+        ?int $times = null,
+    ): self {
+        return $this->failWithTransportError(self::CONNECTION_REFUSED_MESSAGE, $pathContains, $method, $times);
+    }
+
+    /**
+     * Forgets the configured failures and the recorded requests.
+     */
+    public function reset(): void
+    {
+        $this->failures = [];
+        $this->requests = [];
+    }
+
+    /**
+     * An error body in the shape the Flowable REST API uses, e.g.
+     * `{"message": "Bad request", "exception": "..."}`; FlowableClient reads
+     * `message` first, then `exception`.
+     */
+    public static function errorBody(string $message, ?string $exception = null): string
+    {
+        $body = ['message' => $message];
+        if ($exception !== null) {
+            $body['exception'] = $exception;
+        }
+
+        return json_encode($body, JSON_THROW_ON_ERROR);
+    }
 
     /**
      * @param array<string, mixed> $options
@@ -45,6 +138,11 @@ final class TestFlowableEngine
     {
         $path = (string) parse_url($url, PHP_URL_PATH);
         $this->requests[] = ['method' => $method, 'path' => $path];
+
+        $failure = $this->takeFailure($method, $path);
+        if ($failure !== null) {
+            return self::failureResponse($failure, $url);
+        }
 
         $headers = ['response_headers' => ['Content-Type: application/json']];
 
@@ -59,6 +157,74 @@ final class TestFlowableEngine
         }
 
         return new MockResponse(json_encode($this->read($path), JSON_THROW_ON_ERROR), $headers);
+    }
+
+    private function addFailure(
+        ?int $status,
+        string $body,
+        ?string $error,
+        ?string $pathContains,
+        ?string $method,
+        ?int $times,
+    ): self {
+        if ($times !== null && $times < 1) {
+            throw new \InvalidArgumentException('$times must be at least 1 or null.');
+        }
+        $this->failures[] = [
+            'status' => $status,
+            'body' => $body,
+            'error' => $error,
+            'path' => $pathContains,
+            'method' => $method === null ? null : strtoupper($method),
+            'times' => $times,
+        ];
+
+        return $this;
+    }
+
+    /**
+     * The first failure matching the request, counted down and removed when
+     * it is used up.
+     *
+     * @return array{status: ?int, body: string, error: ?string, path: ?string, method: ?string, times: ?int}|null
+     */
+    private function takeFailure(string $method, string $path): ?array
+    {
+        foreach ($this->failures as $index => $failure) {
+            if ($failure['method'] !== null && $failure['method'] !== $method) {
+                continue;
+            }
+            if ($failure['path'] !== null && !str_contains($path, $failure['path'])) {
+                continue;
+            }
+            if ($failure['times'] !== null && --$this->failures[$index]['times'] === 0) {
+                array_splice($this->failures, $index, 1);
+            }
+
+            return $failure;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array{status: ?int, body: string, error: ?string, path: ?string, method: ?string, times: ?int} $failure
+     */
+    private static function failureResponse(array $failure, string $url): MockResponse
+    {
+        if ($failure['error'] !== null) {
+            // MockResponse throws a TransportException with this message on
+            // the first access to the response, as a curl response does
+            return new MockResponse('', ['error' => str_replace('{url}', $url, $failure['error'])]);
+        }
+
+        $body = str_replace('{url}', $url, $failure['body']);
+        $contentType = json_validate($body) ? 'application/json' : 'text/plain';
+
+        return new MockResponse($body, [
+            'http_code' => $failure['status'],
+            'response_headers' => ['Content-Type: ' . $contentType],
+        ]);
     }
 
     /**
@@ -79,3 +245,4 @@ final class TestFlowableEngine
         return ['id' => basename($path), 'name' => 'stub'];
     }
 }
+// - revised 2026-11-26 (failure mode: HTTP error status and transport errors)
