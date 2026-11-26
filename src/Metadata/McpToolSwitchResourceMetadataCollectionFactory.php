@@ -10,6 +10,9 @@ use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Operations;
 use ApiPlatform\Metadata\Resource\Factory\ResourceMetadataCollectionFactoryInterface;
 use ApiPlatform\Metadata\Resource\ResourceMetadataCollection;
+use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * Applies the dmstr_flowable.mcp.read / mcp.write / mcp.deploy switches to
@@ -29,9 +32,16 @@ use ApiPlatform\Metadata\Resource\ResourceMetadataCollection;
  *    decision definitions, i.e. code the engine runs) additionally needs
  *    mcp.deploy.
  *
- * Only resources under Dmstr\Flowable\ApiResource\ are touched; other
- * bundles' and the application's resources pass through unchanged, as do
- * McpResource entries and all HTTP operations.
+ * Independently of the switches, a tool whose input schema cannot be built
+ * ({@see McpToolInputSchemaFactory::inputSchema()} throws: missing file,
+ * invalid JSON, `..` in the schema path) is removed as well and the error is
+ * logged; all other tools stay available. This runs when API Platform builds
+ * its metadata (cache warmup), so the log entry appears once per warmup.
+ *
+ * Only resources under Dmstr\Flowable\ApiResource\ are touched
+ * ({@see self::isBundleResource()}); other bundles' and the application's
+ * resources pass through unchanged, as do McpResource entries and all HTTP
+ * operations.
  */
 final class McpToolSwitchResourceMetadataCollectionFactory implements ResourceMetadataCollectionFactoryInterface
 {
@@ -45,6 +55,7 @@ final class McpToolSwitchResourceMetadataCollectionFactory implements ResourceMe
         private readonly bool $readEnabled = false,
         private readonly bool $writeEnabled = false,
         private readonly bool $deployEnabled = false,
+        private readonly LoggerInterface $flowableLogger = new NullLogger(),
     ) {
     }
 
@@ -52,8 +63,9 @@ final class McpToolSwitchResourceMetadataCollectionFactory implements ResourceMe
     {
         $collection = $this->decorated->create($resourceClass);
 
-        if (!str_starts_with(ltrim($resourceClass, '\\'), self::RESOURCE_NAMESPACE)
-            || ($this->readEnabled && $this->writeEnabled && $this->deployEnabled)) {
+        // No early return when all switches are on: a tool with a broken
+        // input schema is removed in every configuration.
+        if (!self::isBundleResource($resourceClass)) {
             return $collection;
         }
 
@@ -65,6 +77,15 @@ final class McpToolSwitchResourceMetadataCollectionFactory implements ResourceMe
         // A fresh collection, so no operation lookup cached on the inner one
         // can still return a removed tool.
         return new ResourceMetadataCollection($resourceClass, $resources);
+    }
+
+    /**
+     * Whether a class is one of this bundle's API resources, the only ones
+     * the tool switches and the MCP input schema factory act on.
+     */
+    public static function isBundleResource(string $class): bool
+    {
+        return str_starts_with(ltrim($class, '\\'), self::RESOURCE_NAMESPACE);
     }
 
     /**
@@ -120,14 +141,44 @@ final class McpToolSwitchResourceMetadataCollectionFactory implements ResourceMe
             return true;
         }
 
-        if (self::isReadOnly($operation)) {
+        return $this->switchedOn($operation) && $this->hasBuildableInputSchema($operation);
+    }
+
+    private function switchedOn(McpTool $tool): bool
+    {
+        if (self::isReadOnly($tool)) {
             return $this->readEnabled;
         }
-        if (($operation->getExtraProperties()[self::SWITCH_KEY] ?? null) === 'deploy') {
+        if (($tool->getExtraProperties()[self::SWITCH_KEY] ?? null) === 'deploy') {
             return $this->writeEnabled && $this->deployEnabled;
         }
 
         return $this->writeEnabled;
     }
+
+    /**
+     * A tool without an input file keeps API Platform's derived schema and
+     * counts as buildable; a declared file that cannot be loaded hides the
+     * tool instead of breaking tools/list or letting calls through
+     * unvalidated.
+     */
+    private function hasBuildableInputSchema(McpTool $tool): bool
+    {
+        try {
+            McpToolInputSchemaFactory::inputSchema($tool);
+
+            return true;
+        } catch (\Throwable $e) {
+            $this->flowableLogger->error('flowable.mcp.tool_hidden', [
+                'tool' => $tool->getName(),
+                'reason' => 'input schema cannot be built',
+                'error' => $e->getMessage(),
+                'exception' => $e,
+            ]);
+
+            return false;
+        }
+    }
 }
 // - revised 2026-10-09 (mcp.deploy switch)
+// - revised 2026-11-26 (hide tools whose input schema cannot be built)

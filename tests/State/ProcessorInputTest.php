@@ -32,6 +32,8 @@ final class ProcessorInputTest extends StateTestCase
 
     public function testTaskCompleteFromMcpDataWithoutRequest(): void
     {
+        $this->expectExplicitSelection();
+
         $client = $this->createMock(FlowableClientInterface::class);
         $client->expects($this->once())->method('completeTask')->with('task-1', self::EXPECTED_PAYLOAD);
 
@@ -45,11 +47,12 @@ final class ProcessorInputTest extends StateTestCase
             ->process(null, new Post(), ['id' => 'task-1'], $context);
 
         self::assertNull($result);
-        self::assertSame([self::CONFIGURATION], $this->requestedConfigurations);
     }
 
     public function testTaskCompleteFromMcpDataIgnoresTransportRequest(): void
     {
+        $this->expectExplicitSelection();
+
         // During a tool call the request stack holds the JSON-RPC request to
         // /mcp; neither its body nor its query string are operation input.
         $transport = Request::create(
@@ -70,12 +73,12 @@ final class ProcessorInputTest extends StateTestCase
 
         $this->processor(TaskCompleteProcessor::class, $client, $transport)
             ->process(null, new Post(), ['id' => 'task-1'], $context);
-
-        self::assertSame([self::CONFIGURATION], $this->requestedConfigurations);
     }
 
     public function testTaskCompleteFromHttpRequestAsBefore(): void
     {
+        $this->expectExplicitSelection();
+
         $request = Request::create(
             '/api/flowable/tasks/task-1/complete?apiConfiguration='.self::CONFIGURATION,
             'POST',
@@ -88,12 +91,12 @@ final class ProcessorInputTest extends StateTestCase
 
         $this->processor(TaskCompleteProcessor::class, $client, $request)
             ->process(null, new Post(), ['id' => 'task-1'], ['request' => $request]);
-
-        self::assertSame([self::CONFIGURATION], $this->requestedConfigurations);
     }
 
     public function testHttpBodyApiConfigurationIsUsedWithoutQueryParameter(): void
     {
+        $this->expectExplicitSelection();
+
         $request = Request::create(
             '/api/flowable/tasks/task-1/complete',
             'POST',
@@ -106,8 +109,6 @@ final class ProcessorInputTest extends StateTestCase
 
         $this->processor(TaskCompleteProcessor::class, $client, $request)
             ->process(null, new Post(), ['id' => 'task-1']);
-
-        self::assertSame([self::CONFIGURATION], $this->requestedConfigurations);
     }
 
     public function testMcpBodyIsValidatedAgainstTheInputSchema(): void
@@ -141,8 +142,6 @@ final class ProcessorInputTest extends StateTestCase
 
         $this->processor(TaskCompleteProcessor::class, $client)
             ->process(null, new Post(), ['id' => 'task-1'], ['mcp_data' => [], 'uri_variables' => []]);
-
-        self::assertSame([], $this->requestedConfigurations);
     }
 
     public function testDeploymentDeleteCascadeFromMcpData(): void
@@ -174,3 +173,4 @@ final class ProcessorInputTest extends StateTestCase
             ->process(null, new Delete(), ['id' => 'dep-1'], self::mcpContext(['id' => 'dep-1'], ['id']));
     }
 }
+// - revised 2026-11-26 (explicit selection proven through a decoy configuration)

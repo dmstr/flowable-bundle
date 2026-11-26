@@ -1,0 +1,1249 @@
+{
+    "FlowDecision/execute.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flow-decision-execute-input.json",
+        "title": "flow_decision_execute input",
+        "description": "Input for evaluating a DMN decision by key.",
+        "type": "object",
+        "required": [
+            "decisionKey"
+        ],
+        "properties": {
+            "decisionKey": {
+                "type": "string",
+                "title": "Decision key",
+                "description": "Key of the decision to evaluate (latest deployed version is used)."
+            },
+            "singleResult": {
+                "type": "boolean",
+                "default": false,
+                "title": "Single result",
+                "description": "Use the engine's single-result evaluation (one output row) instead of the full list of matching rows."
+            },
+            "inputVariables": {
+                "description": "Decision input variables: shorthand map {name: value} or explicit list [{name,type,value}].",
+                "oneOf": [
+                    {
+                        "type": "object"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "name"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": [],
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "integer",
+                                        "short",
+                                        "long",
+                                        "double",
+                                        "boolean",
+                                        "date",
+                                        "json"
+                                    ]
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    }
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowDeployment/delete.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flow-deployment-delete-input.json",
+        "title": "flow_deployment_delete input",
+        "description": "Options for deleting a deployment. Bound as query parameters (DELETE has no request body).",
+        "type": "object",
+        "properties": {
+            "cascade": {
+                "type": "boolean",
+                "default": false,
+                "title": "Cascade",
+                "description": "Also delete the deployment's running and historic process instances. Without cascade the engine refuses (409) while instances exist."
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowDeployment/mcpBundle.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flowable-deploy-bundle-input.json",
+        "title": "flowable_deploy_bundle input",
+        "description": "Arguments of the MCP tool flowable_deploy_bundle: several files deployed as one process deployment (packed into a .bar archive).",
+        "type": "object",
+        "required": [
+            "files",
+            "deploymentName"
+        ],
+        "properties": {
+            "files": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "description": "The files of the deployment, e.g. one .bpmn20.xml plus the <formKey>.schema.json form schemas its user tasks reference. At most 20 files and 4 MiB in total after decoding.",
+                "items": {
+                    "type": "object",
+                    "required": [
+                        "name",
+                        "content"
+                    ],
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255,
+                            "description": "Plain file name with extension .bpmn, .bpmn20.xml, .form or .json (no path)."
+                        },
+                        "content": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1400000,
+                            "description": "File content as text, or base64 with contentEncoding \"base64\"; at most 1 MiB after decoding."
+                        },
+                        "contentEncoding": {
+                            "type": "string",
+                            "enum": [
+                                "base64"
+                            ],
+                            "description": "Set to \"base64\" when content is base64-encoded."
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "deploymentName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "description": "Deployment name, shown in the deployment list."
+            },
+            "deploymentSource": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Optional free-text source marker stored on the deployment."
+            },
+            "category": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Optional deployment category."
+            },
+            "tenantId": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Optional tenant id."
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection.",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowDmnDeployment/mcpDeploy.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flowable-dmn-deploy-input.json",
+        "title": "flowable_dmn_deploy input",
+        "description": "Arguments of the MCP tool flowable_dmn_deploy: one decision resource passed inline instead of the multipart upload of POST /flowable/dmn_deployments/upload.",
+        "type": "object",
+        "required": [
+            "name",
+            "content"
+        ],
+        "properties": {
+            "name": {
+                "type": "string",
+                "maxLength": 255,
+                "pattern": "\\.[dD][mM][nN]$",
+                "description": "File name including the extension .dmn (archives .bar/.zip only through the HTTP upload)."
+            },
+            "content": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1400000,
+                "description": "File content: the DMN XML as text, or base64 with contentEncoding \"base64\"; at most 1 MiB after decoding."
+            },
+            "contentEncoding": {
+                "type": "string",
+                "enum": [
+                    "base64"
+                ],
+                "description": "Set to \"base64\" when content is base64-encoded."
+            },
+            "deploymentName": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Deployment name (defaults to the file name)."
+            },
+            "category": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Optional deployment category."
+            },
+            "tenantId": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Optional tenant id."
+            },
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowEventInstance/create.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flow-event-instance-create-input.json",
+        "title": "flow_event_instance_create input",
+        "description": "Input for sending an event instance to an inbound channel of the event registry. Both an event definition reference and a channel definition reference are required — the engine rejects a body missing either.",
+        "type": "object",
+        "allOf": [
+            {
+                "anyOf": [
+                    {
+                        "required": [
+                            "eventDefinitionKey"
+                        ]
+                    },
+                    {
+                        "required": [
+                            "eventDefinitionId"
+                        ]
+                    }
+                ]
+            },
+            {
+                "anyOf": [
+                    {
+                        "required": [
+                            "channelDefinitionKey"
+                        ]
+                    },
+                    {
+                        "required": [
+                            "channelDefinitionId"
+                        ]
+                    }
+                ]
+            }
+        ],
+        "properties": {
+            "eventDefinitionKey": {
+                "type": "string",
+                "title": "Event definition key",
+                "description": "Key of the event definition to send (latest deployed version is used)."
+            },
+            "eventDefinitionId": {
+                "type": "string",
+                "title": "Event definition id",
+                "description": "Specific event definition id, taking precedence over the key."
+            },
+            "channelDefinitionKey": {
+                "type": "string",
+                "title": "Channel definition key",
+                "description": "Key of the inbound channel definition that receives the event."
+            },
+            "channelDefinitionId": {
+                "type": "string",
+                "title": "Channel definition id",
+                "description": "Specific inbound channel definition id, taking precedence over the key."
+            },
+            "tenantId": {
+                "type": "string",
+                "title": "Tenant id",
+                "description": "Optional tenant the event definition and channel are resolved in."
+            },
+            "eventPayload": {
+                "type": "object",
+                "title": "Event payload",
+                "description": "The event body as a JSON object, matching the event definition's payload contract. Must be an object — the engine rejects an array."
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowExecution/trigger.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flow-execution-trigger-input.json",
+        "title": "flow_execution_trigger input",
+        "description": "Input for triggering a waiting execution.",
+        "type": "object",
+        "properties": {
+            "variables": {
+                "description": "Process variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                "oneOf": [
+                    {
+                        "type": "object"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "name"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": [],
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "integer",
+                                        "short",
+                                        "long",
+                                        "double",
+                                        "boolean",
+                                        "date",
+                                        "json"
+                                    ]
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    }
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowExternalWorkerJob/acquire.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flow-external-worker-job-acquire-input.json",
+        "title": "flow_external_worker_job_acquire input",
+        "description": "Input for acquiring (locking) external worker jobs of a single topic. The engine locks up to numberOfTasks jobs for the given workerId; only that worker may then complete, fail or raise a BPMN error on them.",
+        "type": "object",
+        "required": [
+            "topic",
+            "workerId"
+        ],
+        "properties": {
+            "topic": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Topic",
+                "description": "The external-worker topic to pull work from (flowable:topic on the service task). Jobs are acquired per topic — one call, one topic."
+            },
+            "workerId": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Worker id",
+                "description": "Identity of the worker taking the lock. Must be repeated on the follow-up complete/fail/bpmnError/unacquire call."
+            },
+            "lockDuration": {
+                "type": "string",
+                "minLength": 3,
+                "pattern": "^P(\\d+[YMWD])*(T(\\d+[HMS])*)?$",
+                "default": "PT10M",
+                "title": "Lock duration",
+                "description": "How long the lock is held, as an ISO-8601 duration (e.g. PT10M). Once it expires the engine hands the job to the next worker, so it must comfortably exceed the expected processing time."
+            },
+            "numberOfTasks": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "title": "Number of tasks",
+                "description": "Maximum number of jobs to lock in this call (batch size)."
+            },
+            "numberOfRetries": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 5,
+                "title": "Number of retries",
+                "description": "Retries the acquired jobs are given. Once they are used up the engine dead-letters the job instead of re-scheduling it."
+            },
+            "scopeType": {
+                "type": "string",
+                "enum": [
+                    "bpmn",
+                    "cmmn"
+                ],
+                "title": "Scope type",
+                "description": "Restrict acquisition to jobs of one engine (BPMN processes or CMMN cases). Omit to acquire regardless of scope."
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowExternalWorkerJob/bpmnError.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flow-external-worker-job-bpmn-error-input.json",
+        "title": "flow_external_worker_job_bpmn_error input",
+        "description": "Input for raising a BPMN error from an acquired external worker job. Unlike fail (a technical failure the engine retries) this is a MODELLED outcome: the process continues along the error boundary event that catches the given errorCode.",
+        "type": "object",
+        "required": [
+            "workerId",
+            "errorCode"
+        ],
+        "properties": {
+            "workerId": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Worker id",
+                "description": "Identity of the worker holding the lock — the engine rejects a report from anyone else."
+            },
+            "errorCode": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Error code",
+                "description": "The BPMN error code to raise; must match an errorEventDefinition in the process, otherwise the error escapes uncaught."
+            },
+            "variables": {
+                "description": "Variables to set before the error is raised: shorthand map {name: value} or explicit list [{name,value,type}].",
+                "oneOf": [
+                    {
+                        "type": "object"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "name"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": [],
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "integer",
+                                        "short",
+                                        "long",
+                                        "double",
+                                        "boolean",
+                                        "date",
+                                        "json"
+                                    ]
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    }
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowExternalWorkerJob/complete.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flow-external-worker-job-complete-input.json",
+        "title": "flow_external_worker_job_complete input",
+        "description": "Input for reporting an acquired external worker job as done. The variables become process variables, so the following BPMN steps can read the worker's result.",
+        "type": "object",
+        "required": [
+            "workerId"
+        ],
+        "properties": {
+            "workerId": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Worker id",
+                "description": "Identity of the worker holding the lock — the engine rejects a report from anyone else."
+            },
+            "variables": {
+                "description": "Result variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                "oneOf": [
+                    {
+                        "type": "object"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "name"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": [],
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "integer",
+                                        "short",
+                                        "long",
+                                        "double",
+                                        "boolean",
+                                        "date",
+                                        "json"
+                                    ]
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    }
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowExternalWorkerJob/fail.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flow-external-worker-job-fail-input.json",
+        "title": "flow_external_worker_job_fail input",
+        "description": "Input for reporting an acquired external worker job as failed. The ENGINE owns what happens next: it decrements the retries and re-schedules the job, or dead-letters it once they are used up. Use unacquire instead when the worker simply cannot do the work — failing spends a retry.",
+        "type": "object",
+        "required": [
+            "workerId"
+        ],
+        "properties": {
+            "workerId": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Worker id",
+                "description": "Identity of the worker holding the lock — the engine rejects a report from anyone else."
+            },
+            "retries": {
+                "type": "integer",
+                "minimum": 0,
+                "title": "Retries",
+                "description": "Override the remaining attempts. Omit to let the engine decrement the current value; 0 dead-letters the job immediately."
+            },
+            "retryTimeout": {
+                "type": "string",
+                "minLength": 3,
+                "pattern": "^P(\\d+[YMWD])*(T(\\d+[HMS])*)?$",
+                "title": "Retry timeout",
+                "description": "How long to wait before the job becomes acquirable again, as an ISO-8601 duration (e.g. PT5M)."
+            },
+            "errorMessage": {
+                "type": "string",
+                "title": "Error message",
+                "description": "Short reason, shown as the job's exceptionMessage in the job store."
+            },
+            "errorDetails": {
+                "type": "string",
+                "title": "Error details",
+                "description": "Long-form detail (e.g. a stacktrace), retrievable via GET /jobs/{id}/stacktrace."
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowExternalWorkerJob/unacquire.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flow-external-worker-job-unacquire-input.json",
+        "title": "flow_external_worker_job_unacquire input",
+        "description": "Input for releasing the lock on an acquired external worker job. The job becomes acquirable again WITHOUT consuming one of its retries — the right report when the worker cannot do the work at all (no handler for the topic, or a shutdown while the job was held).",
+        "type": "object",
+        "required": [
+            "workerId"
+        ],
+        "properties": {
+            "workerId": {
+                "type": "string",
+                "minLength": 1,
+                "title": "Worker id",
+                "description": "Identity of the worker holding the lock — the engine rejects a report from anyone else."
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowHistoricProcessInstance/mcpHistory.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flowable-history-get-input.json",
+        "title": "flowable_history_get input",
+        "description": "Arguments of the MCP tool flowable_history_get besides the process instance id.",
+        "type": "object",
+        "properties": {
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowJob/mcpDeadletterList.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flowable-system-list-deadletter-jobs-input.json",
+        "title": "flowable_system_list_deadletter_jobs input",
+        "description": "Arguments of the MCP tool flowable_system_list_deadletter_jobs (filters of GET /flowable/jobs?kind=deadletter; the kind is fixed).",
+        "type": "object",
+        "properties": {
+            "page": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "description": "Page number, starting at 1."
+            },
+            "itemsPerPage": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "default": 30,
+                "description": "Page size (1 to 200)."
+            },
+            "sort": {
+                "type": "string",
+                "description": "Flowable sort field (default: createTime, newest first)."
+            },
+            "order": {
+                "type": "string",
+                "enum": [
+                    "asc",
+                    "desc"
+                ],
+                "default": "desc",
+                "description": "Sort direction."
+            },
+            "processInstanceId": {
+                "type": "string",
+                "description": "Filter by process instance id."
+            },
+            "processDefinitionId": {
+                "type": "string",
+                "description": "Filter by process definition id."
+            },
+            "executionId": {
+                "type": "string",
+                "description": "Filter by execution id."
+            },
+            "elementId": {
+                "type": "string",
+                "description": "Filter by the BPMN element id the job belongs to."
+            },
+            "handlerType": {
+                "type": "string",
+                "description": "Filter by job handler type (e.g. async-continuation, timer-transition)."
+            },
+            "exceptionMessage": {
+                "type": "string",
+                "description": "Filter by exception message."
+            },
+            "tenantId": {
+                "type": "string",
+                "description": "Filter by tenant id."
+            },
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowJob/mcpExecuteTimer.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flowable-system-execute-timer-job-input.json",
+        "title": "flowable_system_execute_timer_job input",
+        "description": "Arguments of the MCP tool flowable_system_execute_timer_job besides the timer job id.",
+        "type": "object",
+        "properties": {
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection.",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowProcessDefinition/mcpList.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flowable-list-process-definitions-input.json",
+        "title": "flowable_list_process_definitions input",
+        "description": "Arguments of the MCP tool flowable_list_process_definitions (filters of GET /flowable/process_definitions).",
+        "type": "object",
+        "properties": {
+            "page": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "description": "Page number, starting at 1."
+            },
+            "itemsPerPage": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "default": 30,
+                "description": "Page size (1 to 200)."
+            },
+            "sort": {
+                "type": "string",
+                "description": "Flowable sort field (default: engine order)."
+            },
+            "order": {
+                "type": "string",
+                "enum": [
+                    "asc",
+                    "desc"
+                ],
+                "default": "desc",
+                "description": "Sort direction."
+            },
+            "latest": {
+                "type": "boolean",
+                "description": "true keeps only the latest version per key (use it to find startable definitions)."
+            },
+            "key": {
+                "type": "string",
+                "description": "Filter by process definition key."
+            },
+            "category": {
+                "type": "string",
+                "description": "Filter by category."
+            },
+            "deployment": {
+                "type": "string",
+                "description": "Filter by deployment (id or IRI)."
+            },
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowProcessDefinition/start.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flow-process-definition-start-input.json",
+        "title": "flow_process_definition_start input",
+        "description": "Input for starting a process instance from a definition.",
+        "type": "object",
+        "properties": {
+            "businessKey": {
+                "type": "string",
+                "description": "Optional business key for the new process instance."
+            },
+            "variables": {
+                "description": "Process variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                "oneOf": [
+                    {
+                        "type": "object"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "name"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": [],
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "integer",
+                                        "short",
+                                        "long",
+                                        "double",
+                                        "boolean",
+                                        "date",
+                                        "json"
+                                    ]
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    }
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowProcessInstance/create.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flow-process-instance-create-input.json",
+        "title": "flow_process_instance_create input",
+        "description": "Input for starting a process instance by definition key or id.",
+        "type": "object",
+        "anyOf": [
+            {
+                "required": [
+                    "processDefinitionKey"
+                ]
+            },
+            {
+                "required": [
+                    "processDefinitionId"
+                ]
+            }
+        ],
+        "properties": {
+            "processDefinitionKey": {
+                "type": "string",
+                "description": "Process definition key (latest version is started)."
+            },
+            "processDefinitionId": {
+                "type": "string",
+                "description": "Specific process definition id (key:version:deployment)."
+            },
+            "businessKey": {
+                "type": "string",
+                "description": "Optional business key for the new process instance."
+            },
+            "variables": {
+                "description": "Process variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                "oneOf": [
+                    {
+                        "type": "object"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "name"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": [],
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "integer",
+                                        "short",
+                                        "long",
+                                        "double",
+                                        "boolean",
+                                        "date",
+                                        "json"
+                                    ]
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    }
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowProcessInstance/mcpStatus.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flowable-get-process-status-input.json",
+        "title": "flowable_get_process_status input",
+        "description": "Arguments of the MCP tool flowable_get_process_status besides the process instance id.",
+        "type": "object",
+        "properties": {
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowTask/complete.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flow-task-complete-input.json",
+        "title": "flow_task_complete input",
+        "description": "Input for completing a user task.",
+        "type": "object",
+        "properties": {
+            "variables": {
+                "description": "Process variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                "oneOf": [
+                    {
+                        "type": "object"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "name"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": [],
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "integer",
+                                        "short",
+                                        "long",
+                                        "double",
+                                        "boolean",
+                                        "date",
+                                        "json"
+                                    ]
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    }
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowTask/mcpForm.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flowable-get-task-form-input.json",
+        "title": "flowable_get_task_form input",
+        "description": "Arguments of the MCP tool flowable_get_task_form besides the task id.",
+        "type": "object",
+        "properties": {
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false
+    },
+    "FlowTask/mcpList.input.json": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://za7.example.com/schemas/flowable-list-tasks-input.json",
+        "title": "flowable_list_tasks input",
+        "description": "Arguments of the MCP tool flowable_list_tasks (filters of GET /flowable/tasks).",
+        "type": "object",
+        "properties": {
+            "page": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "description": "Page number, starting at 1."
+            },
+            "itemsPerPage": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "default": 30,
+                "description": "Page size (1 to 200)."
+            },
+            "sort": {
+                "type": "string",
+                "description": "Flowable sort field (default: createTime, newest first)."
+            },
+            "order": {
+                "type": "string",
+                "enum": [
+                    "asc",
+                    "desc"
+                ],
+                "default": "desc",
+                "description": "Sort direction."
+            },
+            "processInstanceId": {
+                "type": "string",
+                "description": "Filter by process instance id."
+            },
+            "processDefinition": {
+                "type": "string",
+                "description": "Filter by process definition (id or IRI)."
+            },
+            "assignee": {
+                "type": "string",
+                "description": "Filter by assignee (user id)."
+            },
+            "taskDefinitionKey": {
+                "type": "string",
+                "description": "Filter by task definition key (the BPMN userTask id)."
+            },
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false
+    }
+}

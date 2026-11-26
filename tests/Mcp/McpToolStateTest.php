@@ -5,31 +5,42 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable\Tests\Mcp;
 
+use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\McpToolCollection;
+use ApiPlatform\State\ProviderInterface;
 use Dmstr\Flowable\ApiResource\FlowDeployment;
 use Dmstr\Flowable\ApiResource\Output\FlowProcessHistory;
 use Dmstr\Flowable\ApiResource\Output\FlowProcessStatus;
 use Dmstr\Flowable\ApiResource\Output\FlowTaskForm;
 use Dmstr\Flowable\Client\FlowableClientInterface;
 use Dmstr\Flowable\Exception\FlowableApiException;
+use Dmstr\Flowable\Service\McpToolInputSchemaFactory;
 use Dmstr\Flowable\Service\TaskInputSchema;
 use Dmstr\Flowable\State\DeploymentBundleProcessor;
 use Dmstr\Flowable\State\FlowExternalWorkerJobProvider;
 use Dmstr\Flowable\State\FlowJobProvider;
+use Dmstr\Flowable\State\FlowProcessDefinitionProvider;
 use Dmstr\Flowable\State\FlowProcessHistoryProvider;
 use Dmstr\Flowable\State\FlowProcessStatusProvider;
 use Dmstr\Flowable\State\FlowTaskFormProvider;
+use Dmstr\Flowable\State\FlowTaskProvider;
 use Dmstr\Flowable\State\TimerJobExecuteProcessor;
 use Dmstr\Flowable\Tests\State\StateTestCase;
 use Dmstr\OpenApiJsonSchema\Interface\InputSchemaResolverInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
  * Providers and processors behind the new MCP tools, against a client double.
+ *
+ * Providers get the real McpTool of their tool (StateTestCase::mcpTool()),
+ * because they validate the arguments against its published input schema
+ * and reject a call without one.
  */
 final class McpToolStateTest extends StateTestCase
 {
@@ -48,7 +59,7 @@ final class McpToolStateTest extends StateTestCase
             ->with(['processInstanceId' => 'pi-1', 'start' => 0, 'size' => 200])
             ->willReturn(['data' => [['id' => 'pi-1', 'activityId' => null], ['id' => 'ex-2', 'activityId' => 'approve'], ['id' => 'ex-3', 'activityId' => 'waitForPayment']]]);
 
-        $status = $this->statusProvider($client)->provide(self::tool(), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
+        $status = $this->statusProvider($client)->provide(self::mcpTool('flowable_get_process_status'), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
 
         self::assertInstanceOf(FlowProcessStatus::class, $status);
         self::assertSame('pi-1', $status->processInstance['id']);
@@ -70,7 +81,7 @@ final class McpToolStateTest extends StateTestCase
         $client->method('listExecutions')->willThrowException(FlowableApiException::fromUpstreamStatus(500, 'boom'));
 
         $this->expectException(FlowableApiException::class);
-        $this->statusProvider($client)->provide(self::tool(), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
+        $this->statusProvider($client)->provide(self::mcpTool('flowable_get_process_status'), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
     }
 
     public function testProcessStatusOfAnEndedInstanceIsNotFound(): void
@@ -80,7 +91,7 @@ final class McpToolStateTest extends StateTestCase
         $client->expects($this->never())->method('listTasks');
 
         $this->expectException(NotFoundHttpException::class);
-        $this->statusProvider($client)->provide(self::tool(), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
+        $this->statusProvider($client)->provide(self::mcpTool('flowable_get_process_status'), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
     }
 
     public function testHistoryCombinesActivitiesVariablesAndFailedDecisions(): void
@@ -97,7 +108,7 @@ final class McpToolStateTest extends StateTestCase
             ->with(['instanceId' => 'pi-1', 'failed' => 'true', 'start' => 0, 'size' => 200, 'sort' => 'startTime', 'order' => 'asc'])
             ->willReturn(['data' => [['id' => 'd-1', 'decisionKey' => 'rate', 'failed' => true], ['id' => 'd-2', 'decisionKey' => 'rate', 'failed' => false]], 'total' => 2]);
 
-        $history = $this->historyProvider($client)->provide(self::tool(), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
+        $history = $this->historyProvider($client)->provide(self::mcpTool('flowable_history_get'), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
 
         self::assertInstanceOf(FlowProcessHistory::class, $history);
         self::assertSame('pi-1', $history->processInstanceId);
@@ -119,7 +130,7 @@ final class McpToolStateTest extends StateTestCase
         $client->expects($this->never())->method('listHistoricDecisionExecutions');
 
         $this->expectException(FlowableApiException::class);
-        $this->historyProvider($client)->provide(self::tool(), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
+        $this->historyProvider($client)->provide(self::mcpTool('flowable_history_get'), ['id' => 'pi-1'], self::mcpContext(['id' => 'pi-1'], ['id']));
     }
 
     public function testHistoryOfAnUnknownInstanceIsNotFound(): void
@@ -129,7 +140,7 @@ final class McpToolStateTest extends StateTestCase
         $client->expects($this->never())->method('listHistoricActivities');
 
         $this->expectException(NotFoundHttpException::class);
-        $this->historyProvider($client)->provide(self::tool(), ['id' => 'nope'], self::mcpContext(['id' => 'nope'], ['id']));
+        $this->historyProvider($client)->provide(self::mcpTool('flowable_history_get'), ['id' => 'nope'], self::mcpContext(['id' => 'nope'], ['id']));
     }
 
     // --- (c) timer tool --------------------------------------------------------
@@ -168,7 +179,7 @@ final class McpToolStateTest extends StateTestCase
         $client->expects($this->never())->method('findTask');
 
         $form = $this->formProvider($client, $resolver)
-            ->provide(self::tool(), ['id' => 'task-1'], self::mcpContext(['id' => 'task-1', 'apiConfiguration' => '0a1b2c3d'], ['id']));
+            ->provide(self::mcpTool('flowable_get_task_form'), ['id' => 'task-1'], self::mcpContext(['id' => 'task-1', 'apiConfiguration' => '0a1b2c3d'], ['id']));
 
         self::assertInstanceOf(FlowTaskForm::class, $form);
         self::assertSame('task-1', $form->taskId);
@@ -182,7 +193,7 @@ final class McpToolStateTest extends StateTestCase
         $client = $this->createMock(FlowableClientInterface::class);
         $client->expects($this->once())->method('findTask')->with('task-1')->willReturn(['id' => 'task-1']);
 
-        $form = $this->formProvider($client, $resolver)->provide(self::tool(), ['id' => 'task-1'], self::mcpContext(['id' => 'task-1'], ['id']));
+        $form = $this->formProvider($client, $resolver)->provide(self::mcpTool('flowable_get_task_form'), ['id' => 'task-1'], self::mcpContext(['id' => 'task-1'], ['id']));
 
         self::assertEquals(TaskInputSchema::withoutForm(), $form->schema);
     }
@@ -195,7 +206,7 @@ final class McpToolStateTest extends StateTestCase
         $client->method('findTask')->willReturn(null);
 
         $this->expectException(NotFoundHttpException::class);
-        $this->formProvider($client, $resolver)->provide(self::tool(), ['id' => 'nope'], self::mcpContext(['id' => 'nope'], ['id']));
+        $this->formProvider($client, $resolver)->provide(self::mcpTool('flowable_get_task_form'), ['id' => 'nope'], self::mcpContext(['id' => 'nope'], ['id']));
     }
 
     // --- (e) deploy bundle -----------------------------------------------------
@@ -266,26 +277,128 @@ final class McpToolStateTest extends StateTestCase
         $client->expects($this->never())->method('listJobs');
         $client->expects($this->once())->method('listDeadLetterJobs')->willReturn(self::EMPTY_LIST);
 
+        // A kind argument cannot reach the provider over MCP any more (see
+        // testDeadletterToolRejectsAKindArgument); the pinned kind still wins
+        // over a `kind` query parameter.
         $tool = new McpToolCollection(extraProperties: [FlowJobProvider::FIXED_KIND => 'deadletter']);
-        (new FlowJobProvider($this->locator($client), $this->requestStack()))
-            ->provide($tool, [], self::mcpContext(['kind' => 'async']));
+        (new FlowJobProvider($this->locator($client), $this->requestStack(Request::create('/', 'GET', ['kind' => 'async']))))
+            ->provide($tool, [], []);
     }
 
-    private function statusProvider(FlowableClientInterface $client): FlowProcessStatusProvider
+    public function testDeadletterToolListsDeadletterJobs(): void
+    {
+        $client = $this->createMock(FlowableClientInterface::class);
+        $client->expects($this->never())->method('listJobs');
+        $client->expects($this->once())->method('listDeadLetterJobs')->willReturn(self::EMPTY_LIST);
+
+        (new FlowJobProvider($this->locator($client), $this->requestStack()))
+            ->provide(self::mcpTool('flowable_system_list_deadletter_jobs'), [], self::mcpContext([]));
+    }
+
+    public function testDeadletterToolRejectsAKindArgument(): void
+    {
+        $client = $this->createMock(FlowableClientInterface::class);
+        $client->expects($this->never())->method($this->anything());
+
+        $this->expectException(UnprocessableEntityHttpException::class);
+        (new FlowJobProvider($this->locator($client), $this->requestStack()))
+            ->provide(self::mcpTool('flowable_system_list_deadletter_jobs'), [], self::mcpContext(['kind' => 'async']));
+    }
+
+    // --- (g) read tools validate their arguments, fail-closed ------------------
+
+    /**
+     * The six read tools with a provider factory and valid arguments.
+     *
+     * @return iterable<string, array{string, \Closure(self, FlowableClientInterface): ProviderInterface<object>, array<string, mixed>}>
+     */
+    public static function readTools(): iterable
+    {
+        $id = ['id' => 'x1'];
+        yield 'flowable_list_process_definitions' => ['flowable_list_process_definitions', static fn (self $t, FlowableClientInterface $c) => new FlowProcessDefinitionProvider($t->locator($c), $t->requestStack()), []];
+        yield 'flowable_list_tasks' => ['flowable_list_tasks', static fn (self $t, FlowableClientInterface $c) => new FlowTaskProvider($t->locator($c), $t->requestStack()), []];
+        yield 'flowable_get_task_form' => ['flowable_get_task_form', static fn (self $t, FlowableClientInterface $c) => $t->formProvider($c, $t->createStub(InputSchemaResolverInterface::class)), $id];
+        yield 'flowable_get_process_status' => ['flowable_get_process_status', static fn (self $t, FlowableClientInterface $c) => $t->statusProvider($c), $id];
+        yield 'flowable_history_get' => ['flowable_history_get', static fn (self $t, FlowableClientInterface $c) => $t->historyProvider($c), $id];
+        yield 'flowable_system_list_deadletter_jobs' => ['flowable_system_list_deadletter_jobs', static fn (self $t, FlowableClientInterface $c) => new FlowJobProvider($t->locator($c), $t->requestStack()), []];
+    }
+
+    /**
+     * @param \Closure(self, FlowableClientInterface): ProviderInterface<object> $provider
+     * @param array<string, mixed> $arguments
+     */
+    #[DataProvider('readTools')]
+    public function testReadToolRejectsAnUnknownArgument(string $name, \Closure $provider, array $arguments): void
+    {
+        $client = $this->createMock(FlowableClientInterface::class);
+        $client->expects($this->never())->method($this->anything());
+
+        $this->expectException(UnprocessableEntityHttpException::class);
+        $provider($this, $client)->provide(self::mcpTool($name), $arguments, self::mcpContext($arguments + ['unknown' => 'x'], array_keys($arguments)));
+    }
+
+    /**
+     * A tool without an input schema (here: a bare McpTool, as API Platform
+     * would build it for a tool that declares none) is rejected, not run
+     * unvalidated.
+     *
+     * @param \Closure(self, FlowableClientInterface): ProviderInterface<object> $provider
+     * @param array<string, mixed> $arguments
+     */
+    #[DataProvider('readTools')]
+    public function testReadProviderRejectsAToolWithoutInputSchema(string $name, \Closure $provider, array $arguments): void
+    {
+        $client = $this->createMock(FlowableClientInterface::class);
+        $client->expects($this->never())->method($this->anything());
+
+        $bare = $arguments === [] ? new McpToolCollection(name: $name) : self::tool();
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('MCP call rejected');
+        $provider($this, $client)->provide($bare, $arguments, self::mcpContext($arguments, array_keys($arguments)));
+    }
+
+    /**
+     * @param \Closure(self, FlowableClientInterface): ProviderInterface<object> $provider
+     * @param array<string, mixed> $arguments
+     */
+    #[DataProvider('readTools')]
+    public function testReadProviderRejectsMcpDataOnANonToolOperation(string $name, \Closure $provider, array $arguments): void
+    {
+        $client = $this->createMock(FlowableClientInterface::class);
+        $client->expects($this->never())->method($this->anything());
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('MCP call rejected');
+        $provider($this, $client)->provide(new GetCollection(), $arguments, self::mcpContext($arguments, array_keys($arguments)));
+    }
+
+    public function testReadToolWithAnUnbuildableSchemaIsRejected(): void
+    {
+        $client = $this->createMock(FlowableClientInterface::class);
+        $client->expects($this->never())->method($this->anything());
+        $tool = new McpToolCollection(name: 'broken', extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => ['input' => 'FlowTask/missing.input.json']]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('MCP call rejected: the input schema of tool "broken" cannot be built.');
+        (new FlowTaskProvider($this->locator($client), $this->requestStack()))->provide($tool, [], self::mcpContext([]));
+    }
+
+    public function statusProvider(FlowableClientInterface $client): FlowProcessStatusProvider
     {
         return new FlowProcessStatusProvider($this->locator($client), $this->requestStack());
     }
 
-    private function historyProvider(FlowableClientInterface $client): FlowProcessHistoryProvider
+    public function historyProvider(FlowableClientInterface $client): FlowProcessHistoryProvider
     {
         return new FlowProcessHistoryProvider($this->locator($client), $this->requestStack());
     }
 
-    private function formProvider(FlowableClientInterface $client, InputSchemaResolverInterface $resolver): FlowTaskFormProvider
+    public function formProvider(FlowableClientInterface $client, InputSchemaResolverInterface $resolver): FlowTaskFormProvider
     {
         return new FlowTaskFormProvider($this->locator($client), $this->requestStack(), new TaskInputSchema($resolver));
     }
 
+    /** A bare tool with an id URI variable and no input schema (processors validate the input file). */
     private static function tool(): McpTool
     {
         return new McpTool(uriVariables: ['id' => new Link(identifiers: ['id'])]);
@@ -314,3 +427,4 @@ final class McpToolStateTest extends StateTestCase
         }
     }
 }
+// - revised 2026-11-26 (providers called with the real McpTool, read tools validate their arguments)

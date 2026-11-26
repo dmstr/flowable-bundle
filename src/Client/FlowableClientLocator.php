@@ -8,7 +8,7 @@ namespace Dmstr\Flowable\Client;
 use Dmstr\ApiConfiguration\Entity\ApiConfiguration;
 use Dmstr\ApiConfiguration\Security\ConfigSecrets;
 use Dmstr\ApiConfiguration\Security\SecretEncryptionException;
-use Dmstr\ApiPlatformUtils\Service\UuidResolver;
+use Dmstr\Flowable\Schema\InputSchemaLoader;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -16,9 +16,20 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 /**
  * Resolves the FlowableClient to use for a request from an ApiConfiguration of
  * type "flowable" (design D4):
- *   1. explicit id (full or partial UUID via UuidResolver),
+ *   1. explicit selector: the first 8 characters or the full UUID of an
+ *      active "flowable" configuration, lowercase, the same `uuidSelector`
+ *      pattern the input schemas carry (src/Schema/api-configuration.json);
  *   2. implicit when exactly one active "flowable" configuration exists,
  *   3. otherwise a 400 with guidance.
+ *
+ * An explicit selector is checked for its format before any lookup and then
+ * compared in PHP with the ids of the active "flowable" configurations, so no
+ * wildcard reaches the database. A malformed selector, no match (unknown id,
+ * another type, inactive) and an 8-character prefix shared by two
+ * configurations all end in the same 400 ({@see self::INVALID_SELECTION}),
+ * which names no other configuration and no other type. This is the one
+ * place the selection happens for HTTP, MCP, the --api-configuration option
+ * of the console commands and the external worker.
  *
  * Clients are cached per resolved configuration for the lifetime of the
  * request (the locator itself is a per-request service instance).
@@ -31,13 +42,15 @@ final class FlowableClientLocator
 {
     private const TYPE = 'flowable';
 
+    public const string INVALID_SELECTION = 'apiConfiguration does not select an active Flowable API configuration. '
+        .'Pass the first 8 characters or the full UUID (lowercase) of exactly one active Flowable configuration.';
+
     /** @var array<string, FlowableClientInterface> */
     private array $cache = [];
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly EntityManagerInterface $entityManager,
-        private readonly UuidResolver $uuidResolver,
         private readonly ConfigSecrets $secrets,
     ) {
     }
@@ -53,30 +66,46 @@ final class FlowableClientLocator
         return $this->cache[$key] ??= $this->createClient($configuration);
     }
 
-    private function resolveExplicit(string $apiConfigurationId): ApiConfiguration
+    private function resolveExplicit(string $selector): ApiConfiguration
     {
-        $configuration = $this->uuidResolver->findByPartialUuid(ApiConfiguration::class, $apiConfigurationId);
-
-        if (!$configuration instanceof ApiConfiguration) {
-            throw new BadRequestHttpException(sprintf('No API configuration matches "%s".', $apiConfigurationId));
-        }
-        if ($configuration->getType() !== self::TYPE) {
-            throw new BadRequestHttpException(sprintf(
-                'API configuration "%s" is of type "%s", expected "%s".',
-                $apiConfigurationId,
-                $configuration->getType(),
-                self::TYPE,
-            ));
+        if (1 !== preg_match(self::selectorPattern(), $selector)) {
+            throw new BadRequestHttpException(self::INVALID_SELECTION);
         }
 
-        return $configuration;
+        // The pattern allows 8 or 36 characters, so a prefix match is an
+        // exact match for a full UUID.
+        $matches = array_values(array_filter(
+            $this->activeConfigurations(),
+            static fn (ApiConfiguration $configuration): bool => str_starts_with((string) $configuration->getId(), $selector),
+        ));
+
+        if (1 !== \count($matches)) {
+            throw new BadRequestHttpException(self::INVALID_SELECTION);
+        }
+
+        return $matches[0];
+    }
+
+    /**
+     * The `uuidSelector` pattern of the shared schema definition as a PCRE
+     * pattern; `D` keeps `$` from matching before a trailing newline.
+     */
+    private static function selectorPattern(): string
+    {
+        return '~'.InputSchemaLoader::definition('uuidSelector')['pattern'].'~D';
+    }
+
+    /** @return list<ApiConfiguration> */
+    private function activeConfigurations(): array
+    {
+        return array_values($this->entityManager
+            ->getRepository(ApiConfiguration::class)
+            ->findBy(['type' => self::TYPE, 'active' => true]));
     }
 
     private function resolveImplicit(): ApiConfiguration
     {
-        $candidates = $this->entityManager
-            ->getRepository(ApiConfiguration::class)
-            ->findBy(['type' => self::TYPE, 'active' => true]);
+        $candidates = $this->activeConfigurations();
 
         if (\count($candidates) === 1) {
             return $candidates[0];
@@ -128,3 +157,4 @@ final class FlowableClientLocator
         );
     }
 }
+// - revised 2026-11-26 (strict explicit selector, lookup without UuidResolver)

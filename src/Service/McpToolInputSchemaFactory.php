@@ -9,6 +9,8 @@ use ApiPlatform\JsonSchema\Schema;
 use ApiPlatform\JsonSchema\SchemaFactoryInterface;
 use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Operation;
+use Dmstr\Flowable\Metadata\McpToolSwitchResourceMetadataCollectionFactory;
+use Dmstr\Flowable\Schema\InputSchemaLoader;
 
 /**
  * Serves the input schema of this bundle's MCP tools from the operation input
@@ -18,15 +20,15 @@ use ApiPlatform\Metadata\Operation;
  * of the McpTool (here: the pass-through resource), which would advertise the
  * resource's output fields as tool arguments. The bundle's tools are fed from
  * the raw tool arguments instead (see State\OperationInputTrait), and their
- * contract is the same JSON schema the processors validate against. A tool
- * opts in with
+ * contract is the JSON schema of the input file. A tool opts in with
  *
  *     extraProperties: [McpToolInputSchemaFactory::EXTRA_KEY => [
  *         'input' => 'FlowTask/complete.input.json',
  *         'uriVariables' => ['id' => 'Id of the user task.'],
  *     ]]
  *
- * The advertised schema is the file's schema with
+ * The advertised schema is the file's schema, its shared definitions
+ * resolved by {@see InputSchemaLoader} (no `$ref`, no `$defs`), with
  *  - every URI variable of the tool (e.g. "id") added as a required string
  *    property, described by the 'uriVariables' entry — the MCP handler copies
  *    these arguments into $uriVariables, and they are stripped again before
@@ -34,11 +36,27 @@ use ApiPlatform\Metadata\Operation;
  *  - `$schema`, `$id` and `title` removed, and top-level `allOf`/`anyOf`/
  *    `oneOf` removed: they only express "one of these keys is required",
  *    which several MCP clients cannot represent at the root. The tool
- *    description names the rule, and the processor still validates the full
- *    file.
+ *    description names the rule.
+ *
+ * This class only publishes the schema; it enforces nothing. Enforcement is
+ * done by the tools' state classes, in one of two ways:
+ *  - the write processors validate the tool arguments minus the URI variables
+ *    against the full input file (Service\InputSchemaValidator), so a dropped
+ *    root `allOf`/`anyOf`/`oneOf` is still checked;
+ *  - the read tools' providers and flowable_dmn_deploy validate the tool
+ *    arguments against exactly this published schema, URI variables included
+ *    (State\McpToolInputValidator), and reject the call when it cannot be
+ *    built.
  *
  * Decorates api_platform.mcp.json_schema.schema_factory (registered only when
- * API Platform's MCP support is enabled); all other schemas pass through.
+ * API Platform's MCP support is enabled). It acts only on this bundle's
+ * resources (the namespace guard of the tool switches,
+ * {@see McpToolSwitchResourceMetadataCollectionFactory::isBundleResource()});
+ * all other schemas, including those of another bundle's or the
+ * application's tools that happen to carry EXTRA_KEY, pass through. An input
+ * path containing `..` is rejected, so no file outside src/ApiResource is
+ * read. A tool whose schema cannot be built is removed from the metadata by
+ * the tool switches and is therefore never asked for here.
  */
 final class McpToolInputSchemaFactory implements SchemaFactoryInterface
 {
@@ -53,7 +71,9 @@ final class McpToolInputSchemaFactory implements SchemaFactoryInterface
 
     public function buildSchema(string $className, string $format = 'json', string $type = Schema::TYPE_OUTPUT, ?Operation $operation = null, ?Schema $schema = null, ?array $serializerContext = null, bool $forceCollection = false): Schema
     {
-        $input = Schema::TYPE_INPUT === $type && $operation instanceof McpTool ? self::inputSchema($operation) : null;
+        $input = Schema::TYPE_INPUT === $type && $operation instanceof McpTool
+            && McpToolSwitchResourceMetadataCollectionFactory::isBundleResource($className)
+            ? self::inputSchema($operation) : null;
         if (null === $input) {
             return $this->decorated->buildSchema($className, $format, $type, $operation, $schema, $serializerContext, $forceCollection);
         }
@@ -102,9 +122,17 @@ final class McpToolInputSchemaFactory implements SchemaFactoryInterface
         return $schema;
     }
 
-    /** Absolute path of an input file given relative to src/ApiResource. */
+    /**
+     * Absolute path of an input file given relative to src/ApiResource.
+     *
+     * @throws \RuntimeException when the path contains `..`
+     */
     public static function path(string $input): string
     {
+        if (str_contains($input, '..')) {
+            throw new \RuntimeException(sprintf('MCP tool input schema path must not contain "..": %s', $input));
+        }
+
         return \dirname(__DIR__).'/ApiResource/'.ltrim($input, '/');
     }
 
@@ -112,9 +140,8 @@ final class McpToolInputSchemaFactory implements SchemaFactoryInterface
     private static function load(string $input): array
     {
         $path = self::path($input);
-        $content = is_file($path) ? file_get_contents($path) : false;
-        $schema = false !== $content ? json_decode($content) : null;
-        if (!$schema instanceof \stdClass) {
+        $schema = InputSchemaLoader::load($path);
+        if (null === $schema) {
             throw new \RuntimeException(sprintf('MCP tool input schema not found or invalid: %s', $path));
         }
 
@@ -142,3 +169,6 @@ final class McpToolInputSchemaFactory implements SchemaFactoryInterface
         return $out;
     }
 }
+// - revised 2026-11-26 (schema loaded through InputSchemaLoader)
+// - revised 2026-11-26 (docblock: publishing is not enforcing, where the schemas are enforced)
+// - revised 2026-11-26 (namespace guard, `..` rejected in the input path)

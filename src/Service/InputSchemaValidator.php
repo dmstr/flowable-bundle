@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable\Service;
 
+use Dmstr\Flowable\Schema\InputSchemaLoader;
 use Opis\JsonSchema\Errors\ErrorFormatter;
 use Opis\JsonSchema\Validator;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -13,7 +14,8 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 /**
  * Validates a decoded request body against a bundle-local JSON schema using
  * opis/json-schema. The same schemas back the REST operations and the CLI
- * mirror, so both enforce identical input contracts.
+ * mirror, so both enforce identical input contracts. Schemas are read through
+ * {@see InputSchemaLoader}, which resolves their shared definitions.
  */
 final class InputSchemaValidator
 {
@@ -64,11 +66,23 @@ final class InputSchemaValidator
         if (!is_file($schemaPath)) {
             throw new \RuntimeException(sprintf('Flowable input schema not found: %s', $schemaPath));
         }
-        $schema = json_decode((string) file_get_contents($schemaPath));
-        if (!\is_object($schema)) {
+        $schema = InputSchemaLoader::load($schemaPath);
+        if (null === $schema) {
             throw new \RuntimeException(sprintf('Invalid Flowable input schema: %s', $schemaPath));
         }
 
+        self::assertValid($payload, $schema);
+    }
+
+    /**
+     * Validate a decoded JSON value against a decoded schema, the one place
+     * that turns opis errors into the bundle's validation failure (also used
+     * for the MCP tool arguments, {@see \Dmstr\Flowable\State\McpToolInputValidator}).
+     *
+     * @throws UnprocessableEntityHttpException when the value violates the schema
+     */
+    public static function assertValid(mixed $payload, object $schema): void
+    {
         $result = (new Validator())->validate($payload, $schema);
         if (!$result->isValid()) {
             $errors = (new ErrorFormatter())->format($result->error());
@@ -78,3 +92,5 @@ final class InputSchemaValidator
         }
     }
 }
+// - revised 2026-11-26 (schema loaded through InputSchemaLoader)
+// - revised 2026-11-26 (one opis validation for request bodies and MCP tool arguments)

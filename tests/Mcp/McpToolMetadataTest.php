@@ -200,7 +200,7 @@ final class McpToolMetadataTest extends TestCase
         $inner->expects($this->once())->method('buildSchema')->willReturn(new Schema());
         $factory = new McpToolInputSchemaFactory($inner);
 
-        $schema = $factory->buildSchema('X', 'json', Schema::TYPE_INPUT, $tools['flowable_complete_task']);
+        $schema = $factory->buildSchema('Dmstr\\Flowable\\ApiResource\\FlowTask', 'json', Schema::TYPE_INPUT, $tools['flowable_complete_task']);
         self::assertSame(['id', 'variables', 'apiConfiguration'], array_keys($schema['properties']));
         self::assertArrayNotHasKey('$schema', $schema->getArrayCopy());
 
@@ -233,3 +233,4 @@ final class McpToolMetadataTest extends TestCase
 }
 // - revised 2026-10-09 (admin-only tools, destructiveHint, mcp.deploy)
 // - revised 2026-10-28 (one flowable:* permission per tool)
+// - revised 2026-11-26 (schema factory guard: input class is a bundle resource)

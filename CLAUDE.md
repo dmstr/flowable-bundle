@@ -20,7 +20,7 @@ packages are public and English-only.
 
 ## Requirements
 
-PHP >= 8.5 (see `composer.json`). The PHPUnit 12 suite in `tests/` (configuration `phpunit.dist.xml`) needs no Flowable engine or database. It has unit tests (the client is a `FlowableClientInterface` double, MCP tool metadata is built from the resource attributes) and kernel-based suites under `tests/Kernel` and `tests/Http` that boot a test kernel and send HTTP and MCP requests; their test authentication (`X-Test-Roles` header) lives only under `tests/`. Run it with the compose CLI runner: `docker compose run --rm php composer install && docker compose run --rm php vendor/bin/phpunit`. CI is the GitHub Action `.github/workflows/tests.yml` (PHP 8.5); the bundle is also exercised through its consuming applications (e.g. the za7 API stacks).
+PHP >= 8.5 (see `composer.json`). The PHPUnit 12 suite in `tests/` (configuration `phpunit.dist.xml`) needs no Flowable engine and no database server (the test kernel uses SQLite in memory). It has unit tests (the client is a `FlowableClientInterface` double, MCP tool metadata is built from the resource attributes) and kernel-based suites under `tests/Kernel` and `tests/Http` that boot a test kernel and send HTTP and MCP requests; their test authentication (`X-Test-Roles` header) lives only under `tests/`. Run it with the compose CLI runner: `docker compose run --rm php composer install && docker compose run --rm php vendor/bin/phpunit`. CI is the GitHub Action `.github/workflows/tests.yml` (PHP 8.5); the bundle is also exercised through its consuming applications (e.g. the za7 API stacks).
 
 ## Permissions
 
@@ -28,3 +28,4 @@ The bundle checks only `flowable:*` permissions (`Dmstr\Flowable\Security\Flowab
 
 <!-- - revised 2026-10-08 (PHPUnit suite) -->
 <!-- - revised 2026-10-28 (PHP 8.5, CI, kernel tests, permissions) -->
+<!-- - revised 2026-11-26 (tests use SQLite in memory) -->

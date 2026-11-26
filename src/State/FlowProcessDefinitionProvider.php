@@ -19,6 +19,7 @@ final class FlowProcessDefinitionProvider extends AbstractFlowableProvider imple
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
+        $this->validateMcpInput($operation, $context);
         $client = $this->client($context);
 
         if ($operation instanceof CollectionOperationInterface) {
@@ -36,3 +37,4 @@ final class FlowProcessDefinitionProvider extends AbstractFlowableProvider imple
         return $data !== null ? FlowProcessDefinition::fromApi($data) : null;
     }
 }
+// - revised 2026-11-26 (MCP tool arguments validated against the published input schema)

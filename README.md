@@ -72,6 +72,10 @@ keeps the stored value. This requires a configured encryption key
 fails, the request fails with a `SecretEncryptionException` instead of sending
 the ciphertext to the engine.
 
+### Selecting a configuration
+
+Without a selector, the bundle uses the only active configuration of type `flowable`; with none or several it answers 400 and asks for a selector. An explicit selector (`apiConfiguration` as query parameter, body property or MCP argument, as a string or `{"uuid": "…"}`, and `--api-configuration` of the commands) is the first 8 characters or the full UUID, lowercase, of exactly one **active** configuration of type `flowable`, for example `0a1b2c3d`. Longer or shorter prefixes, uppercase, an unknown id, an inactive configuration, another type and a prefix shared by two configurations all get the same 400 (`apiConfiguration does not select an active Flowable API configuration. …`), which names no other configuration; where a JSON body or MCP arguments are validated against their schema first, a malformed selector gets the schema's 422. The selector is compared in PHP with the ids of the active configurations and never reaches a database query.
+
 ### Bundle configuration
 
 The config root is `dmstr_flowable`. Its only options switch the bundle's MCP tools (see [MCP tools](#mcp-tools)); all default to `false`, so an application that does not opt in serves no Flowable tool:
@@ -108,6 +112,10 @@ All resources are served under `/api/flowable/*`:
 | `FlowEventInstance` | `POST /event_instances` — send an event into the engine |
 | `FlowExternalWorkerJob` | `GET /external_worker_jobs`, `POST /external_worker_jobs/acquire`, `POST /external_worker_jobs/{id}/{complete,fail,bpmnError,unacquire}` |
 | `FlowJob` | read-only engine jobs: `GET /jobs?kind=async\|timer\|suspended\|deadletter\|history`, `GET /jobs/{id}/stacktrace` |
+
+**Ids.** Every id that becomes a segment of an engine path must match `^[A-Za-z0-9][A-Za-z0-9:._-]*$`; any other id is answered with 400 before a request reaches the engine. The rule sits in `FlowableClient`, so it applies to HTTP, MCP, the CLI, the external worker and direct use of the client alike. It covers the id formats Flowable generates (UUID, numeric, `key:version:id`) but is not verified against a live engine; a process definition whose BPMN key starts with `_` or contains non-ASCII letters (id e.g. `_key:1:5`) cannot be addressed by id through the bundle. Deployment resource names (e.g. `<formKey>.schema.json`) only must not contain `.` or `..` segments.
+
+**Uploads.** The upload operations (`/deployments/upload`, `/dmn_deployments/upload`, `/event_deployments/upload`) and the deploy tools accept a plain file name only: at most 255 characters, no `/`, no `\`, no `..`, no leading `.`, no quotes and no control characters. The bundle sets no size limit for a multipart upload; it is bounded by the web server in front of the application (nginx `client_max_body_size`, default `1m`) and PHP's `upload_max_filesize` / `post_max_size`, so raise those for larger BPMN or DMN files. The limits of inline files over MCP are under [Tool arguments](#tool-arguments).
 
 ### External worker tasks
 
@@ -294,9 +302,11 @@ Notes on individual tools:
 
 ### Tool arguments
 
-All arguments are top-level. Operations with a JSON body take the body properties plus the URI variable (`id`), which is not part of the body; `apiConfiguration` selects the engine connection (full or partial UUID). List tools take `page`, `itemsPerPage`, `sort`, `order` and the filters of their HTTP collection; relation filters accept an id or an IRI. Variables are passed preferably as a map `{"name": value}`; the explicit list `[{"name", "value", "type"}]` is accepted too.
+All arguments are top-level. Operations with a JSON body take the body properties plus the URI variable (`id`), which is not part of the body; `apiConfiguration` selects the engine connection (first 8 characters or full UUID, see [Selecting a configuration](#selecting-a-configuration)). List tools take `page`, `itemsPerPage` (at most 200), `sort`, `order` and the filters their input schema names, e.g. `processDefinition` (id or IRI) and `processInstanceId` on `flowable_list_tasks`. Variables are passed preferably as a map `{"name": value}`; the explicit list `[{"name", "value", "type"}]` is accepted too.
 
 The advertised input schema of a tool is the operation input file next to its resource class (e.g. `src/ApiResource/FlowTask/complete.input.json`; tool-only files are named `mcp<Verb>.input.json`), with the URI variables added as required properties. Top-level `allOf`/`anyOf` alternatives ("one of these keys is required") are left out of the advertised schema because several MCP clients cannot represent them; the tool description names the rule, and the processor validates the full file.
+
+The arguments are validated before the tool runs. The write tools check them against the full input file; the six read tools and `flowable_dmn_deploy` check them against exactly the advertised schema, URI variables included. A violation is answered with 422 `Input validation failed: …`: unknown keys (e.g. `kind` on `flowable_system_list_deadletter_jobs`, `processInstance` on `flowable_list_tasks`), strings for numbers (`"page": "2"`) and values outside the bounds are rejected, not ignored. A tool whose input schema cannot be built (missing file, invalid JSON, `..` in the path) is removed from the metadata, so it is neither listed nor callable, and logged as `flowable.mcp.tool_hidden` (level `error`) on the `flowable` channel when the API Platform metadata cache is built. A provider of your own behind an `McpTool` that extends `AbstractFlowableProvider` calls `validateMcpInput()` to get the same check. The HTTP read operations and their query parameters are not affected.
 
 Files are passed inline instead of as a multipart upload:
 
@@ -308,7 +318,7 @@ Files are passed inline instead of as a multipart upload:
 }
 ```
 
-`name` is the file name including its extension, `content` the file content as text; binary content (`.bar`, `.zip`) is sent base64-encoded with `"contentEncoding": "base64"`. `flowable_deploy_bundle` takes a list of such files plus `deploymentName`:
+`name` is the file name including its extension (a plain file name, see [Uploads](#api-resources)), `content` the file content as text, or base64-encoded with `"contentEncoding": "base64"`. `flowable_dmn_deploy` takes a single `.dmn` only; archives (`.bar`, `.zip`) are deployed through the HTTP upload `POST /dmn_deployments/upload`. `flowable_deploy_bundle` takes a list of such files plus `deploymentName`:
 
 ```json
 {
@@ -319,6 +329,8 @@ Files are passed inline instead of as a multipart upload:
     ]
 }
 ```
+
+Limits, fixed and not configurable: at most 1 MiB per file after decoding, and for `flowable_deploy_bundle` at most 20 files and 4 MiB in total after decoding; file names and `deploymentName`, `deploymentSource`, `category`, `tenantId` at most 255 characters each. Two limits in front of the bundle apply first. The web server's request size limit (nginx `client_max_body_size`, default `1m`) already refuses a tool call carrying a 1 MiB file, so raise it on the MCP endpoint if agents deploy files of that size. The HTTP transport of `mcp/sdk` refuses request bodies above 4 MiB (4194304 bytes, `StreamableHttpTransport::DEFAULT_MAX_BODY_BYTES`); as the whole JSON-RPC request counts and base64 is a third larger than the decoded bytes, a bundle near the 4 MiB total is refused by the transport before the bundle's own check.
 
 ## CLI
 
@@ -342,6 +354,8 @@ flowable:external-worker:complete    flowable:external-worker:fail
 flowable:external-worker:bpmn-error  flowable:external-worker:unacquire
 flowable:jobs
 ```
+
+`--api-configuration` (`-c`) takes the first 8 characters or the full UUID, lowercase, of an active `flowable` configuration, as described under [Selecting a configuration](#selecting-a-configuration); without it, the only active one is used. Ids passed to the commands follow the [id rule](#api-resources).
 
 `flowable:external-worker:run` is the poll loop: `--topic` (repeatable, empty =
 every registered handler's topics), `--worker-id`, `--lock-duration=PT10M`,
@@ -428,14 +442,14 @@ With autoconfiguration the voter is registered by itself. If the application alr
 
 ## Tests
 
-The suite (`tests/`, configuration `phpunit.dist.xml`) needs no Flowable engine and no database: the Flowable client is a test double. Besides the unit tests it has kernel-based suites under `tests/Kernel` and `tests/Http` that boot a test kernel and send HTTP and MCP requests; they authenticate with a test-only firewall that reads the roles from the `X-Test-Roles` header (it exists only under `tests/`). CI runs the suite on PHP 8.5 (`.github/workflows/tests.yml`).
+The suite (`tests/`, configuration `phpunit.dist.xml`) needs no Flowable engine and no database server. The unit tests use a `FlowableClientInterface` double; besides them it has kernel-based suites under `tests/Kernel` and `tests/Http` that boot a test kernel and send HTTP and MCP requests; they authenticate with a test-only firewall that reads the roles from the `X-Test-Roles` header (it exists only under `tests/`). The test kernel stores the `ApiConfiguration` records in SQLite in memory (`ext-pdo_sqlite`, empty for every booted kernel) and answers the engine requests of the real `FlowableClient` with a `MockHttpClient`. CI runs the suite on PHP 8.5 (`.github/workflows/tests.yml`).
 
 ```bash
 docker compose run --rm php composer install
 docker compose run --rm php vendor/bin/phpunit
 ```
 
-Without Docker, `composer install && vendor/bin/phpunit` works on any PHP 8.5 setup.
+Without Docker, `composer install && vendor/bin/phpunit` works on any PHP 8.5 setup with the extensions `pdo_sqlite` and `zip`.
 
 ## License
 
@@ -444,3 +458,4 @@ Without Docker, `composer install && vendor/bin/phpunit` works on any PHP 8.5 se
 <!-- - revised 2026-10-08 (bundle configuration, MCP tools, tests) -->
 <!-- - revised 2026-10-09 (MCP tools admin-only, mcp.deploy, destructiveHint, changelog) -->
 <!-- - revised 2026-10-28 (permissions, migration from 0.10, tests) -->
+<!-- - revised 2026-11-26 (0.13.0: configuration selector, id rule, upload rules and limits, MCP argument validation, tests) -->

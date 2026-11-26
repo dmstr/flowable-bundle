@@ -114,7 +114,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
     mcp: [
         'flowable_dmn_deploy' => new McpTool(
             name: 'flowable_dmn_deploy',
-            description: 'Deploy a DMN decision table to the DMN engine from inline content: name ending in .dmn and content as XML text (or base64 with contentEncoding "base64", e.g. for a .bar/.zip). Returns the DMN deployment with id, name, deploymentTime, category, parentDeploymentId and tenantId.',
+            description: 'Deploy a DMN decision table to the DMN engine from inline content: name ending in .dmn and content as XML text (or base64 with contentEncoding "base64"), at most 1 MiB after decoding; archives (.bar/.zip) are accepted only by the HTTP upload. Returns the DMN deployment with id, name, deploymentTime, category, parentDeploymentId and tenantId.',
             annotations: ['readOnlyHint' => false, 'destructiveHint' => true, 'idempotentHint' => false],
             meta: ['de.dmstr/tag' => 'Flowable/DMN'],
             security: "is_granted('flowable:deploy')",
@@ -186,3 +186,4 @@ final class FlowDmnDeployment
 }
 // - revised 2026-10-08 (MCP tool flowable_dmn_deploy)
 // - revised 2026-10-09 (MCP: destructiveHint)
+// - revised 2026-11-26 (flowable_dmn_deploy: only .dmn, size limit in the tool description)

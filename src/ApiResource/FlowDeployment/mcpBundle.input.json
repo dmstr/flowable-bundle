@@ -12,7 +12,8 @@
     "files": {
       "type": "array",
       "minItems": 1,
-      "description": "The files of the deployment, e.g. one .bpmn20.xml plus the <formKey>.schema.json form schemas its user tasks reference.",
+      "maxItems": 20,
+      "description": "The files of the deployment, e.g. one .bpmn20.xml plus the <formKey>.schema.json form schemas its user tasks reference. At most 20 files and 4 MiB in total after decoding.",
       "items": {
         "type": "object",
         "required": [
@@ -23,12 +24,14 @@
           "name": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 255,
             "description": "Plain file name with extension .bpmn, .bpmn20.xml, .form or .json (no path)."
           },
           "content": {
             "type": "string",
             "minLength": 1,
-            "description": "File content as text, or base64 with contentEncoding \"base64\"."
+            "maxLength": 1400000,
+            "description": "File content as text, or base64 with contentEncoding \"base64\"; at most 1 MiB after decoding."
           },
           "contentEncoding": {
             "type": "string",
@@ -44,40 +47,26 @@
     "deploymentName": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 255,
       "description": "Deployment name, shown in the deployment list."
     },
     "deploymentSource": {
       "type": "string",
+      "maxLength": 255,
       "description": "Optional free-text source marker stored on the deployment."
     },
     "category": {
       "type": "string",
+      "maxLength": 255,
       "description": "Optional deployment category."
     },
     "tenantId": {
       "type": "string",
+      "maxLength": 255,
       "description": "Optional tenant id."
     },
     "apiConfiguration": {
-      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection.",
-      "oneOf": [
-        {
-          "type": "string",
-          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
-        },
-        {
-          "type": "object",
-          "required": [
-            "uuid"
-          ],
-          "properties": {
-            "uuid": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        }
-      ]
+      "$ref": "../../Schema/api-configuration.json#/$defs/apiConfigurationOrDefault"
     }
   },
   "additionalProperties": false

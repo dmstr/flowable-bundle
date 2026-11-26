@@ -6,25 +6,7 @@
   "type": "object",
   "properties": {
     "apiConfiguration": {
-      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection.",
-      "oneOf": [
-        {
-          "type": "string",
-          "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
-        },
-        {
-          "type": "object",
-          "required": [
-            "uuid"
-          ],
-          "properties": {
-            "uuid": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        }
-      ]
+      "$ref": "../../Schema/api-configuration.json#/$defs/apiConfigurationOrDefault"
     }
   },
   "additionalProperties": false

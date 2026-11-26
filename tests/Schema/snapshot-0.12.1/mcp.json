@@ -1,0 +1,771 @@
+{
+    "flowable_complete_task": {
+        "description": "Input for completing a user task.",
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "string",
+                "description": "Id of the open user task to complete."
+            },
+            "variables": {
+                "description": "Process variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                "oneOf": [
+                    {
+                        "type": "object"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "name"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": {},
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "integer",
+                                        "short",
+                                        "long",
+                                        "double",
+                                        "boolean",
+                                        "date",
+                                        "json"
+                                    ]
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    }
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false,
+        "required": [
+            "id"
+        ]
+    },
+    "flowable_deploy_bundle": {
+        "description": "Arguments of the MCP tool flowable_deploy_bundle: several files deployed as one process deployment (packed into a .bar archive).",
+        "type": "object",
+        "required": [
+            "files",
+            "deploymentName"
+        ],
+        "properties": {
+            "files": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "description": "The files of the deployment, e.g. one .bpmn20.xml plus the <formKey>.schema.json form schemas its user tasks reference. At most 20 files and 4 MiB in total after decoding.",
+                "items": {
+                    "type": "object",
+                    "required": [
+                        "name",
+                        "content"
+                    ],
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255,
+                            "description": "Plain file name with extension .bpmn, .bpmn20.xml, .form or .json (no path)."
+                        },
+                        "content": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1400000,
+                            "description": "File content as text, or base64 with contentEncoding \"base64\"; at most 1 MiB after decoding."
+                        },
+                        "contentEncoding": {
+                            "type": "string",
+                            "enum": [
+                                "base64"
+                            ],
+                            "description": "Set to \"base64\" when content is base64-encoded."
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "deploymentName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "description": "Deployment name, shown in the deployment list."
+            },
+            "deploymentSource": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Optional free-text source marker stored on the deployment."
+            },
+            "category": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Optional deployment category."
+            },
+            "tenantId": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Optional tenant id."
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection.",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "flowable_dmn_deploy": {
+        "description": "Arguments of the MCP tool flowable_dmn_deploy: one decision resource passed inline instead of the multipart upload of POST /flowable/dmn_deployments/upload.",
+        "type": "object",
+        "required": [
+            "name",
+            "content"
+        ],
+        "properties": {
+            "name": {
+                "type": "string",
+                "maxLength": 255,
+                "pattern": "\\.[dD][mM][nN]$",
+                "description": "File name including the extension .dmn (archives .bar/.zip only through the HTTP upload)."
+            },
+            "content": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1400000,
+                "description": "File content: the DMN XML as text, or base64 with contentEncoding \"base64\"; at most 1 MiB after decoding."
+            },
+            "contentEncoding": {
+                "type": "string",
+                "enum": [
+                    "base64"
+                ],
+                "description": "Set to \"base64\" when content is base64-encoded."
+            },
+            "deploymentName": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Deployment name (defaults to the file name)."
+            },
+            "category": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Optional deployment category."
+            },
+            "tenantId": {
+                "type": "string",
+                "maxLength": 255,
+                "description": "Optional tenant id."
+            },
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false
+    },
+    "flowable_dmn_evaluate": {
+        "description": "Input for evaluating a DMN decision by key.",
+        "type": "object",
+        "required": [
+            "decisionKey"
+        ],
+        "properties": {
+            "decisionKey": {
+                "type": "string",
+                "title": "Decision key",
+                "description": "Key of the decision to evaluate (latest deployed version is used)."
+            },
+            "singleResult": {
+                "type": "boolean",
+                "default": false,
+                "title": "Single result",
+                "description": "Use the engine's single-result evaluation (one output row) instead of the full list of matching rows."
+            },
+            "inputVariables": {
+                "description": "Decision input variables: shorthand map {name: value} or explicit list [{name,type,value}].",
+                "oneOf": [
+                    {
+                        "type": "object"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "name"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": {},
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "integer",
+                                        "short",
+                                        "long",
+                                        "double",
+                                        "boolean",
+                                        "date",
+                                        "json"
+                                    ]
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    }
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "flowable_events_send": {
+        "description": "Input for sending an event instance to an inbound channel of the event registry. Both an event definition reference and a channel definition reference are required — the engine rejects a body missing either.",
+        "type": "object",
+        "properties": {
+            "eventDefinitionKey": {
+                "type": "string",
+                "title": "Event definition key",
+                "description": "Key of the event definition to send (latest deployed version is used)."
+            },
+            "eventDefinitionId": {
+                "type": "string",
+                "title": "Event definition id",
+                "description": "Specific event definition id, taking precedence over the key."
+            },
+            "channelDefinitionKey": {
+                "type": "string",
+                "title": "Channel definition key",
+                "description": "Key of the inbound channel definition that receives the event."
+            },
+            "channelDefinitionId": {
+                "type": "string",
+                "title": "Channel definition id",
+                "description": "Specific inbound channel definition id, taking precedence over the key."
+            },
+            "tenantId": {
+                "type": "string",
+                "title": "Tenant id",
+                "description": "Optional tenant the event definition and channel are resolved in."
+            },
+            "eventPayload": {
+                "type": "object",
+                "title": "Event payload",
+                "description": "The event body as a JSON object, matching the event definition's payload contract. Must be an object — the engine rejects an array."
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "flowable_get_process_status": {
+        "description": "Arguments of the MCP tool flowable_get_process_status besides the process instance id.",
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "string",
+                "description": "Id of the running process instance."
+            },
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false,
+        "required": [
+            "id"
+        ]
+    },
+    "flowable_get_task_form": {
+        "description": "Arguments of the MCP tool flowable_get_task_form besides the task id.",
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "string",
+                "description": "Id of the open user task."
+            },
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false,
+        "required": [
+            "id"
+        ]
+    },
+    "flowable_history_get": {
+        "description": "Arguments of the MCP tool flowable_history_get besides the process instance id.",
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "string",
+                "description": "Id of the process instance."
+            },
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false,
+        "required": [
+            "id"
+        ]
+    },
+    "flowable_list_process_definitions": {
+        "description": "Arguments of the MCP tool flowable_list_process_definitions (filters of GET /flowable/process_definitions).",
+        "type": "object",
+        "properties": {
+            "page": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "description": "Page number, starting at 1."
+            },
+            "itemsPerPage": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "default": 30,
+                "description": "Page size (1 to 200)."
+            },
+            "sort": {
+                "type": "string",
+                "description": "Flowable sort field (default: engine order)."
+            },
+            "order": {
+                "type": "string",
+                "enum": [
+                    "asc",
+                    "desc"
+                ],
+                "default": "desc",
+                "description": "Sort direction."
+            },
+            "latest": {
+                "type": "boolean",
+                "description": "true keeps only the latest version per key (use it to find startable definitions)."
+            },
+            "key": {
+                "type": "string",
+                "description": "Filter by process definition key."
+            },
+            "category": {
+                "type": "string",
+                "description": "Filter by category."
+            },
+            "deployment": {
+                "type": "string",
+                "description": "Filter by deployment (id or IRI)."
+            },
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false
+    },
+    "flowable_list_tasks": {
+        "description": "Arguments of the MCP tool flowable_list_tasks (filters of GET /flowable/tasks).",
+        "type": "object",
+        "properties": {
+            "page": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "description": "Page number, starting at 1."
+            },
+            "itemsPerPage": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "default": 30,
+                "description": "Page size (1 to 200)."
+            },
+            "sort": {
+                "type": "string",
+                "description": "Flowable sort field (default: createTime, newest first)."
+            },
+            "order": {
+                "type": "string",
+                "enum": [
+                    "asc",
+                    "desc"
+                ],
+                "default": "desc",
+                "description": "Sort direction."
+            },
+            "processInstanceId": {
+                "type": "string",
+                "description": "Filter by process instance id."
+            },
+            "processDefinition": {
+                "type": "string",
+                "description": "Filter by process definition (id or IRI)."
+            },
+            "assignee": {
+                "type": "string",
+                "description": "Filter by assignee (user id)."
+            },
+            "taskDefinitionKey": {
+                "type": "string",
+                "description": "Filter by task definition key (the BPMN userTask id)."
+            },
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false
+    },
+    "flowable_start_process": {
+        "description": "Input for starting a process instance by definition key or id.",
+        "type": "object",
+        "properties": {
+            "processDefinitionKey": {
+                "type": "string",
+                "description": "Process definition key (latest version is started)."
+            },
+            "processDefinitionId": {
+                "type": "string",
+                "description": "Specific process definition id (key:version:deployment)."
+            },
+            "businessKey": {
+                "type": "string",
+                "description": "Optional business key for the new process instance."
+            },
+            "variables": {
+                "description": "Process variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                "oneOf": [
+                    {
+                        "type": "object"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "name"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": {},
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "integer",
+                                        "short",
+                                        "long",
+                                        "double",
+                                        "boolean",
+                                        "date",
+                                        "json"
+                                    ]
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    }
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false
+    },
+    "flowable_system_execute_timer_job": {
+        "description": "Arguments of the MCP tool flowable_system_execute_timer_job besides the timer job id.",
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "string",
+                "description": "Id of the timer job."
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection.",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false,
+        "required": [
+            "id"
+        ]
+    },
+    "flowable_system_list_deadletter_jobs": {
+        "description": "Arguments of the MCP tool flowable_system_list_deadletter_jobs (filters of GET /flowable/jobs?kind=deadletter; the kind is fixed).",
+        "type": "object",
+        "properties": {
+            "page": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "description": "Page number, starting at 1."
+            },
+            "itemsPerPage": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "default": 30,
+                "description": "Page size (1 to 200)."
+            },
+            "sort": {
+                "type": "string",
+                "description": "Flowable sort field (default: createTime, newest first)."
+            },
+            "order": {
+                "type": "string",
+                "enum": [
+                    "asc",
+                    "desc"
+                ],
+                "default": "desc",
+                "description": "Sort direction."
+            },
+            "processInstanceId": {
+                "type": "string",
+                "description": "Filter by process instance id."
+            },
+            "processDefinitionId": {
+                "type": "string",
+                "description": "Filter by process definition id."
+            },
+            "executionId": {
+                "type": "string",
+                "description": "Filter by execution id."
+            },
+            "elementId": {
+                "type": "string",
+                "description": "Filter by the BPMN element id the job belongs to."
+            },
+            "handlerType": {
+                "type": "string",
+                "description": "Filter by job handler type (e.g. async-continuation, timer-transition)."
+            },
+            "exceptionMessage": {
+                "type": "string",
+                "description": "Filter by exception message."
+            },
+            "tenantId": {
+                "type": "string",
+                "description": "Filter by tenant id."
+            },
+            "apiConfiguration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+            }
+        },
+        "additionalProperties": false
+    },
+    "flowable_system_trigger_execution": {
+        "description": "Input for triggering a waiting execution.",
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "string",
+                "description": "Id of the waiting execution (not the process instance id)."
+            },
+            "variables": {
+                "description": "Process variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                "oneOf": [
+                    {
+                        "type": "object"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "name"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": {},
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "integer",
+                                        "short",
+                                        "long",
+                                        "double",
+                                        "boolean",
+                                        "date",
+                                        "json"
+                                    ]
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    }
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false,
+        "required": [
+            "id"
+        ]
+    }
+}

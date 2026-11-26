@@ -1,0 +1,1035 @@
+{
+    "DELETE /api/flowable/deployments/{id}": {
+        "operationId": "flow_deployment_delete",
+        "requestBody": null,
+        "parameters": [
+            {
+                "name": "id",
+                "in": "path",
+                "description": "FlowDeployment identifier",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            {
+                "name": "cascade",
+                "in": "query",
+                "description": "Also delete the deployment's running and historic process instances. Without cascade the engine refuses (409) while instances exist.",
+                "required": false,
+                "schema": {
+                    "type": "boolean",
+                    "default": false,
+                    "title": "Cascade",
+                    "description": "Also delete the deployment's running and historic process instances. Without cascade the engine refuses (409) while instances exist."
+                }
+            }
+        ]
+    },
+    "POST /api/flowable/decisions/execute": {
+        "operationId": "flow_decision_execute",
+        "requestBody": {
+            "description": "Input for evaluating a DMN decision by key.",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "title": "flow_decision_execute input",
+                        "description": "Input for evaluating a DMN decision by key.",
+                        "type": "object",
+                        "required": [
+                            "decisionKey"
+                        ],
+                        "properties": {
+                            "decisionKey": {
+                                "type": "string",
+                                "title": "Decision key",
+                                "description": "Key of the decision to evaluate (latest deployed version is used)."
+                            },
+                            "singleResult": {
+                                "type": "boolean",
+                                "default": false,
+                                "title": "Single result",
+                                "description": "Use the engine's single-result evaluation (one output row) instead of the full list of matching rows."
+                            },
+                            "inputVariables": {
+                                "description": "Decision input variables: shorthand map {name: value} or explicit list [{name,type,value}].",
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "required": [
+                                                "name"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "value": [],
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "string",
+                                                        "integer",
+                                                        "short",
+                                                        "long",
+                                                        "double",
+                                                        "boolean",
+                                                        "date",
+                                                        "json"
+                                                    ]
+                                                }
+                                            },
+                                            "additionalProperties": false
+                                        }
+                                    }
+                                ]
+                            },
+                            "apiConfiguration": {
+                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "uuid"
+                                        ],
+                                        "properties": {
+                                            "uuid": {
+                                                "type": "string",
+                                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": true
+        },
+        "parameters": []
+    },
+    "POST /api/flowable/event_instances": {
+        "operationId": "flow_event_instance_create",
+        "requestBody": {
+            "description": "Input for sending an event instance to an inbound channel of the event registry. Both an event definition reference and a channel definition reference are required — the engine rejects a body missing either.",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "title": "flow_event_instance_create input",
+                        "description": "Input for sending an event instance to an inbound channel of the event registry. Both an event definition reference and a channel definition reference are required — the engine rejects a body missing either.",
+                        "type": "object",
+                        "allOf": [
+                            {
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "eventDefinitionKey"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "eventDefinitionId"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "channelDefinitionKey"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "channelDefinitionId"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "eventDefinitionKey": {
+                                "type": "string",
+                                "title": "Event definition key",
+                                "description": "Key of the event definition to send (latest deployed version is used)."
+                            },
+                            "eventDefinitionId": {
+                                "type": "string",
+                                "title": "Event definition id",
+                                "description": "Specific event definition id, taking precedence over the key."
+                            },
+                            "channelDefinitionKey": {
+                                "type": "string",
+                                "title": "Channel definition key",
+                                "description": "Key of the inbound channel definition that receives the event."
+                            },
+                            "channelDefinitionId": {
+                                "type": "string",
+                                "title": "Channel definition id",
+                                "description": "Specific inbound channel definition id, taking precedence over the key."
+                            },
+                            "tenantId": {
+                                "type": "string",
+                                "title": "Tenant id",
+                                "description": "Optional tenant the event definition and channel are resolved in."
+                            },
+                            "eventPayload": {
+                                "type": "object",
+                                "title": "Event payload",
+                                "description": "The event body as a JSON object, matching the event definition's payload contract. Must be an object — the engine rejects an array."
+                            },
+                            "apiConfiguration": {
+                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "uuid"
+                                        ],
+                                        "properties": {
+                                            "uuid": {
+                                                "type": "string",
+                                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": false
+        },
+        "parameters": []
+    },
+    "POST /api/flowable/executions/{id}/trigger": {
+        "operationId": "flow_execution_trigger",
+        "requestBody": {
+            "description": "Input for triggering a waiting execution.",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "title": "flow_execution_trigger input",
+                        "description": "Input for triggering a waiting execution.",
+                        "type": "object",
+                        "properties": {
+                            "variables": {
+                                "description": "Process variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "required": [
+                                                "name"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "value": [],
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "string",
+                                                        "integer",
+                                                        "short",
+                                                        "long",
+                                                        "double",
+                                                        "boolean",
+                                                        "date",
+                                                        "json"
+                                                    ]
+                                                }
+                                            },
+                                            "additionalProperties": false
+                                        }
+                                    }
+                                ]
+                            },
+                            "apiConfiguration": {
+                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "uuid"
+                                        ],
+                                        "properties": {
+                                            "uuid": {
+                                                "type": "string",
+                                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": false
+        },
+        "parameters": [
+            {
+                "name": "id",
+                "in": "path",
+                "description": "FlowExecution identifier",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            }
+        ]
+    },
+    "POST /api/flowable/external_worker_jobs/acquire": {
+        "operationId": "flow_external_worker_job_acquire",
+        "requestBody": {
+            "description": "Input for acquiring (locking) external worker jobs of a single topic. The engine locks up to numberOfTasks jobs for the given workerId; only that worker may then complete, fail or raise a BPMN error on them.",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "title": "flow_external_worker_job_acquire input",
+                        "description": "Input for acquiring (locking) external worker jobs of a single topic. The engine locks up to numberOfTasks jobs for the given workerId; only that worker may then complete, fail or raise a BPMN error on them.",
+                        "type": "object",
+                        "required": [
+                            "topic",
+                            "workerId"
+                        ],
+                        "properties": {
+                            "topic": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Topic",
+                                "description": "The external-worker topic to pull work from (flowable:topic on the service task). Jobs are acquired per topic — one call, one topic."
+                            },
+                            "workerId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Worker id",
+                                "description": "Identity of the worker taking the lock. Must be repeated on the follow-up complete/fail/bpmnError/unacquire call."
+                            },
+                            "lockDuration": {
+                                "type": "string",
+                                "minLength": 3,
+                                "pattern": "^P(\\d+[YMWD])*(T(\\d+[HMS])*)?$",
+                                "default": "PT10M",
+                                "title": "Lock duration",
+                                "description": "How long the lock is held, as an ISO-8601 duration (e.g. PT10M). Once it expires the engine hands the job to the next worker, so it must comfortably exceed the expected processing time."
+                            },
+                            "numberOfTasks": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "default": 1,
+                                "title": "Number of tasks",
+                                "description": "Maximum number of jobs to lock in this call (batch size)."
+                            },
+                            "numberOfRetries": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "default": 5,
+                                "title": "Number of retries",
+                                "description": "Retries the acquired jobs are given. Once they are used up the engine dead-letters the job instead of re-scheduling it."
+                            },
+                            "scopeType": {
+                                "type": "string",
+                                "enum": [
+                                    "bpmn",
+                                    "cmmn"
+                                ],
+                                "title": "Scope type",
+                                "description": "Restrict acquisition to jobs of one engine (BPMN processes or CMMN cases). Omit to acquire regardless of scope."
+                            },
+                            "apiConfiguration": {
+                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "uuid"
+                                        ],
+                                        "properties": {
+                                            "uuid": {
+                                                "type": "string",
+                                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": true
+        },
+        "parameters": []
+    },
+    "POST /api/flowable/external_worker_jobs/{id}/bpmnError": {
+        "operationId": "flow_external_worker_job_bpmnError",
+        "requestBody": {
+            "description": "Input for raising a BPMN error from an acquired external worker job. Unlike fail (a technical failure the engine retries) this is a MODELLED outcome: the process continues along the error boundary event that catches the given errorCode.",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "title": "flow_external_worker_job_bpmn_error input",
+                        "description": "Input for raising a BPMN error from an acquired external worker job. Unlike fail (a technical failure the engine retries) this is a MODELLED outcome: the process continues along the error boundary event that catches the given errorCode.",
+                        "type": "object",
+                        "required": [
+                            "workerId",
+                            "errorCode"
+                        ],
+                        "properties": {
+                            "workerId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Worker id",
+                                "description": "Identity of the worker holding the lock — the engine rejects a report from anyone else."
+                            },
+                            "errorCode": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Error code",
+                                "description": "The BPMN error code to raise; must match an errorEventDefinition in the process, otherwise the error escapes uncaught."
+                            },
+                            "variables": {
+                                "description": "Variables to set before the error is raised: shorthand map {name: value} or explicit list [{name,value,type}].",
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "required": [
+                                                "name"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "value": [],
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "string",
+                                                        "integer",
+                                                        "short",
+                                                        "long",
+                                                        "double",
+                                                        "boolean",
+                                                        "date",
+                                                        "json"
+                                                    ]
+                                                }
+                                            },
+                                            "additionalProperties": false
+                                        }
+                                    }
+                                ]
+                            },
+                            "apiConfiguration": {
+                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "uuid"
+                                        ],
+                                        "properties": {
+                                            "uuid": {
+                                                "type": "string",
+                                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": true
+        },
+        "parameters": [
+            {
+                "name": "id",
+                "in": "path",
+                "description": "FlowExternalWorkerJob identifier",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            }
+        ]
+    },
+    "POST /api/flowable/external_worker_jobs/{id}/complete": {
+        "operationId": "flow_external_worker_job_complete",
+        "requestBody": {
+            "description": "Input for reporting an acquired external worker job as done. The variables become process variables, so the following BPMN steps can read the worker's result.",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "title": "flow_external_worker_job_complete input",
+                        "description": "Input for reporting an acquired external worker job as done. The variables become process variables, so the following BPMN steps can read the worker's result.",
+                        "type": "object",
+                        "required": [
+                            "workerId"
+                        ],
+                        "properties": {
+                            "workerId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Worker id",
+                                "description": "Identity of the worker holding the lock — the engine rejects a report from anyone else."
+                            },
+                            "variables": {
+                                "description": "Result variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "required": [
+                                                "name"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "value": [],
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "string",
+                                                        "integer",
+                                                        "short",
+                                                        "long",
+                                                        "double",
+                                                        "boolean",
+                                                        "date",
+                                                        "json"
+                                                    ]
+                                                }
+                                            },
+                                            "additionalProperties": false
+                                        }
+                                    }
+                                ]
+                            },
+                            "apiConfiguration": {
+                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "uuid"
+                                        ],
+                                        "properties": {
+                                            "uuid": {
+                                                "type": "string",
+                                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": true
+        },
+        "parameters": [
+            {
+                "name": "id",
+                "in": "path",
+                "description": "FlowExternalWorkerJob identifier",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            }
+        ]
+    },
+    "POST /api/flowable/external_worker_jobs/{id}/fail": {
+        "operationId": "flow_external_worker_job_fail",
+        "requestBody": {
+            "description": "Input for reporting an acquired external worker job as failed. The ENGINE owns what happens next: it decrements the retries and re-schedules the job, or dead-letters it once they are used up. Use unacquire instead when the worker simply cannot do the work — failing spends a retry.",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "title": "flow_external_worker_job_fail input",
+                        "description": "Input for reporting an acquired external worker job as failed. The ENGINE owns what happens next: it decrements the retries and re-schedules the job, or dead-letters it once they are used up. Use unacquire instead when the worker simply cannot do the work — failing spends a retry.",
+                        "type": "object",
+                        "required": [
+                            "workerId"
+                        ],
+                        "properties": {
+                            "workerId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Worker id",
+                                "description": "Identity of the worker holding the lock — the engine rejects a report from anyone else."
+                            },
+                            "retries": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "title": "Retries",
+                                "description": "Override the remaining attempts. Omit to let the engine decrement the current value; 0 dead-letters the job immediately."
+                            },
+                            "retryTimeout": {
+                                "type": "string",
+                                "minLength": 3,
+                                "pattern": "^P(\\d+[YMWD])*(T(\\d+[HMS])*)?$",
+                                "title": "Retry timeout",
+                                "description": "How long to wait before the job becomes acquirable again, as an ISO-8601 duration (e.g. PT5M)."
+                            },
+                            "errorMessage": {
+                                "type": "string",
+                                "title": "Error message",
+                                "description": "Short reason, shown as the job's exceptionMessage in the job store."
+                            },
+                            "errorDetails": {
+                                "type": "string",
+                                "title": "Error details",
+                                "description": "Long-form detail (e.g. a stacktrace), retrievable via GET /jobs/{id}/stacktrace."
+                            },
+                            "apiConfiguration": {
+                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "uuid"
+                                        ],
+                                        "properties": {
+                                            "uuid": {
+                                                "type": "string",
+                                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": true
+        },
+        "parameters": [
+            {
+                "name": "id",
+                "in": "path",
+                "description": "FlowExternalWorkerJob identifier",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            }
+        ]
+    },
+    "POST /api/flowable/external_worker_jobs/{id}/unacquire": {
+        "operationId": "flow_external_worker_job_unacquire",
+        "requestBody": {
+            "description": "Input for releasing the lock on an acquired external worker job. The job becomes acquirable again WITHOUT consuming one of its retries — the right report when the worker cannot do the work at all (no handler for the topic, or a shutdown while the job was held).",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "title": "flow_external_worker_job_unacquire input",
+                        "description": "Input for releasing the lock on an acquired external worker job. The job becomes acquirable again WITHOUT consuming one of its retries — the right report when the worker cannot do the work at all (no handler for the topic, or a shutdown while the job was held).",
+                        "type": "object",
+                        "required": [
+                            "workerId"
+                        ],
+                        "properties": {
+                            "workerId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "title": "Worker id",
+                                "description": "Identity of the worker holding the lock — the engine rejects a report from anyone else."
+                            },
+                            "apiConfiguration": {
+                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "uuid"
+                                        ],
+                                        "properties": {
+                                            "uuid": {
+                                                "type": "string",
+                                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": true
+        },
+        "parameters": [
+            {
+                "name": "id",
+                "in": "path",
+                "description": "FlowExternalWorkerJob identifier",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            }
+        ]
+    },
+    "POST /api/flowable/process_definitions/{id}/start": {
+        "operationId": "flow_process_definition_start",
+        "requestBody": {
+            "description": "Input for starting a process instance from a definition.",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "title": "flow_process_definition_start input",
+                        "description": "Input for starting a process instance from a definition.",
+                        "type": "object",
+                        "properties": {
+                            "businessKey": {
+                                "type": "string",
+                                "description": "Optional business key for the new process instance."
+                            },
+                            "variables": {
+                                "description": "Process variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "required": [
+                                                "name"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "value": [],
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "string",
+                                                        "integer",
+                                                        "short",
+                                                        "long",
+                                                        "double",
+                                                        "boolean",
+                                                        "date",
+                                                        "json"
+                                                    ]
+                                                }
+                                            },
+                                            "additionalProperties": false
+                                        }
+                                    }
+                                ]
+                            },
+                            "apiConfiguration": {
+                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "uuid"
+                                        ],
+                                        "properties": {
+                                            "uuid": {
+                                                "type": "string",
+                                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": false
+        },
+        "parameters": [
+            {
+                "name": "id",
+                "in": "path",
+                "description": "FlowProcessDefinition identifier",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            }
+        ]
+    },
+    "POST /api/flowable/process_instances": {
+        "operationId": "flow_process_instance_create",
+        "requestBody": {
+            "description": "Input for starting a process instance by definition key or id.",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "title": "flow_process_instance_create input",
+                        "description": "Input for starting a process instance by definition key or id.",
+                        "type": "object",
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "processDefinitionKey"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "processDefinitionId"
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "processDefinitionKey": {
+                                "type": "string",
+                                "description": "Process definition key (latest version is started)."
+                            },
+                            "processDefinitionId": {
+                                "type": "string",
+                                "description": "Specific process definition id (key:version:deployment)."
+                            },
+                            "businessKey": {
+                                "type": "string",
+                                "description": "Optional business key for the new process instance."
+                            },
+                            "variables": {
+                                "description": "Process variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "required": [
+                                                "name"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "value": [],
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "string",
+                                                        "integer",
+                                                        "short",
+                                                        "long",
+                                                        "double",
+                                                        "boolean",
+                                                        "date",
+                                                        "json"
+                                                    ]
+                                                }
+                                            },
+                                            "additionalProperties": false
+                                        }
+                                    }
+                                ]
+                            },
+                            "apiConfiguration": {
+                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "uuid"
+                                        ],
+                                        "properties": {
+                                            "uuid": {
+                                                "type": "string",
+                                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": false
+        },
+        "parameters": []
+    },
+    "POST /api/flowable/tasks/{id}/complete": {
+        "operationId": "flow_task_complete",
+        "requestBody": {
+            "description": "Input for completing a user task.",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "title": "flow_task_complete input",
+                        "description": "Input for completing a user task.",
+                        "type": "object",
+                        "properties": {
+                            "variables": {
+                                "description": "Process variables: shorthand map {name: value} or explicit list [{name,value,type}].",
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "required": [
+                                                "name"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "value": [],
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "string",
+                                                        "integer",
+                                                        "short",
+                                                        "long",
+                                                        "double",
+                                                        "boolean",
+                                                        "date",
+                                                        "json"
+                                                    ]
+                                                }
+                                            },
+                                            "additionalProperties": false
+                                        }
+                                    }
+                                ]
+                            },
+                            "apiConfiguration": {
+                                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "uuid"
+                                        ],
+                                        "properties": {
+                                            "uuid": {
+                                                "type": "string",
+                                                "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                ]
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": false
+        },
+        "parameters": [
+            {
+                "name": "id",
+                "in": "path",
+                "description": "FlowTask identifier",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            }
+        ]
+    }
+}

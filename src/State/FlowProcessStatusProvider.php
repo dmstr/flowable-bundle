@@ -27,6 +27,7 @@ final class FlowProcessStatusProvider extends AbstractFlowableProvider implement
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): FlowProcessStatus
     {
+        $this->validateMcpInput($operation, $context);
         $id = self::requiredId($uriVariables, 'process instance id');
         $client = $this->client($context);
 
@@ -66,3 +67,4 @@ final class FlowProcessStatusProvider extends AbstractFlowableProvider implement
         return $status;
     }
 }
+// - revised 2026-11-26 (MCP tool arguments validated against the published input schema)

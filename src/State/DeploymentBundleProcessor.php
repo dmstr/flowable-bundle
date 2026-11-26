@@ -19,8 +19,11 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
  * with ZipArchive and uploaded through the same client call as
  * POST /deployments/upload with a .bar file — Flowable unpacks the archive
  * into one deployment. The archive is never half-sent: an invalid file
- * (name, extension, duplicate, encoding) fails the tool before anything
- * reaches the engine.
+ * (name, extension, duplicate, encoding, size) fails the tool before
+ * anything reaches the engine.
+ *
+ * Limits (UploadRule): at most 20 files, 1 MiB per file and 4 MiB in total
+ * after decoding; file names follow the shared upload file name rule.
  *
  * Decision tables (.dmn) are refused: a process deployment does not register
  * them in the DMN engine; flowable_dmn_deploy deploys them.
@@ -55,7 +58,11 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
     }
 
     /**
-     * Validate and decode the file list.
+     * Validate and decode the file list: at most UploadRule::MAX_BUNDLE_FILES
+     * files, each name a plain file name (UploadRule::assertFileName()) with
+     * one of ENTRY_EXTENSIONS, each decoded content within
+     * UploadRule::assertInlineSize(), all together within
+     * UploadRule::MAX_BUNDLE_BYTES.
      *
      * @param array<mixed> $files
      * @return array<string,string> file name => content
@@ -65,13 +72,15 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
         if ([] === $files) {
             throw new BadRequestHttpException('"files" must contain at least one file.');
         }
+        if (\count($files) > UploadRule::MAX_BUNDLE_FILES) {
+            throw new BadRequestHttpException(sprintf('"files" must contain at most %d files.', UploadRule::MAX_BUNDLE_FILES));
+        }
 
         $out = [];
+        $total = 0;
         foreach ($files as $index => $file) {
             $name = \is_array($file) && \is_string($file['name'] ?? null) ? $file['name'] : '';
-            if ('' === $name || str_contains($name, '/') || str_contains($name, '\\') || str_starts_with($name, '.')) {
-                throw new BadRequestHttpException(sprintf('files[%d].name must be a plain file name (no path, not starting with ".").', $index));
-            }
+            UploadRule::assertFileName($name, sprintf('files[%d].name', $index));
             $extension = strtolower(pathinfo($name, \PATHINFO_EXTENSION));
             if (!\in_array($extension, self::ENTRY_EXTENSIONS, true)) {
                 throw new BadRequestHttpException(sprintf(
@@ -97,6 +106,14 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
                 }
             } elseif (null !== $encoding && '' !== $encoding) {
                 throw new BadRequestHttpException(sprintf('files[%d]: unsupported contentEncoding; only "base64" is accepted.', $index));
+            }
+            UploadRule::assertInlineSize($content, sprintf('files[%d].content', $index));
+            $total += \strlen($content);
+            if ($total > UploadRule::MAX_BUNDLE_BYTES) {
+                throw new BadRequestHttpException(sprintf(
+                    'The files exceed %d bytes (4 MiB) in total after decoding.',
+                    UploadRule::MAX_BUNDLE_BYTES,
+                ));
             }
 
             $out[$name] = $content;
@@ -147,3 +164,4 @@ final class DeploymentBundleProcessor extends AbstractFlowableProcessor implemen
         return ('' !== $stem ? $stem : 'bundle').'.bar';
     }
 }
+// - revised 2026-11-26 (shared upload file name rule, file count and size limits)

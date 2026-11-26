@@ -138,13 +138,7 @@ final class StartFormInputSchemaResolver implements InputSchemaResolverInterface
             'properties' => [
                 'businessKey' => $businessKey,
                 'variables' => $fields,
-                'apiConfiguration' => [
-                    'description' => 'Optional Flowable ApiConfiguration selector (full or partial UUID).',
-                    'oneOf' => [
-                        ['type' => 'string', 'pattern' => '^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$'],
-                        ['type' => 'object', 'required' => ['uuid'], 'properties' => ['uuid' => ['type' => 'string']], 'additionalProperties' => false],
-                    ],
-                ],
+                'apiConfiguration' => InputSchemaLoader::definition('apiConfiguration'),
             ],
             'additionalProperties' => false,
         ];
@@ -162,3 +156,4 @@ final class StartFormInputSchemaResolver implements InputSchemaResolverInterface
         return $schema;
     }
 }
+// - revised 2026-11-26 (apiConfiguration from the shared schema definition)

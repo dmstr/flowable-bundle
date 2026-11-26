@@ -5,11 +5,12 @@ declare(strict_types=1);
 
 namespace Dmstr\Flowable\Tests\State;
 
+use ApiPlatform\Metadata\McpTool;
+use ApiPlatform\Metadata\Resource\Factory\AttributesResourceMetadataCollectionFactory;
 use Dmstr\ApiConfiguration\Entity\ApiConfiguration;
 use Dmstr\ApiConfiguration\Security\ConfigSecrets;
 use Dmstr\ApiConfiguration\Security\SecretSchemaResolver;
 use Dmstr\ApiConfiguration\Service\ApiExtensionRegistry;
-use Dmstr\ApiPlatformUtils\Service\UuidResolver;
 use Dmstr\Flowable\Client\FlowableClientInterface;
 use Dmstr\Flowable\Client\FlowableClientLocator;
 use Dmstr\Flowable\Service\ActingUserResolver;
@@ -28,38 +29,53 @@ use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Builds state providers/processors against a FlowableClientInterface double,
  * without an engine or a database.
  *
- * The (final) FlowableClientLocator is real: its configuration lookups are
+ * The (final) FlowableClientLocator is real: its repository lookup is
  * stubbed and its per-configuration client cache is pre-seeded with the
- * double, so both explicit (apiConfiguration) and implicit resolution return
- * it. Explicit selectors are recorded in $requestedConfigurations.
+ * double, so both explicit (apiConfiguration {@see self::SELECTOR}) and
+ * implicit resolution return it. A test that must prove the explicit
+ * selection calls {@see self::expectExplicitSelection()} first.
  */
 abstract class StateTestCase extends TestCase
 {
-    /** @var list<string> apiConfiguration selectors the locator was asked for */
-    protected array $requestedConfigurations = [];
+    /** Selector (first 8 characters) of the configuration the double answers for */
+    protected const string SELECTOR = '0a1b2c3d';
+
+    private const string CONFIGURATION_ID = self::SELECTOR.'-0000-4000-8000-000000000001';
+
+    /** A second active configuration, known only after expectExplicitSelection() */
+    private const string DECOY_ID = 'ffffffff-0000-4000-8000-000000000002';
+
+    private bool $explicitSelection = false;
+
+    /**
+     * Locators built afterwards also know a second active "flowable"
+     * configuration (selector ffffffff) whose client fails the test on any
+     * call. Implicit resolution then ends in a 400, so the double is reached
+     * only through the explicit selector {@see self::SELECTOR}.
+     */
+    protected function expectExplicitSelection(): void
+    {
+        $this->explicitSelection = true;
+    }
 
     protected function locator(FlowableClientInterface $client): FlowableClientLocator
     {
-        $configuration = (new ApiConfiguration())
-            ->setType('flowable')
-            ->setConfigJson(['base_url' => 'http://flowable.invalid/flowable-rest', 'auth_type' => 'none']);
+        $configurations = [self::CONFIGURATION_ID => $client];
+        if ($this->explicitSelection) {
+            $decoy = $this->createMock(FlowableClientInterface::class);
+            $decoy->expects($this->never())->method($this->anything());
+            $configurations[self::DECOY_ID] = $decoy;
+        }
 
-        $uuidResolver = $this->createStub(UuidResolver::class);
-        $uuidResolver->method('findByPartialUuid')->willReturnCallback(
-            function (string $class, string $id) use ($configuration): ApiConfiguration {
-                $this->requestedConfigurations[] = $id;
-
-                return $configuration;
-            },
-        );
-
+        $active = array_map(self::configuration(...), array_keys($configurations));
         $repository = $this->createStub(EntityRepository::class);
-        $repository->method('findBy')->willReturn([$configuration]);
+        $repository->method('findBy')->willReturn($active);
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
@@ -73,11 +89,22 @@ abstract class StateTestCase extends TestCase
             static fn () => throw new \LogicException('StateTestCase does not decrypt secrets.'),
         );
 
-        $locator = new FlowableClientLocator(new MockHttpClient(), $entityManager, $uuidResolver, $secrets);
+        $locator = new FlowableClientLocator(new MockHttpClient(), $entityManager, $secrets);
         $cache = new \ReflectionProperty(FlowableClientLocator::class, 'cache');
-        $cache->setValue($locator, [(string) $configuration->getId() => $client]);
+        $cache->setValue($locator, $configurations);
 
         return $locator;
+    }
+
+    /** An active "flowable" configuration with the given id (no setter: set by reflection). */
+    private static function configuration(string $id): ApiConfiguration
+    {
+        $configuration = (new ApiConfiguration())
+            ->setType('flowable')
+            ->setConfigJson(['base_url' => 'http://flowable.invalid/flowable-rest', 'auth_type' => 'none']);
+        (new \ReflectionProperty(ApiConfiguration::class, 'id'))->setValue($configuration, Uuid::fromString($id));
+
+        return $configuration;
     }
 
     protected function requestStack(?Request $request = null): RequestStack
@@ -111,6 +138,43 @@ abstract class StateTestCase extends TestCase
     }
 
     /**
+     * All McpTool operations of the bundle's resources, read from the real
+     * attribute metadata of src/ApiResource, by tool name (sorted).
+     *
+     * @return array<string, McpTool>
+     */
+    protected static function mcpTools(): array
+    {
+        $factory = new AttributesResourceMetadataCollectionFactory();
+        $tools = [];
+        foreach (glob(\dirname(__DIR__, 2).'/src/ApiResource/*.php') ?: [] as $file) {
+            $class = 'Dmstr\\Flowable\\ApiResource\\'.basename($file, '.php');
+            foreach ($factory->create($class) as $resource) {
+                foreach ($resource->getMcp() ?? [] as $name => $tool) {
+                    if ($tool instanceof McpTool) {
+                        $tools[(string) ($tool->getName() ?? $name)] = $tool;
+                    }
+                }
+            }
+        }
+        ksort($tools);
+
+        return $tools;
+    }
+
+    /**
+     * One McpTool of the bundle as API Platform's MCP handler receives it, so
+     * a provider validates the arguments against the tool's real schema.
+     */
+    protected static function mcpTool(string $name): McpTool
+    {
+        $tools = self::mcpTools();
+        self::assertArrayHasKey($name, $tools, 'unknown MCP tool');
+
+        return $tools[$name];
+    }
+
+    /**
      * Operation context as API Platform's MCP handler builds it: the tool
      * arguments in mcp_data and the URI variables copied out of them.
      *
@@ -126,3 +190,5 @@ abstract class StateTestCase extends TestCase
         ];
     }
 }
+// - revised 2026-11-26 (locator without UuidResolver, explicit selection through a decoy configuration)
+// - revised 2026-11-26 (real McpTool operations for MCP provider tests)
