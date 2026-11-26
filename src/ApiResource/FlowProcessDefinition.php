@@ -50,6 +50,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/process_definitions/{id}/start',
             name: 'flow_process_definition_start',
+            extraProperties: ['custom_action' => true],
             description: 'Start a new process instance from this definition',
             processor: ProcessDefinitionStartProcessor::class,
             deserialize: false,
@@ -174,3 +175,4 @@ final class FlowProcessDefinition
 // - revised 2026-10-08 (MCP tool flowable_list_process_definitions)
 // - revised 2026-10-09 (MCP: admin-only)
 // - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)
+// - revised 2026-11-26 (mark custom actions)

@@ -111,6 +111,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Get(
             uriTemplate: '/jobs/{id}/stacktrace',
             name: 'flow_job_stacktrace',
+            extraProperties: ['custom_action' => true],
             description: 'The job\'s exception stacktrace as text/plain (not available for kind=history).',
             controller: JobStacktraceController::class,
             read: false,
@@ -295,3 +296,4 @@ final class FlowJob
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
 // - revised 2026-11-26 (tool descriptions: JSON-RPC errors, active async executor for the timer tool)
 // - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)
+// - revised 2026-11-26 (mark custom actions)

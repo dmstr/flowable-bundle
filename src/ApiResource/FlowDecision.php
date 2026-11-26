@@ -55,6 +55,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/decisions/execute',
             name: 'flow_decision_execute',
+            extraProperties: ['custom_action' => true],
             description: 'Evaluate a decision by key against the given input variables',
             processor: DecisionExecuteProcessor::class,
             deserialize: false,
@@ -172,3 +173,4 @@ final class FlowDecision
 // - revised 2026-11-26 (write tool input file taken from its processor's INPUT_SCHEMA)
 // - revised 2026-11-26 (tool description: result rows as the engine returns them, history row per call)
 // - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)
+// - revised 2026-11-26 (mark custom actions)

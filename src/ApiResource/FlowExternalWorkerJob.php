@@ -84,6 +84,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/external_worker_jobs/acquire',
             name: 'flow_external_worker_job_acquire',
+            extraProperties: ['custom_action' => true],
             description: 'Acquire (lock) a batch of external worker jobs of one topic for a worker id',
             processor: ExternalWorkerJobAcquireProcessor::class,
             deserialize: false,
@@ -95,6 +96,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/external_worker_jobs/{id}/complete',
             name: 'flow_external_worker_job_complete',
+            extraProperties: ['custom_action' => true],
             description: 'Report this acquired job as done, optionally passing result variables',
             processor: ExternalWorkerJobCompleteProcessor::class,
             deserialize: false,
@@ -106,6 +108,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/external_worker_jobs/{id}/fail',
             name: 'flow_external_worker_job_fail',
+            extraProperties: ['custom_action' => true],
             description: 'Report this acquired job as failed; the engine handles backoff and dead-lettering',
             processor: ExternalWorkerJobFailProcessor::class,
             deserialize: false,
@@ -117,6 +120,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/external_worker_jobs/{id}/bpmnError',
             name: 'flow_external_worker_job_bpmnError',
+            extraProperties: ['custom_action' => true],
             description: 'Raise a BPMN error from this acquired job so an error boundary event can catch it',
             processor: ExternalWorkerJobBpmnErrorProcessor::class,
             deserialize: false,
@@ -128,6 +132,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         new Post(
             uriTemplate: '/external_worker_jobs/{id}/unacquire',
             name: 'flow_external_worker_job_unacquire',
+            extraProperties: ['custom_action' => true],
             description: 'Release the lock on this job without consuming one of its retries',
             processor: ExternalWorkerJobUnacquireProcessor::class,
             deserialize: false,
@@ -283,3 +288,4 @@ final class FlowExternalWorkerJob
 }
 // - revised 2026-10-08 (processDefinition relation filter)
 // - revised 2026-11-26 (selector description from FlowableClientLocator::SELECTOR_DESCRIPTION)
+// - revised 2026-11-26 (mark custom actions)
