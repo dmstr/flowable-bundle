@@ -1,0 +1,96 @@
+{
+    "flow_task_complete": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "flow_task_complete input",
+        "description": "Complete \"Review\" — provide the task form variables.",
+        "type": "object",
+        "properties": {
+            "variables": {
+                "type": "object",
+                "properties": {
+                    "approved": {
+                        "type": "boolean",
+                        "title": "Approved"
+                    }
+                },
+                "required": [
+                    "approved"
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false,
+        "required": [
+            "variables"
+        ]
+    },
+    "flow_process_definition_start": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "flow_process_definition_start input",
+        "description": "Start \"Request\" — provide the start form variables.",
+        "type": "object",
+        "properties": {
+            "businessKey": {
+                "type": "string",
+                "description": "Optional business key for the new process instance."
+            },
+            "variables": {
+                "type": "object",
+                "properties": {
+                    "approved": {
+                        "type": "boolean",
+                        "title": "Approved"
+                    }
+                },
+                "required": [
+                    "approved"
+                ]
+            },
+            "apiConfiguration": {
+                "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                ]
+            }
+        },
+        "additionalProperties": false,
+        "required": [
+            "variables"
+        ]
+    }
+}

@@ -1,0 +1,36 @@
+{
+  "$defs": {
+    "uuidSelector": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+    },
+    "apiConfiguration": {
+      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID).",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/uuidSelector"
+        },
+        {
+          "type": "object",
+          "required": [
+            "uuid"
+          ],
+          "properties": {
+            "uuid": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "apiConfigurationOrDefault": {
+      "$ref": "#/$defs/apiConfiguration",
+      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+    },
+    "apiConfigurationString": {
+      "$ref": "#/$defs/uuidSelector",
+      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+    }
+  }
+}

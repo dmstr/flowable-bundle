@@ -9,6 +9,7 @@ use ApiPlatform\JsonSchema\Schema;
 use ApiPlatform\JsonSchema\SchemaFactoryInterface;
 use ApiPlatform\Metadata\McpTool;
 use ApiPlatform\Metadata\Operation;
+use Dmstr\Flowable\Schema\InputSchemaLoader;
 
 /**
  * Serves the input schema of this bundle's MCP tools from the operation input
@@ -26,7 +27,8 @@ use ApiPlatform\Metadata\Operation;
  *         'uriVariables' => ['id' => 'Id of the user task.'],
  *     ]]
  *
- * The advertised schema is the file's schema with
+ * The advertised schema is the file's schema, its shared definitions
+ * resolved by {@see InputSchemaLoader} (no `$ref`, no `$defs`), with
  *  - every URI variable of the tool (e.g. "id") added as a required string
  *    property, described by the 'uriVariables' entry — the MCP handler copies
  *    these arguments into $uriVariables, and they are stripped again before
@@ -112,9 +114,8 @@ final class McpToolInputSchemaFactory implements SchemaFactoryInterface
     private static function load(string $input): array
     {
         $path = self::path($input);
-        $content = is_file($path) ? file_get_contents($path) : false;
-        $schema = false !== $content ? json_decode($content) : null;
-        if (!$schema instanceof \stdClass) {
+        $schema = InputSchemaLoader::load($path);
+        if (null === $schema) {
             throw new \RuntimeException(sprintf('MCP tool input schema not found or invalid: %s', $path));
         }
 
@@ -142,3 +143,4 @@ final class McpToolInputSchemaFactory implements SchemaFactoryInterface
         return $out;
     }
 }
+// - revised 2026-11-26 (schema loaded through InputSchemaLoader)

@@ -48,9 +48,7 @@
       "description": "Filter by task definition key (the BPMN userTask id)."
     },
     "apiConfiguration": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{8}(-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$",
-      "description": "Optional Flowable ApiConfiguration selector (full or partial UUID). Omit to use the default engine connection."
+      "$ref": "../../Schema/api-configuration.json#/$defs/apiConfigurationString"
     }
   },
   "additionalProperties": false

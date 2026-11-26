@@ -28,6 +28,8 @@ services:
             # results, never resolved from the container.
             - '../src/Worker/ExternalWorkerJob.php'
             - '../src/Worker/ExternalWorkerOutcome.php'
+            # Wired explicitly as flowable.input_schema_resolver below.
+            - '../src/Schema/InputSchemaFileResolver.php'
 
     # Permission attributes of the bundle's operations and MCP tools. An
     # application (e.g. za7-core) collects the `za7_core.permission` tags to
@@ -70,13 +72,19 @@ services:
     # rooted there and tag it into the input-schema chain so these operations
     # get a real OpenAPI requestBody — the App-root resolver in za7-core cannot
     # see this directory. Higher priority than the App resolver (they never
-    # collide; flow_* operations resolve only here).
+    # collide; flow_* operations resolve only here). The file lookup is the
+    # dependency's OperationInputSchemaResolver; InputSchemaFileResolver loads
+    # the file through InputSchemaLoader, so the shared definitions
+    # (src/Schema/api-configuration.json) arrive resolved.
     flowable.input_schema_resolver:
-        class: Dmstr\OpenApiJsonSchema\Service\OperationInputSchemaResolver
+        class: Dmstr\Flowable\Schema\InputSchemaFileResolver
         arguments:
-            $schemaBasePaths: []
-            $entityResolutionRoots:
-                - ['%dmstr_flowable.dir%/src/ApiResource', 'Dmstr\Flowable\ApiResource']
+            $files: !service
+                class: Dmstr\OpenApiJsonSchema\Service\OperationInputSchemaResolver
+                arguments:
+                    $schemaBasePaths: []
+                    $entityResolutionRoots:
+                        - ['%dmstr_flowable.dir%/src/ApiResource', 'Dmstr\Flowable\ApiResource']
         tags:
             - { name: dmstr_openapi_json_schema.input_resolver, priority: 10 }
 
@@ -152,3 +160,4 @@ services:
 # - revised 2026-10-08 (MCP tool input schema factory)
 # - revised 2026-10-09 (mcp.deploy switch)
 # - revised 2026-10-28 (flowable:* permission tags)
+# - revised 2026-11-26 (input schemas loaded through InputSchemaLoader)
