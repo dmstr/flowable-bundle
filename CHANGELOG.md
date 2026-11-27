@@ -4,6 +4,29 @@
 
 All notable changes to this bundle. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/) and come from the Git tags. Releases before 0.9.0 are described in the [GitHub releases](https://github.com/dmstr/flowable-bundle/releases).
 
+## [0.16.0] - 2026-11-27
+
+The external worker releases every job of an acquired batch it does not finish, instead of leaving it locked until `lockDuration` expires, and a stop no longer waits for the rest of a batch. Consumers see new audit entries and, with `--batch` above 1, a shorter shutdown; this behaviour change is why the release is a minor. Everything else is tests that record the current behaviour.
+
+### Fixed
+
+- **External worker: the jobs of a batch are released on stop or failure** (`ExternalWorkerRunner`, the loop of `flowable:external-worker:run`). Before, the runner registered a job as held only while it processed it and forgot it in the same iteration, so the release at the end of `run()` never found anything: when a report failed, a topic was claimed by two handlers or the worker was stopped, the other jobs of the batch stayed locked until `lockDuration` (default `PT10M`) expired. A stop request was only checked between topics, so a batch was always finished.
+  - Now every job of an acquired batch (with a non-empty id) is held from the acquire until the engine accepted its complete, fail or BPMN error report or its `unhandled_topic` unacquire. A stop request (SIGTERM, SIGINT) is checked before each job: the job in flight is finished and reported, the rest of the batch is unacquired and does not count as processed. Whatever is still held when `run()` ends is released one job at a time, in batch order; each release writes the audit pair `flowable.external_worker.unacquire.attempt` / `flowable.external_worker.unacquire` with `reason: "shutdown"`. A release that fails writes `flowable.external_worker.unacquire_failed` and never masks the original exception.
+  - A job whose report the engine did not accept (e.g. a 502 or 504) is unacquired at exit as well. If the engine had in fact applied the report, it rejects that unacquire; this shows as `unacquire_failed` and is harmless.
+  - What consumers see: new audit entries with `reason: "shutdown"`, and with `--batch` greater than 1 a stop no longer finishes the batch. With the default `--batch` of 1 nothing changes except the release after a failed report. Unchanged: the counting rules, the fail report of a throwing handler, and `unacquireAllExternalWorkerJobs` is never used.
+  - Known and not changed: with an explicit `--topic`, a topic claimed by two handlers is still detected only after the acquire (the batch is now released); `--time-limit` is checked once per polling round.
+
+### Development
+
+- Tests that record the current behaviour, closing [#4](https://github.com/dmstr/flowable-bundle/issues/4), [#8](https://github.com/dmstr/flowable-bundle/issues/8), [#10](https://github.com/dmstr/flowable-bundle/issues/10) and [#14](https://github.com/dmstr/flowable-bundle/issues/14):
+  - the external worker runner, handler registry, job and outcome (`tests/Worker/`), including the release of a batch described above;
+  - `ProcessVariablePlaceholderResolver` and `FlowableClient::getTaskVariables()`, the path prefix of every public client method including the external worker API, and the upload request of an Event Registry deployment (`tests/Client/`);
+  - the query of every list provider (`tests/State/ListQueryTest.php`): the default sort per provider (the time field, descending, for 11 providers, none for 6), an explicit client sort and its direction, the filter allow-list, relation filters given as IRI, absolute URL, bare id or IRI of another resource, and the clamped page size;
+  - the Event Registry input over HTTP and the CLI (`tests/Http/EventRegistryInputTest.php`): the suffixes the event/channel upload refuses and accepts, in upper and lower case, and the event instance input (event and channel reference, `eventPayload` only as an object), rejected by `POST /event_instances` and `flowable:events:instances:create` with the same message;
+  - the input file of every write operation and MCP write tool through `InputSchemaPath::forOperation()` (`tests/Schema/InputSchemaPathTest.php`);
+  - a handler that only implements `ExternalWorkerHandlerInterface`, registered as an autoconfigured service without tag or attribute, is in `ExternalWorkerHandlerRegistry::topics()` (`tests/Kernel/ExternalWorkerHandlerAutoconfigurationTest.php`, with the new test kernel option `external_worker_handlers`).
+- A test against a live engine stays open ([#31](https://github.com/dmstr/flowable-bundle/issues/31)).
+
 ## [0.15.0] - 2026-11-26
 
 The action operations of the HTTP API are marked as custom actions, so that `dmstr/api-platform-utils-bundle` 0.8 lists them as `schema:Action` in the Hydra documentation. No operation behaves differently; the raised requirements are the reason to read the breaking changes.
@@ -228,6 +251,7 @@ Pre-release for integration testing against a Flowable engine in a consuming app
 
 - `symfony/yaml` is required; `symfony/mcp-bundle` and `mcp/sdk` are suggested.
 
+[0.16.0]: https://github.com/dmstr/flowable-bundle/compare/0.15.0...0.16.0
 [0.15.0]: https://github.com/dmstr/flowable-bundle/compare/0.14.0...0.15.0
 [0.14.0]: https://github.com/dmstr/flowable-bundle/compare/0.13.0...0.14.0
 [0.13.0]: https://github.com/dmstr/flowable-bundle/compare/0.12.1...0.13.0
@@ -243,3 +267,4 @@ Pre-release for integration testing against a Flowable engine in a consuming app
 <!-- - revised 2026-11-26 (0.13.0) -->
 <!-- - revised 2026-11-26 (0.14.0) -->
 <!-- - revised 2026-11-26 (0.15.0) -->
+<!-- - revised 2026-11-27 (0.16.0) -->

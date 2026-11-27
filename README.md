@@ -458,7 +458,9 @@ every registered handler's topics), `--worker-id`, `--lock-duration=PT10M`,
 
 > **Graceful shutdown requires `ext-pcntl`.** With pcntl loaded, SIGTERM / SIGINT
 > finish the current job, unacquire whatever is still locked and exit, so a
-> container restart leaves no jobs locked. **Without pcntl the command still runs**
+> container restart leaves no jobs locked. With `--batch` greater than 1, the
+> rest of the acquired batch is unacquired on a stop instead of being processed.
+> **Without pcntl the command still runs**
 > (`getSubscribedSignals()` returns an empty list, so Symfony does not refuse to
 > start it) — but nothing handles the signal: on SIGTERM the acquired jobs stay
 > locked until their `lockDuration` expires, and the engine hands them out again
@@ -560,3 +562,4 @@ Without Docker, `composer install && vendor/bin/phpunit` works on any PHP 8.5 se
 <!-- - revised 2026-11-26 (flowable_history_get keeps the newest 200 rows) -->
 <!-- - revised 2026-11-26 (errors and correlation id, audit, rate limiting, MCP results and errors, DMN result shape, timer precondition, upload suffix rule, selector in the query string) -->
 <!-- - revised 2026-11-26 (custom_action marker, requirements) -->
+<!-- - revised 2026-11-27 (worker stop unacquires the rest of a batch) -->
