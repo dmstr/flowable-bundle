@@ -30,9 +30,13 @@ use Psr\Log\LoggerInterface;
  *    acquire calls. A signal interrupts the sleep, so shutdown stays prompt.
  *  - **Held job ids are tracked** so a shutdown can unacquire what it still
  *    holds; without that, those jobs would stay locked until their lockDuration
- *    expires. They are released one by one on purpose — the engine's
- *    "unacquire all jobs of a worker" would also release jobs of another process
- *    that happens to share the worker id.
+ *    expires. Every job of an acquired batch is held from the acquire until the
+ *    engine accepted its report or unacquire, and a stop request is checked
+ *    before each job — so a stop, a failed report or a wiring error ends the
+ *    loop with the rest of the batch released (reason "shutdown"), including a
+ *    job whose report the engine did not accept. They are released one by one
+ *    on purpose — the engine's "unacquire all jobs of a worker" would also
+ *    release jobs of another process that happens to share the worker id.
  *
  * Everything is logged through the dedicated `flowable` Monolog channel, so a
  * worker's decisions land next to the pass-through audit entries. The writes
@@ -210,57 +214,65 @@ class ExternalWorkerRunner
             return 0;
         }
 
+        // Hold the whole batch before anything can throw or stop the loop: a job
+        // leaves the set only once the engine accepted its report or unacquire,
+        // so whatever is left is released by releaseHeld() when run() ends.
+        $jobs = [];
+        foreach ($acquired as $raw) {
+            $job = ExternalWorkerJob::fromApi($raw, $topic);
+            if ($job->id !== '') {
+                $jobs[] = $job;
+                $this->heldJobIds[$job->id] = true;
+            }
+        }
+
         $handler = $this->registry->get($topic);
         $handled = 0;
 
-        foreach ($acquired as $raw) {
-            $job = ExternalWorkerJob::fromApi($raw, $topic);
-            if ($job->id === '') {
+        foreach ($jobs as $job) {
+            if ($this->stopRequested) {
+                break;
+            }
+
+            if ($handler === null) {
+                // Our deployment is incomplete, not the job's fault — give
+                // the lock back without spending a retry.
+                $this->audited(
+                    'external_worker.unacquire',
+                    $workerId,
+                    ['topic' => $topic, 'job' => $job->id, 'worker' => $workerId, 'reason' => 'unhandled_topic'],
+                    static fn () => $client->unacquireExternalWorkerJob($job->id, ['workerId' => $workerId]),
+                );
+                unset($this->heldJobIds[$job->id]);
+                $this->flowableLogger->warning('flowable.external_worker.unhandled_topic', [
+                    'topic' => $topic,
+                    'job' => $job->id,
+                    'worker' => $workerId,
+                ]);
+
                 continue;
             }
-            $this->heldJobIds[$job->id] = true;
 
             try {
-                if ($handler === null) {
-                    // Our deployment is incomplete, not the job's fault — give
-                    // the lock back without spending a retry.
-                    $this->audited(
-                        'external_worker.unacquire',
-                        $workerId,
-                        ['topic' => $topic, 'job' => $job->id, 'worker' => $workerId, 'reason' => 'unhandled_topic'],
-                        static fn () => $client->unacquireExternalWorkerJob($job->id, ['workerId' => $workerId]),
-                    );
-                    $this->flowableLogger->warning('flowable.external_worker.unhandled_topic', [
-                        'topic' => $topic,
-                        'job' => $job->id,
-                        'worker' => $workerId,
-                    ]);
-
-                    continue;
-                }
-
-                try {
-                    $outcome = $handler->handle($job);
-                } catch (\Throwable $e) {
-                    $outcome = ExternalWorkerOutcome::fail(
-                        message: $e->getMessage(),
-                        details: $this->truncate($e->getTraceAsString()),
-                    );
-                    $this->flowableLogger->error('flowable.external_worker.handler_threw', [
-                        'topic' => $topic,
-                        'job' => $job->id,
-                        'worker' => $workerId,
-                        'handler' => $handler::class,
-                        'exception' => $e::class,
-                        'message' => $e->getMessage(),
-                    ]);
-                }
-
-                $this->report($client, $job, $workerId, $outcome);
-                ++$handled;
-            } finally {
-                unset($this->heldJobIds[$job->id]);
+                $outcome = $handler->handle($job);
+            } catch (\Throwable $e) {
+                $outcome = ExternalWorkerOutcome::fail(
+                    message: $e->getMessage(),
+                    details: $this->truncate($e->getTraceAsString()),
+                );
+                $this->flowableLogger->error('flowable.external_worker.handler_threw', [
+                    'topic' => $topic,
+                    'job' => $job->id,
+                    'worker' => $workerId,
+                    'handler' => $handler::class,
+                    'exception' => $e::class,
+                    'message' => $e->getMessage(),
+                ]);
             }
+
+            $this->report($client, $job, $workerId, $outcome);
+            unset($this->heldJobIds[$job->id]);
+            ++$handled;
         }
 
         return $handled;
@@ -379,3 +391,4 @@ class ExternalWorkerRunner
     }
 }
 // - revised 2026-11-26 (audit entries of the engine writes, via worker)
+// - revised 2026-11-27 (hold the whole batch until reported, stop mid-batch)

@@ -79,7 +79,9 @@ final class ExternalWorkerRunnerAuditTest extends TestCase
         }
 
         $records = $this->auditRecords();
-        self::assertSame(['flowable.external_worker.complete.attempt', 'flowable.external_worker.complete.failure'], array_column($records, 'message'));
+        // The job whose report failed is still held, so the loop releases it on exit.
+        self::assertSame(['flowable.external_worker.complete.attempt', 'flowable.external_worker.complete.failure', 'flowable.external_worker.unacquire.attempt', 'flowable.external_worker.unacquire'], array_column($records, 'message'));
+        self::assertSame('shutdown', $records[3]['context']['reason']);
         self::assertSame('warning', $records[1]['level']);
         self::assertSame('worker', $records[1]['context']['via']);
         self::assertSame(self::WORKER, $records[1]['context']['actor']);
@@ -189,3 +191,4 @@ final class ExternalWorkerRunnerAuditTest extends TestCase
         ));
     }
 }
+// - revised 2026-11-27 (a failed report releases the job on exit)
