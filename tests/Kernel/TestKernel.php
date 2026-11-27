@@ -11,6 +11,7 @@ use Dmstr\ApiPlatformUtils\ApiPlatformUtilsBundle;
 use Dmstr\Flowable\FlowableBundle;
 use Dmstr\Flowable\State\FlowProcessDefinitionProvider;
 use Dmstr\Flowable\Tests\Fixtures\ForeignMcp\ForeignMcpToolProvider;
+use Dmstr\Flowable\Worker\ExternalWorkerHandlerRegistry;
 use Dmstr\OpenApiJsonSchema\OpenApiJsonSchemaBundle;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Doctrine\Bundle\MigrationsBundle\DoctrineMigrationsBundle;
@@ -64,7 +65,11 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
  *     would, for HTTP and the tool flowable_list_process_definitions alike)
  *     and adds the application tool
  *     {@see \Dmstr\Flowable\Tests\Fixtures\ForeignMcp\ForeignMcpTool};
- *     both providers are public so that tests can read their calls.
+ *     both providers are public so that tests can read their calls;
+ *   - `external_worker_handlers`: classes registered as plain services
+ *     (autowired and autoconfigured like an application's, no tag, no
+ *     attribute), and the public alias {@see self::WORKER_HANDLER_REGISTRY}
+ *     of the handler registry, so a test can read the topics it collected.
  *   A kernel with options gets its own environment name, the given one plus
  *   a hash of the options, so every configuration compiles its own
  *   container in its own cache directory.
@@ -98,7 +103,10 @@ final class TestKernel extends Kernel
     /** The service id the bundle binds its audit and error logger to */
     public const string FLOWABLE_LOGGER = 'monolog.logger.flowable';
 
-    private const array OPTIONS = ['mcp', 'parameters', 'use_symfony_listeners', 'api_platform_mcp', 'mcp_fixtures'];
+    /** Public alias of the handler registry, set by the `external_worker_handlers` option */
+    public const string WORKER_HANDLER_REGISTRY = 'test.flowable.external_worker_handler_registry';
+
+    private const array OPTIONS = ['mcp', 'parameters', 'use_symfony_listeners', 'api_platform_mcp', 'mcp_fixtures', 'external_worker_handlers'];
 
     /** The environment given to the constructor, without the options hash */
     private readonly string $variantOf;
@@ -107,7 +115,7 @@ final class TestKernel extends Kernel
     private static array $clearedNonDebugDirs = [];
 
     /**
-     * @param array{mcp?: array<string, mixed>, parameters?: array<string, mixed>, use_symfony_listeners?: bool, api_platform_mcp?: bool, mcp_fixtures?: bool} $options
+     * @param array{mcp?: array<string, mixed>, parameters?: array<string, mixed>, use_symfony_listeners?: bool, api_platform_mcp?: bool, mcp_fixtures?: bool, external_worker_handlers?: list<class-string>} $options
      *        see the class docblock; [] is the plain kernel of the environment
      */
     public function __construct(string $environment, bool $debug, private readonly array $options = [])
@@ -308,6 +316,13 @@ final class TestKernel extends Kernel
             $services->set(ForeignMcpToolProvider::class)->public();
         }
 
+        if (\array_key_exists('external_worker_handlers', $this->options)) {
+            foreach ($this->options['external_worker_handlers'] as $handler) {
+                $services->set($handler);
+            }
+            $services->alias(self::WORKER_HANDLER_REGISTRY, ExternalWorkerHandlerRegistry::class)->public();
+        }
+
         if ($this->hasPermissionVoter()) {
             // Autoconfiguration adds the `security.voter` tag; public so that
             // tests can tell the two variants apart instead of finding an
@@ -330,3 +345,4 @@ final class TestKernel extends Kernel
 // - revised 2026-11-26 (kernel options for MCP switches, parameters, use_symfony_listeners; recording flowable logger)
 // - revised 2026-11-26 (own, freshly emptied cache directory for a non-debug kernel)
 // - revised 2026-11-26 (options api_platform_mcp and mcp_fixtures)
+// - revised 2026-11-27 (option external_worker_handlers with a public registry alias)
