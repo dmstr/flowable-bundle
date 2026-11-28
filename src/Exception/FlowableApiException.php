@@ -26,6 +26,11 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * response header and is available through {@see self::getCorrelationId()}.
  * The details belong in the `flowable` log, in one entry with the same id,
  * written by the code that has them (FlowableClient).
+ *
+ * An exception built from an engine response also keeps the HTTP status the
+ * engine answered with, unmapped, through {@see self::getUpstreamStatus()}
+ * (null for a transport error). It is offered to PHP consumers only and is in
+ * no message, header, response, MCP error or CLI output.
  */
 final class FlowableApiException extends HttpException
 {
@@ -41,18 +46,23 @@ final class FlowableApiException extends HttpException
 
     private ?string $correlationId = null;
 
+    private ?int $upstreamStatus = null;
+
     /**
      * @param string|null $engineMessage the message of the engine's error
      *        JSON, null when it carries none; used for a 422 only (shortened)
      */
     public static function fromUpstreamStatus(int $upstreamStatus, ?string $engineMessage = null): self
     {
-        return match ($upstreamStatus) {
+        $exception = match ($upstreamStatus) {
             404 => new self(404, self::NOT_FOUND),
             400 => new self(422, self::rejectedMessage($engineMessage)),
             // 401/403 included: the credentials are ours, not the caller's
             default => self::withCorrelationId(502, self::BACKEND_ERROR),
         };
+        $exception->upstreamStatus = $upstreamStatus;
+
+        return $exception;
     }
 
     public static function unreachable(): self
@@ -67,6 +77,20 @@ final class FlowableApiException extends HttpException
     public function getCorrelationId(): ?string
     {
         return $this->correlationId;
+    }
+
+    /**
+     * The HTTP status the engine answered with, unmapped (e.g. 503 behind a
+     * 502, 400 behind a 422); null when the exception was not built from an
+     * engine response, i.e. a transport error via {@see self::unreachable()}
+     * or the inherited constructor.
+     *
+     * For PHP consumers only: it is in no message, response, MCP error or CLI
+     * output, and a consumer should not write it into a response either.
+     */
+    public function getUpstreamStatus(): ?int
+    {
+        return $this->upstreamStatus;
     }
 
     /**
@@ -107,3 +131,4 @@ final class FlowableApiException extends HttpException
     }
 }
 // - revised 2026-11-26 (generic 502/504 messages with a correlation id, shortened 422 message)
+// - revised 2026-11-28 (getUpstreamStatus() offers the engine's HTTP status to PHP consumers)
