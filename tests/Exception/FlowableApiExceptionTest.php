@@ -91,4 +91,66 @@ final class FlowableApiExceptionTest extends TestCase
         self::assertNull($exception->getCorrelationId());
         self::assertSame([], $exception->getHeaders());
     }
+
+    /**
+     * @return iterable<string, array{int, int, string|null}>
+     */
+    public static function upstreamStatuses(): iterable
+    {
+        yield '400' => [400, 422, FlowableApiException::REJECTED];
+        yield '401' => [401, 502, null];
+        yield '403' => [403, 502, null];
+        yield '404' => [404, 404, FlowableApiException::NOT_FOUND];
+        yield '409' => [409, 502, null];
+        yield '500' => [500, 502, null];
+        yield '503' => [503, 502, null];
+        yield '504' => [504, 502, null];
+    }
+
+    /**
+     * @param string|null $message the expected message, null for the generic
+     *        502 message with the correlation id
+     */
+    #[DataProvider('upstreamStatuses')]
+    public function testUpstreamStatusIsTheUnmappedEngineStatus(int $upstream, int $status, ?string $message): void
+    {
+        $exception = FlowableApiException::fromUpstreamStatus($upstream);
+
+        self::assertSame($upstream, $exception->getUpstreamStatus());
+        self::assertSame($status, $exception->getStatusCode());
+        self::assertSame(
+            $message ?? sprintf(FlowableApiException::BACKEND_ERROR, $exception->getCorrelationId()),
+            $exception->getMessage(),
+        );
+    }
+
+    public function testUpstreamStatusBelow400IsReturnedUnchanged(): void
+    {
+        $exception = FlowableApiException::fromUpstreamStatus(302);
+
+        self::assertSame(302, $exception->getUpstreamStatus());
+        self::assertSame(502, $exception->getStatusCode());
+    }
+
+    public function testTransportErrorHasNoUpstreamStatus(): void
+    {
+        self::assertNull(FlowableApiException::unreachable()->getUpstreamStatus());
+    }
+
+    public function testInheritedConstructorHasNoUpstreamStatus(): void
+    {
+        self::assertNull((new FlowableApiException(502, 'x'))->getUpstreamStatus());
+    }
+
+    public function testEngineTimeoutIsDistinguishableFromATransportTimeout(): void
+    {
+        $engine = FlowableApiException::fromUpstreamStatus(504);
+        $transport = FlowableApiException::unreachable();
+
+        self::assertSame(502, $engine->getStatusCode());
+        self::assertSame(504, $engine->getUpstreamStatus());
+        self::assertSame(504, $transport->getStatusCode());
+        self::assertNull($transport->getUpstreamStatus());
+    }
 }
+// - revised 2026-11-28 (getUpstreamStatus() offers the engine's HTTP status to PHP consumers)

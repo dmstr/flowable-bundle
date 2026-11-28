@@ -145,8 +145,88 @@ final class FlowableClientErrorTest extends TestCase
         $client->listTasks();
     }
 
+    /**
+     * @return iterable<string, array{int, int}>
+     */
+    public static function engineStatuses(): iterable
+    {
+        yield 'engine 503' => [503, 502];
+        yield 'engine 504' => [504, 502];
+        yield 'engine 404' => [404, 404];
+        yield 'engine 400' => [400, 422];
+    }
+
+    #[DataProvider('engineStatuses')]
+    public function testEngineErrorCarriesTheUnmappedUpstreamStatus(int $upstream, int $status): void
+    {
+        $client = $this->client(new MockResponse('{"message": "engine.internal"}', ['http_code' => $upstream]), new RecordingLogger());
+
+        try {
+            $client->listTasks();
+            self::fail('No exception');
+        } catch (FlowableApiException $e) {
+            self::assertSame($status, $e->getStatusCode());
+            self::assertSame($upstream, $e->getUpstreamStatus());
+        }
+    }
+
+    public function testTransportErrorWhileSendingHasNoUpstreamStatus(): void
+    {
+        $client = $this->client(new MockResponse('', ['error' => 'timeout at engine.internal']), new RecordingLogger());
+
+        try {
+            $client->listTasks();
+            self::fail('No exception');
+        } catch (FlowableApiException $e) {
+            self::assertSame(504, $e->getStatusCode());
+            self::assertNull($e->getUpstreamStatus());
+        }
+    }
+
+    public function testTransportErrorWhileReadingTheBodyHasNoUpstreamStatus(): void
+    {
+        $body = (static function (): \Generator {
+            yield '{"data": [';
+            throw new \RuntimeException('Connection reset by engine.internal');
+        })();
+        $client = $this->client(new MockResponse($body), new RecordingLogger());
+
+        try {
+            $client->listTasks();
+            self::fail('No exception');
+        } catch (FlowableApiException $e) {
+            self::assertSame(504, $e->getStatusCode());
+            self::assertNull($e->getUpstreamStatus());
+        }
+    }
+
+    public function testErrorResponseWithAnUnreadableBodyKeepsTheEngineStatus(): void
+    {
+        $body = (static function (): \Generator {
+            yield '{"message": ';
+            throw new \RuntimeException('Connection reset by engine.internal');
+        })();
+        $client = $this->client(new MockResponse($body, ['http_code' => 503]), new RecordingLogger());
+
+        try {
+            $client->listTasks();
+            self::fail('No exception');
+        } catch (FlowableApiException $e) {
+            self::assertSame(502, $e->getStatusCode());
+            self::assertSame(503, $e->getUpstreamStatus());
+        }
+    }
+
+    public function testDeploymentResourceNotFoundIsStillNull(): void
+    {
+        $client = $this->client(new MockResponse('{"message": "Not found"}', ['http_code' => 404]), new RecordingLogger());
+
+        self::assertNull($client->getDeploymentResource('d1', 'r1'));
+    }
+
     private function client(MockResponse $response, RecordingLogger $logger): FlowableClient
     {
         return new FlowableClient(new MockHttpClient($response), self::BASE_URL, 'basic', 'u', 'p', null, true, $logger);
     }
 }
+// - revised 2026-11-28 (getUpstreamStatus() offers the engine's HTTP status to PHP consumers)
