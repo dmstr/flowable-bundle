@@ -4,6 +4,22 @@
 
 All notable changes to this bundle. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/) and come from the Git tags. Releases before 0.9.0 are described in the [GitHub releases](https://github.com/dmstr/flowable-bundle/releases).
 
+## [0.17.0] - 2026-11-28
+
+Offers PHP consumers the HTTP status the engine answered with, which the generic messages of 0.14.0 no longer carry ([#39](https://github.com/dmstr/flowable-bundle/issues/39)). The release adds public API and changes no observable behaviour: HTTP responses, MCP errors, CLI output, log and audit entries are as in 0.16.0. It is a minor rather than a patch because it adds public API, which a consumer can then require with `^0.17.0`.
+
+### Added
+
+- **`FlowableApiException::getUpstreamStatus(): ?int`**, closing [#39](https://github.com/dmstr/flowable-bundle/issues/39). For every exception built from an engine response (`fromUpstreamStatus()`) it returns the status the engine answered with, unmapped, also behind a 404 or 422: e.g. 503 or 504 behind the bundle's 502, 400 behind a 422, 404 behind a 404. It is `null` when the exception was not built from an engine response: a transport error (`unreachable()`: timeout, refused connection, transport error while reading the body, the bundle's 504) or the inherited constructor. So an engine that itself answers 504 (status code 502, upstream status 504) can be told from a transport timeout (status code 504, `null`).
+  - Since 0.14.0 ([#18](https://github.com/dmstr/flowable-bundle/issues/18)) the upstream status is no longer in the message, so a consumer that decides by it (e.g. a fallback when the engine is down) had nothing to read. What counts as an outage is the consumer's decision.
+  - It is offered to PHP consumers only: the status is in no exception message, HTTP response (with or without debug), response header, MCP error message or CLI output, and `flowable:health` and `getHealthInfo()` are unchanged. A consumer should not write it into a response either; the intent of #18 stays. See "Errors and correlation id" in the README.
+  - Unchanged: the status mapping (404, 422, 502, 504), the signatures of `fromUpstreamStatus()` and `unreachable()`, the `flowable.upstream_error` log entry (which already carried `upstreamStatus` for a 502) and the audit entries.
+
+### Development
+
+- `tests/Exception/FlowableApiExceptionTest.php` pins the upstream status of the factories and the constructor; `tests/Client/FlowableClientErrorTest.php` the status through the real client, for engine errors, transport errors and errors while reading the body.
+- `tests/Http/UpstreamErrorTest.php` proves that an engine 503 shows in no HTTP response, with or without debug, no MCP error, CLI output, health output or audit failure context. The correlation id is replaced before the substring checks and the debug trace is left out, so neither can falsify the result.
+
 ## [0.16.0] - 2026-11-27
 
 The external worker releases every job of an acquired batch it does not finish, instead of leaving it locked until `lockDuration` expires, and a stop no longer waits for the rest of a batch. Consumers see new audit entries and, with `--batch` above 1, a shorter shutdown; this behaviour change is why the release is a minor. Everything else is tests that record the current behaviour.
@@ -251,6 +267,7 @@ Pre-release for integration testing against a Flowable engine in a consuming app
 
 - `symfony/yaml` is required; `symfony/mcp-bundle` and `mcp/sdk` are suggested.
 
+[0.17.0]: https://github.com/dmstr/flowable-bundle/compare/0.16.0...0.17.0
 [0.16.0]: https://github.com/dmstr/flowable-bundle/compare/0.15.0...0.16.0
 [0.15.0]: https://github.com/dmstr/flowable-bundle/compare/0.14.0...0.15.0
 [0.14.0]: https://github.com/dmstr/flowable-bundle/compare/0.13.0...0.14.0
@@ -268,3 +285,4 @@ Pre-release for integration testing against a Flowable engine in a consuming app
 <!-- - revised 2026-11-26 (0.14.0) -->
 <!-- - revised 2026-11-26 (0.15.0) -->
 <!-- - revised 2026-11-27 (0.16.0) -->
+<!-- - revised 2026-11-28 (release 0.17.0) -->
